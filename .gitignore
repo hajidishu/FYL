@@ -1,0 +1,90 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Local builds, downloaded games, diagnostic files, and screenshots.
+**/build/
+screenshots/
+test-results/
+.minecraft/
+.fyl/
+.fyl-trash/
+*.tmp
+*.bak
+*.dmp
+__pycache__/
+*.jar
+*.zip
+*.tar
+*.gz
+*.exe
+*.dll
+*.so
+*.dylib
+*.app/
+*.dmg
+*.msi
+*.deb
+*.rpm
+
+# Local accounts, service credentials, signing keys, and environment overrides.
+.env
+.env.*
+!.env.example
+!.env.sample
+.envrc
+.envrc.*
+.aws/
+.codex/
+.agents/
+.claude/
+credentials/
+launcher.json
+launcher.json.*
+*.dpapi
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release

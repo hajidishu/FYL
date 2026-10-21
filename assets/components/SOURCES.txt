@@ -1,0 +1,33 @@
+Bundled Minecraft artwork and component logos. Names and marks belong to their
+respective owners. Files are bundled locally; image providers are never called
+at runtime. No PCL artwork or code is included.
+
+minecraft.png: grass block, transparent 512 x 512 model render.
+https://blockrender.dev/render/block/grass_block.png?size=512
+
+forge.png: anvil, transparent 512 x 512 model render.
+https://blockrender.dev/render/block/anvil.png?size=512
+
+neoforge.svg: NeoForged official front-facing, transparent 2D fox-head mark.
+The original flat pixel geometry is preserved as vector rectangles, with no
+surrounding frame, body or scene. No raster interpolation is used.
+Source: icons/neoforged_16x16.png in the official NeoForge installer:
+https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.264/neoforge-21.1.264-installer.jar
+
+fabric.svg: Fabric logo vector artwork by gudenau, CC0, from FabricMC community
+pull request 101. Editor metadata and the reference bitmap have been removed;
+the vector paths and colors are preserved.
+https://github.com/FabricMC/community/pull/101
+https://github.com/FabricMC/community/blob/cf5bd7950925e9ebe1fe039720c6a649671c10eb/media/unascribed/svg/fabric.svg
+
+optifine.png: 128 x 128 copy of the original circular OptiFine OF profile logo,
+preserved by the OptiFine community. Original artwork belongs to sp614x.
+https://i.imgur.com/eKIfz6R.png
+https://www.reddit.com/r/Optifine/comments/iap3i4/
+
+optifabric.png: original 512 x 512 assets/optifabric/icon.png extracted from the
+author's OptiFabric 1.14.3 mod JAR.
+https://www.curseforge.com/minecraft/mc-mods/optifabric
+
+Block / item renderer and source model information:
+https://blockrender.dev/
