@@ -705,9 +705,9 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                   : 'custom',
               items: {
                 'auto': '自动',
-                'minecraft': '草方块',
-                'forge': '铁砧',
-                'neoforge': '狐狸',
+                'minecraft': '原版（草方块）',
+                'forge': 'Forge（铁砧）',
+                'neoforge': 'NeoForge（狐狸）',
                 'fabric': 'Fabric',
                 'optifine': 'OptiFine',
                 'optifabric': 'OptiFabric',
