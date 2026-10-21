@@ -359,7 +359,7 @@ class _InstanceModsState extends State<InstanceMods> {
                 )
               : ListView.builder(
                   itemCount: visible.length,
-                  itemExtent: 82,
+                  itemExtent: 116,
                   itemBuilder: (context, index) {
                     final mod = visible[index];
                     return Padding(
@@ -416,7 +416,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color: mod.enabled
                                           ? c.foreground
@@ -432,11 +432,13 @@ class _InstanceModsState extends State<InstanceMods> {
                                                 '\n',
                                                 ' ',
                                               )),
-                                    maxLines: 1,
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      color: c.muted,
-                                      fontSize: 10,
+                                      color: c.secondaryText,
+                                      fontSize: 14,
+                                      height: 1.5,
+                                      letterSpacing: 0,
                                     ),
                                   ),
                                   Text(
@@ -445,7 +447,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: c.muted,
-                                      fontSize: 9,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ],
