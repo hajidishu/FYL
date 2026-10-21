@@ -14,6 +14,7 @@ import '../core/models.dart';
 import '../core/network.dart';
 import '../core/pack_import.dart';
 import '../core/install_options.dart';
+import '../core/resource_packs.dart';
 import 'theme.dart';
 import 'content_metadata.dart';
 
@@ -23,13 +24,33 @@ Future<String?> pickModSaveLocation(String directory, String name) async {
   final location = await getSaveLocation(
     initialDirectory: directory,
     suggestedName: name,
-    acceptedTypeGroups: const [
-      XTypeGroup(label: 'Minecraft Mod', extensions: ['jar']),
+    acceptedTypeGroups: [
+      XTypeGroup(
+        label: name.toLowerCase().endsWith('.jar')
+            ? 'Minecraft Mod'
+            : 'Minecraft 资源',
+        extensions: [p.extension(name).substring(1)],
+      ),
     ],
-    confirmButtonText: '保存 Mod',
+    confirmButtonText: '保存',
   );
   return location?.path;
 }
+
+Map<String, String> contentLoaderFilters(ContentKind kind) => switch (kind) {
+  ContentKind.shader => const {
+    '': '全部光影类型',
+    'iris': 'Iris',
+    'optifine': 'OptiFine',
+  },
+  ContentKind.mod || ContentKind.modpack => const {
+    '': '全部加载器',
+    'forge': 'Forge',
+    'neoforge': 'NeoForge',
+    'fabric': 'Fabric',
+  },
+  _ => const {},
+};
 
 class CommunityPage extends StatefulWidget {
   final LauncherController controller;
@@ -55,7 +76,7 @@ class _CommunityPageState extends State<CommunityPage> {
       widget.catalog ?? CommunityCatalog(widget.controller.settings.copy());
   final query = TextEditingController();
   late final minecraft = TextEditingController(
-    text: widget.kind == ContentKind.mod
+    text: widget.kind.hasTarget
         ? widget.controller.selectedInstance?.version ?? ''
         : '',
   );
@@ -167,7 +188,7 @@ class _CommunityPageState extends State<CommunityPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (widget.kind == ContentKind.mod &&
+                    if (widget.kind.hasTarget &&
                         widget.controller.instances.isNotEmpty) ...[
                       const Text('目标版本', style: TextStyle(fontSize: 12)),
                       const SizedBox(height: 7),
@@ -183,7 +204,9 @@ class _CommunityPageState extends State<CommunityPage> {
                           setState(() {
                             targetId = value;
                             minecraft.text = target!.version;
-                            loader = instanceModLoader(target!) ?? '';
+                            loader = widget.kind == ContentKind.mod
+                                ? instanceModLoader(target!) ?? ''
+                                : '';
                           });
                           unawaited(search());
                         },
@@ -195,9 +218,7 @@ class _CommunityPageState extends State<CommunityPage> {
                         Expanded(
                           child: AppInput(
                             controller: query,
-                            hint: widget.kind == ContentKind.mod
-                                ? '搜索 Mod'
-                                : '搜索整合包',
+                            hint: '搜索${widget.kind.label}',
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -227,20 +248,16 @@ class _CommunityPageState extends State<CommunityPage> {
                                 hint: 'Minecraft 版本',
                               ),
                             ),
-                            SizedBox(
-                              width: width,
-                              child: SelectBox<String>(
-                                compact: true,
-                                value: loader,
-                                items: const {
-                                  '': '全部加载器',
-                                  'forge': 'Forge',
-                                  'neoforge': 'NeoForge',
-                                  'fabric': 'Fabric',
-                                },
-                                onChanged: (v) => setState(() => loader = v),
+                            if (contentLoaderFilters(widget.kind).isNotEmpty)
+                              SizedBox(
+                                width: width,
+                                child: SelectBox<String>(
+                                  compact: true,
+                                  value: loader,
+                                  items: contentLoaderFilters(widget.kind),
+                                  onChanged: (v) => setState(() => loader = v),
+                                ),
                               ),
-                            ),
                             SizedBox(
                               width: width,
                               child: SelectBox<String>(
@@ -577,6 +594,42 @@ class _ContentDetailsState extends State<ContentDetails> {
           },
         );
         await operation;
+      } else if (widget.project.kind.isResource) {
+        final target = widget.target;
+        if (target == null) throw StateError('请先创建并选择一个游戏版本。');
+        if (widget.controller.isGameDirectoryInUse(target.gameDirectory)) {
+          throw StateError('请先关闭目标版本的游戏。');
+        }
+        final file = resourceFile(widget.project, release, target);
+        String? world;
+        if (widget.project.kind == ContentKind.datapack) {
+          final worlds = await dataPackWorlds(target);
+          if (worlds.isEmpty) throw StateError('此版本没有可用存档，请先创建存档。');
+          if (!mounted) return;
+          setState(() => working = false);
+          world = await showDialog<String>(
+            context: context,
+            builder: (_) => DataPackWorldDialog(worlds: worlds),
+          );
+          if (world == null || !mounted) return;
+          setState(() => working = true);
+        }
+        final directory = resourceDirectory(
+          target,
+          widget.project.kind,
+          world: world,
+        );
+        final path = await widget.savePicker(directory, file.name);
+        if (path == null || !mounted) return;
+        await widget.controller.content.installResource(
+          widget.project,
+          release,
+          target,
+          path.toLowerCase().endsWith('.zip') ? path : '$path.zip',
+          onStarted: (_) {
+            if (mounted) widget.onTaskStarted();
+          },
+        );
       } else {
         String? local;
         final file = release.files
@@ -797,28 +850,25 @@ class _ContentDetailsState extends State<ContentDetails> {
                               },
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SelectBox<String>(
-                        compact: true,
-                        value: loader,
-                        items: const {
-                          '': '全部加载器',
-                          'forge': 'Forge',
-                          'neoforge': 'NeoForge',
-                          'fabric': 'Fabric',
-                        },
-                        onChanged: working
-                            ? null
-                            : (value) {
-                                setState(() => loader = value);
-                                unawaited(load());
-                              },
+                    if (contentLoaderFilters(project.kind).isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: SelectBox<String>(
+                          compact: true,
+                          value: loader,
+                          items: contentLoaderFilters(project.kind),
+                          onChanged: working
+                              ? null
+                              : (value) {
+                                  setState(() => loader = value);
+                                  unawaited(load());
+                                },
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-                if (project.kind == ContentKind.mod) ...[
+                if (project.kind.hasTarget) ...[
                   const SizedBox(height: 8),
                   Text(
                     widget.target == null
@@ -826,19 +876,20 @@ class _ContentDetailsState extends State<ContentDetails> {
                         : '安装到 ${widget.target!.name}',
                     style: TextStyle(color: c.muted, fontSize: 11),
                   ),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: dependencies,
-                        onChanged: working
-                            ? null
-                            : (v) => setState(() => dependencies = v ?? true),
-                      ),
-                      const Expanded(
-                        child: Text('下载必需依赖', style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
-                  ),
+                  if (project.kind == ContentKind.mod)
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: dependencies,
+                          onChanged: working
+                              ? null
+                              : (v) => setState(() => dependencies = v ?? true),
+                        ),
+                        const Expanded(
+                          child: Text('下载必需依赖', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
                 ],
                 if (working)
                   const Padding(
@@ -929,7 +980,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                 ),
                                 const SizedBox(width: 12),
                                 AppButton(
-                                  project.kind == ContentKind.mod ? '下载' : '安装',
+                                  project.kind.hasTarget ? '下载' : '安装',
                                   key: ValueKey(
                                     'install-content-${release.id}',
                                   ),
@@ -971,6 +1022,35 @@ class PackChoices {
   final bool isolated;
   final Set<String> optional;
   const PackChoices(this.name, this.isolated, this.optional);
+}
+
+class DataPackWorldDialog extends StatefulWidget {
+  final List<Directory> worlds;
+  const DataPackWorldDialog({required this.worlds, super.key});
+  @override
+  State<DataPackWorldDialog> createState() => _DataPackWorldDialogState();
+}
+
+class _DataPackWorldDialogState extends State<DataPackWorldDialog> {
+  late String selected = widget.worlds.first.path;
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('选择存档'),
+    content: SizedBox(
+      width: 420,
+      child: SelectBox<String>(
+        value: selected,
+        items: {
+          for (final world in widget.worlds) world.path: p.basename(world.path),
+        },
+        onChanged: (value) => setState(() => selected = value),
+      ),
+    ),
+    actions: [
+      AppButton('取消', secondary: true, onPressed: () => Navigator.pop(context)),
+      AppButton('继续', onPressed: () => Navigator.pop(context, selected)),
+    ],
+  );
 }
 
 class PackInstallDialog extends StatefulWidget {

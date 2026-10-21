@@ -88,6 +88,34 @@ class WidgetCatalog extends CommunityCatalog {
   ) async => 'Project description';
 }
 
+class ResourceWidgetCatalog extends WidgetCatalog {
+  ResourceWidgetCatalog(super.settings, {required super.result});
+  @override
+  Future<ContentVersionPage> versions(
+    ContentProject project,
+    CancellationToken token, {
+    String minecraft = '',
+    String? loader,
+    int page = 0,
+  }) async => ContentVersionPage([
+    ContentVersion(
+      source: project.source,
+      id: 'resource-release',
+      projectId: project.id,
+      name: 'Resource release',
+      number: '1',
+      published: DateTime(2026),
+      gameVersions: ['1.21.1'],
+      files: const [
+        ContentFile(
+          name: 'example.zip',
+          urls: ['https://cdn.modrinth.com/example.zip'],
+        ),
+      ],
+    ),
+  ]);
+}
+
 void main() {
   late Directory temporary;
   late LauncherController controller;
@@ -157,6 +185,87 @@ void main() {
     },
   );
 
+  for (final kind in ContentKind.values.where((kind) => kind.isResource)) {
+    testWidgets(
+      '$kind opens a ZIP save dialog in the selected version directory',
+      (tester) async {
+        final instance = controller.instances.single;
+        final world = File(
+          p.join(instance.gameDirectory, 'saves', 'World', 'level.dat'),
+        );
+        await tester.runAsync(() async {
+          await world.parent.create(recursive: true);
+          await world.writeAsString('world');
+        });
+        final asked = Completer<(String, String)>();
+        final project = ContentProject(
+          source: ContentSource.modrinth,
+          kind: kind,
+          id: 'resource',
+          slug: 'resource',
+          name: 'Resource Project',
+          summary: '',
+          author: '',
+          website: 'https://modrinth.com',
+        );
+        await tester.pumpWidget(
+          harness(
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: CommunityPage(
+                controller: controller,
+                kind: kind,
+                catalog: ResourceWidgetCatalog(
+                  controller.settings,
+                  result: project,
+                ),
+                onTaskStarted: () {},
+                onOpenSettings: () {},
+                savePicker: (directory, name) async {
+                  asked.complete((directory, name));
+                  return null;
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Resource Project'));
+        await tester.tap(find.text('Resource Project'));
+        await tester.pumpAndSettle();
+        final action = find.byKey(
+          const ValueKey('install-content-resource-release'),
+        );
+        await tester.ensureVisible(action);
+        await tester.runAsync(() async {
+          tester.widget<AppButton>(action).onPressed!();
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+        if (kind == ContentKind.datapack) {
+          expect(find.byType(DataPackWorldDialog), findsOneWidget);
+          await tester.tap(find.text('继续'));
+          await tester.pumpAndSettle();
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pumpAndSettle();
+        }
+        expect(asked.isCompleted, isTrue);
+        final selection = await asked.future;
+        final folder = switch (kind) {
+          ContentKind.datapack => p.join('saves', 'World', 'datapacks'),
+          ContentKind.resourcepack => 'resourcepacks',
+          _ => 'shaderpacks',
+        };
+        expect(selection.$1, p.join(instance.gameDirectory, folder));
+        expect(selection.$2, 'example.zip');
+        expect(controller.content.tasks, isEmpty);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
   for (final size in [const Size(800, 600), const Size(1180, 780)]) {
     for (final kind in ContentKind.values) {
       testWidgets('$kind metadata fits list and details at $size', (

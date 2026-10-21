@@ -61,7 +61,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${task.source.label} · ${task.kind == ContentKind.mod ? 'Mod' : '整合包'}',
+            '${task.source.label} · ${task.kind.label}',
             style: TextStyle(color: c.muted, fontSize: 11),
           ),
           if (task.state == ContentTaskState.running) ...[
@@ -194,7 +194,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
                   secondary: true,
                   small: true,
                   onPressed: () => widget.controller.openDirectory(
-                    task.kind == ContentKind.mod
+                    task.kind.hasTarget
                         ? p.dirname(task.destination!)
                         : task.destination!,
                   ),

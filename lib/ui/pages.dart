@@ -809,7 +809,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(title: '下载管理', subtitle: '安装游戏、Mod 和整合包，查看下载进度。'),
+          const PageHeader(title: '下载管理', subtitle: '安装游戏与社区资源，查看下载进度。'),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -818,6 +818,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 (0, '版本列表', FIcons.box),
                 (3, 'Mod', FIcons.puzzle),
                 (4, '整合包', FIcons.package),
+                (5, '数据包', FIcons.database),
+                (6, '资源包', FIcons.image),
+                (7, '光影包', FIcons.sun),
                 (
                   1,
                   '下载任务 (${widget.controller.tasks.length + widget.controller.content.tasks.length})',
@@ -835,11 +838,17 @@ class _DownloadsPageState extends State<DownloadsPage> {
           ),
           const SizedBox(height: 22),
           Expanded(
-            child: tab == 3 || tab == 4
+            child: tab >= 3
                 ? CommunityPage(
                     key: ValueKey('community-$tab'),
                     controller: widget.controller,
-                    kind: tab == 3 ? ContentKind.mod : ContentKind.modpack,
+                    kind: switch (tab) {
+                      3 => ContentKind.mod,
+                      4 => ContentKind.modpack,
+                      5 => ContentKind.datapack,
+                      6 => ContentKind.resourcepack,
+                      _ => ContentKind.shader,
+                    },
                     onTaskStarted: () => setState(() => tab = 1),
                     onOpenSettings: () => widget.navigate(3),
                   )

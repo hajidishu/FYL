@@ -69,7 +69,7 @@ class CommunityCatalog {
         try {
           if (provider == ContentSource.modrinth) {
             final facets = <List<String>>[
-              ['project_type:${kind == ContentKind.mod ? 'mod' : 'modpack'}'],
+              ['project_type:${kind.modrinthType}'],
               if (minecraft.isNotEmpty) ['versions:$minecraft'],
               if (loader != null && loader.isNotEmpty) ['categories:$loader'],
             ];
@@ -92,7 +92,7 @@ class CommunityCatalog {
           final json =
               await _get(provider, '/mods/search', cancellation, {
                     'gameId': '432',
-                    'classId': kind == ContentKind.mod ? '6' : '4471',
+                    'classId': '${kind.curseClassId}',
                     'searchFilter': query,
                     'pageSize': '20',
                     'index': '${page * 20}',
@@ -180,6 +180,10 @@ class CommunityCatalog {
     String? loader,
     int page = 0,
   }) async {
+    if (project.kind == ContentKind.datapack &&
+        project.source == ContentSource.modrinth) {
+      loader = 'datapack';
+    }
     if (project.source == ContentSource.modrinth) {
       final data =
           await _get(project.source, '/project/${project.id}/version', token, {
@@ -374,14 +378,22 @@ class CommunityCatalog {
     name: j['title'] as String,
     summary: j['description'] as String? ?? '',
     author: j['author'] as String? ?? '',
-    website:
-        'https://modrinth.com/${kind == ContentKind.mod ? 'mod' : 'modpack'}/${j['slug'] ?? j['id']}',
+    website: 'https://modrinth.com/${kind.name}/${j['slug'] ?? j['id']}',
     icon: j['icon_url'] as String?,
     downloads: (j['downloads'] as num?)?.toInt() ?? 0,
     updated: DateTime.tryParse('${j['date_modified'] ?? j['updated']}'),
     gameVersions: _strings(j['versions'] ?? j['game_versions']),
     loaders: _strings(j['loaders'] ?? j['categories'])
-        .where((s) => ['fabric', 'forge', 'neoforge', 'quilt'].contains(s))
+        .where(
+          (s) => [
+            'fabric',
+            'forge',
+            'neoforge',
+            'quilt',
+            'iris',
+            'optifine',
+          ].contains(s),
+        )
         .toList(),
     categories: _strings(j['display_categories'] ?? j['categories']),
   );
@@ -486,7 +498,16 @@ class CommunityCatalog {
           .toList(),
       loaders: games
           .map((v) => v.toLowerCase())
-          .where((v) => ['forge', 'neoforge', 'fabric', 'quilt'].contains(v))
+          .where(
+            (v) => [
+              'forge',
+              'neoforge',
+              'fabric',
+              'quilt',
+              'iris',
+              'optifine',
+            ].contains(v),
+          )
           .toList(),
       files: [
         ContentFile(

@@ -10,7 +10,27 @@ extension ContentSourceName on ContentSource {
       this == ContentSource.modrinth ? 'Modrinth' : 'CurseForge';
 }
 
-enum ContentKind { mod, modpack }
+enum ContentKind { mod, modpack, datapack, resourcepack, shader }
+
+extension ContentKindDetails on ContentKind {
+  String get label => switch (this) {
+    ContentKind.mod => 'Mod',
+    ContentKind.modpack => '整合包',
+    ContentKind.datapack => '数据包',
+    ContentKind.resourcepack => '资源包',
+    ContentKind.shader => '光影包',
+  };
+  bool get isResource => this != ContentKind.mod && this != ContentKind.modpack;
+  bool get hasTarget => this != ContentKind.modpack;
+  String get modrinthType => name;
+  int get curseClassId => switch (this) {
+    ContentKind.mod => 6,
+    ContentKind.modpack => 4471,
+    ContentKind.datapack => 6945,
+    ContentKind.resourcepack => 12,
+    ContentKind.shader => 6552,
+  };
+}
 
 class ContentProject {
   final bool clientSupported;

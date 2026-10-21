@@ -12,6 +12,7 @@ import 'network.dart';
 import 'pack_import.dart';
 import 'instance_tools.dart' show isGameDataPath;
 import 'file_transaction.dart';
+import 'resource_packs.dart';
 
 typedef ContentCatalogFactory = CommunityCatalog Function(LauncherSettings);
 typedef PackBaseInstaller =
@@ -140,7 +141,16 @@ class ContentInstaller {
   }) async {
     _checkBusy();
     checkModTarget?.call(target);
-    final task = ContentTask(project.name, ContentKind.mod, project.source)
+    if (project.kind != ContentKind.mod && !project.kind.isResource) {
+      throw ArgumentError('此资源需要使用整合包安装流程。');
+    }
+    if (project.kind.isResource) {
+      resourceFile(project, release, target);
+      if (!destination.toLowerCase().endsWith('.zip')) {
+        throw ArgumentError('资源文件应保存为 ZIP。');
+      }
+    }
+    final task = ContentTask(project.name, project.kind, project.source)
       ..destination = destination;
     tasks.insert(0, task);
     _mods[task.id] = _ModSession(
@@ -154,6 +164,24 @@ class ContentInstaller {
     onStarted?.call(task);
     await _run(task);
     return task;
+  }
+
+  Future<ContentTask> installResource(
+    ContentProject project,
+    ContentVersion release,
+    GameInstance target,
+    String destination, {
+    void Function(ContentTask)? onStarted,
+  }) {
+    if (!project.kind.isResource) throw ArgumentError('请选择数据包、资源包或光影包。');
+    return installMod(
+      project,
+      release,
+      target,
+      destination,
+      dependencies: false,
+      onStarted: onStarted,
+    );
   }
 
   Future<ContentTask> installPack(
@@ -301,7 +329,7 @@ class ContentInstaller {
     List<(ContentFile, String)> files,
     CommunityCatalog catalog,
   ) async {
-    _stage(task, task.kind == ContentKind.mod ? '下载模组文件' : '下载整合包文件');
+    _stage(task, '下载${task.kind.label}文件');
     final downloads = <DownloadFile>[];
     final missing = <(ContentFile, String)>[];
     task.total = files.length;
@@ -342,17 +370,20 @@ class ContentInstaller {
     _ModSession session,
     CommunityCatalog catalog,
   ) async {
-    _stage(task, '解析模组依赖');
+    final kind = session.project.kind;
+    _stage(task, kind.isResource ? '准备${kind.label}' : '解析模组依赖');
     if (session.files == null) {
-      final files = await catalog.modFiles(
-        session.project,
-        session.release,
-        session.target,
-        task.token,
-        dependencies: session.dependencies,
-      );
+      final files = kind.isResource
+          ? [resourceFile(session.project, session.release, session.target)]
+          : await catalog.modFiles(
+              session.project,
+              session.release,
+              session.target,
+              task.token,
+              dependencies: session.dependencies,
+            );
       final cache = _cache(
-        'mod:${session.project.source.name}:${session.release.id}',
+        '${kind.name}:${session.project.source.name}:${session.release.id}',
       );
       session.files = [
         for (var i = 0; i < files.length; i++)
@@ -364,7 +395,7 @@ class ContentInstaller {
           final info = await catalog.project(
             session.project.source,
             file.projectId,
-            ContentKind.mod,
+            kind,
             task.token,
           );
           session.files![i] = (
@@ -375,7 +406,11 @@ class ContentInstaller {
       }
     }
     if (!await _downloadFiles(task, session.files!, catalog)) return;
-    _stage(task, '安装模组');
+    if (kind.isResource) {
+      await validateResourceArchive(session.files!.first.$2, kind);
+    }
+    task.token.check();
+    _stage(task, kind == ContentKind.mod ? '安装模组' : '安装${kind.label}');
     final folder = p.dirname(session.destination);
     final destinations = <String>{};
     for (var i = 0; i < session.files!.length; i++) {
@@ -388,7 +423,14 @@ class ContentInstaller {
       }
       await ensurePackParents(folder, target);
     }
-    final indexPath = File(p.join(folder, '.fyl-managed-mods.json'));
+    final indexPath = File(
+      p.join(
+        folder,
+        kind == ContentKind.mod
+            ? '.fyl-managed-mods.json'
+            : '.fyl-managed-${kind.name}.json',
+      ),
+    );
     Json index = {};
     try {
       index = jsonDecode(await indexPath.readAsString()) as Json;

@@ -101,6 +101,10 @@ class SupportedContentVersions extends StatelessWidget {
       'forge': 'Forge',
       'neoforge': 'NeoForge',
       'quilt': 'Quilt',
+      'iris': 'Iris',
+      'optifine': 'OptiFine',
+      'datapack': '数据包',
+      'minecraft': '原版',
     };
     final loaderText = loaders
         .map((value) => names[value.toLowerCase()] ?? value)
