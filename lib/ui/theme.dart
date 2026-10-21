@@ -203,38 +203,48 @@ class SelectBox<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
-    return Container(
-      height: compact ? 38 : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: c.background,
-        border: Border.all(color: c.border),
-        borderRadius: BorderRadius.circular(7),
+    return FSelect<T>.rich(
+      control: FSelectControl<T>.lifted(
+        value: items.containsKey(value) ? value : null,
+        onChange: (selected) {
+          if (selected != null) onChanged?.call(selected);
+        },
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          isDense: compact,
-          isExpanded: true,
-          value: value,
-          dropdownColor: c.surface,
-          borderRadius: BorderRadius.circular(8),
-          style: TextStyle(color: c.foreground, fontSize: 13),
-          icon: Icon(FIcons.chevronsUpDown, color: c.muted, size: 14),
-          items: items.entries
-              .map(
-                (e) => DropdownMenuItem<T>(
-                  value: e.key,
-                  child: Text(e.value, overflow: TextOverflow.ellipsis),
+      enabled: onChanged != null && items.isNotEmpty,
+      size: compact ? FTextFieldSizeVariant.sm : FTextFieldSizeVariant.md,
+      format: (selected) => items[selected] ?? '',
+      contentConstraints: const FAutoWidthPortalConstraints(maxHeight: 280),
+      style: FSelectStyleDelta.delta(
+        contentStyle: FSelectContentStyleDelta.delta(
+          padding: const EdgeInsetsGeometryDelta.value(EdgeInsets.all(6)),
+          decoration: DecorationDelta.value(
+            BoxDecoration(
+              color: c.surface,
+              border: Border.all(color: c.border),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: c.dark ? .25 : .09),
+                  blurRadius: 18,
+                  offset: const Offset(0, 5),
                 ),
-              )
-              .toList(),
-          onChanged: onChanged == null
-              ? null
-              : (value) {
-                  if (value != null) onChanged!(value);
-                },
+              ],
+            ),
+          ),
         ),
       ),
+      children: [
+        for (final entry in items.entries)
+          FSelectItem<T>(
+            value: entry.key,
+            title: Text(
+              entry.value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+      ],
     );
   }
 }
