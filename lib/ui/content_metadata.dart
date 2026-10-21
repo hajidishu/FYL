@@ -27,26 +27,70 @@ String formatContentAge(DateTime? value, {DateTime? now}) {
   return '${elapsed.inDays ~/ 365} 年前更新';
 }
 
+final _releaseVersion = RegExp(r'^\d+\.\d+(?:\.\d+)?$');
+
 List<String> sortedContentGameVersions(Iterable<String> values) =>
     values
         .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
+        .where((value) => _releaseVersion.hasMatch(value))
         .toSet()
         .toList()
       ..sort((a, b) => compareComponentVersions(b, a));
 
-String formatContentGameVersions(Iterable<String> values) {
+String contentGameVersionRanges(
+  Iterable<String> values, {
+  Iterable<String> releases = const [],
+}) {
   final versions = sortedContentGameVersions(values);
-  if (versions.isEmpty) return '支持版本未提供';
-  return 'Minecraft ${versions.take(3).join(' / ')}'
-      '${versions.length > 3 ? ' 等 ${versions.length} 个版本' : ''}';
+  if (versions.isEmpty) return '';
+  final official = sortedContentGameVersions(releases);
+  final positions = {for (var i = 0; i < official.length; i++) official[i]: i};
+  bool adjacent(String newer, String older) {
+    final newerPosition = positions[newer];
+    final olderPosition = positions[older];
+    if (newerPosition != null && olderPosition != null) {
+      return olderPosition == newerPosition + 1;
+    }
+    // Without the manifest, only consecutive patches can be proven adjacent.
+    final first = newer.split('.').map(int.parse).toList();
+    final second = older.split('.').map(int.parse).toList();
+    return first[0] == second[0] &&
+        first[1] == second[1] &&
+        (first.length == 3 ? first[2] : 0) ==
+            (second.length == 3 ? second[2] : 0) + 1;
+  }
+
+  final ranges = <String>[];
+  var newest = versions.first;
+  var oldest = newest;
+  void finishRange() =>
+      ranges.add(newest == oldest ? newest : '$newest~$oldest');
+  for (final version in versions.skip(1)) {
+    if (!adjacent(oldest, version)) {
+      finishRange();
+      newest = version;
+    }
+    oldest = version;
+  }
+  finishRange();
+  return ranges.join(',');
+}
+
+String formatContentGameVersions(
+  Iterable<String> values, {
+  Iterable<String> releases = const [],
+}) {
+  final ranges = contentGameVersionRanges(values, releases: releases);
+  return ranges.isEmpty ? '暂无正式版支持信息' : 'Minecraft $ranges';
 }
 
 class SupportedContentVersions extends StatelessWidget {
   final List<String> gameVersions, loaders;
+  final Iterable<String> releases;
   const SupportedContentVersions({
     required this.gameVersions,
     required this.loaders,
+    this.releases = const [],
     super.key,
   });
 
@@ -62,12 +106,10 @@ class SupportedContentVersions extends StatelessWidget {
         .map((value) => names[value.toLowerCase()] ?? value)
         .toSet()
         .join(' / ');
-    final versions = sortedContentGameVersions(gameVersions);
-    final supported = formatContentGameVersions(versions);
+    final ranges = contentGameVersionRanges(gameVersions, releases: releases);
+    final supported = ranges.isEmpty ? '暂无正式版支持信息' : 'Minecraft $ranges';
     return Tooltip(
-      message: versions.isEmpty
-          ? supported
-          : '支持的 Minecraft 版本：${versions.join(' / ')}',
+      message: ranges.isEmpty ? supported : '支持的 Minecraft 版本：$ranges',
       constraints: const BoxConstraints(maxWidth: 480),
       child: Text(
         '${loaderText.isEmpty ? '' : '$loaderText · '}$supported',
@@ -85,7 +127,12 @@ class SupportedContentVersions extends StatelessWidget {
 
 class ProjectMetadata extends StatelessWidget {
   final ContentProject project;
-  const ProjectMetadata({required this.project, super.key});
+  final Iterable<String> releases;
+  const ProjectMetadata({
+    required this.project,
+    this.releases = const [],
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => Column(
@@ -94,6 +141,7 @@ class ProjectMetadata extends StatelessWidget {
       SupportedContentVersions(
         gameVersions: project.gameVersions,
         loaders: project.loaders,
+        releases: releases,
       ),
       const SizedBox(height: 6),
       Wrap(

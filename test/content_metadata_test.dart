@@ -30,17 +30,100 @@ void main() {
   });
 
   test(
-    'supported versions keep gaps and sort numerically with a full count',
+    'supported versions form descending ranges and preserve unsupported gaps',
     () {
-      expect(formatContentGameVersions([]), '支持版本未提供');
+      const resumed = [
+        '1.16.1',
+        '1.16.2',
+        '1.16.3',
+        '1.16.4',
+        '1.16.5',
+        '1.17',
+        '1.17.1',
+        '1.18',
+        '1.18.1',
+        '1.18.2',
+        '1.19',
+        '1.19.1',
+        '1.19.2',
+        '1.19.3',
+        '1.19.4',
+        '1.20',
+        '1.20.1',
+        '1.20.2',
+        '1.20.3',
+        '1.20.4',
+        '1.20.5',
+        '1.20.6',
+        '1.21',
+        '1.21.1',
+      ];
+      const releases = ['1.12.2', '1.13', '1.15.2', '1.16', ...resumed];
+      expect(formatContentGameVersions([]), '暂无正式版支持信息');
       expect(
-        formatContentGameVersions(['1.9', '1.21.1', '1.9', '1.12.2']),
-        'Minecraft 1.21.1 / 1.12.2 / 1.9',
+        formatContentGameVersions([
+          '1.12.2',
+          ...resumed.reversed,
+          '1.12.2',
+        ], releases: releases),
+        'Minecraft 1.21.1~1.16.1,1.12.2',
       );
       expect(
-        formatContentGameVersions(['1.9', '1.21.1', '1.12.2', '1.20.1']),
-        'Minecraft 1.21.1 / 1.20.1 / 1.12.2 等 4 个版本',
+        formatContentGameVersions([
+          '1.20.6',
+          '1.20.5',
+          '1.20.3',
+          '1.20.2',
+        ], releases: releases),
+        'Minecraft 1.20.6~1.20.5,1.20.3~1.20.2',
+      );
+      expect(
+        formatContentGameVersions(['1.18', '1.17'], releases: releases),
+        'Minecraft 1.18,1.17',
+      );
+      expect(
+        formatContentGameVersions([
+          '1.18',
+          '1.17.1',
+          '1.17',
+        ], releases: releases),
+        'Minecraft 1.18~1.17',
       );
     },
   );
+
+  test(
+    'snapshots, pre-releases and release candidates are omitted from ranges',
+    () {
+      const previews = [
+        '24w14a',
+        '1.21-pre1',
+        '1.21-rc1',
+        '26.1-snapshot-1',
+        '1.16_combat-6',
+        'b1.7.3',
+        '1.14.3 - Combat Test',
+      ];
+      expect(formatContentGameVersions(previews), '暂无正式版支持信息');
+      expect(
+        formatContentGameVersions([...previews, '1.20.1', '1.20.2', '1.20.3']),
+        'Minecraft 1.20.3~1.20.1',
+      );
+    },
+  );
+
+  test('without a manifest only consecutive patches share a range', () {
+    expect(
+      formatContentGameVersions(['1.21.1', '1.20.2', '1.20.1']),
+      'Minecraft 1.21.1,1.20.2~1.20.1',
+    );
+    expect(
+      formatContentGameVersions(['26.1', '26.1.1']),
+      'Minecraft 26.1.1~26.1',
+    );
+    expect(
+      formatContentGameVersions(['1.9', '1.12.2', '1.9']),
+      'Minecraft 1.12.2,1.9',
+    );
+  });
 }

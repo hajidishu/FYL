@@ -181,8 +181,32 @@ void main() {
           downloads: 251234567,
           updated: DateTime.now().subtract(const Duration(days: 5)),
           loaders: ['fabric', 'neoforge'],
-          gameVersions: ['1.16.5', '1.19.2', '1.20.1', '1.21.1'],
+          gameVersions: [
+            '1.16.5',
+            '1.20',
+            '1.20.1',
+            '1.20.2',
+            '1.20.3',
+            '1.20.4',
+            '1.20.5',
+            '1.20.6',
+            '1.21',
+            '1.21.1',
+            '1.21-rc1',
+            '24w03a',
+          ],
         );
+        controller.versions.addAll([
+          for (final id in ['1.16.5', '1.19.4', ...project.gameVersions])
+            MinecraftVersion.fromJson({
+              'id': id,
+              'type': id.contains('-') || id.contains('w')
+                  ? 'snapshot'
+                  : 'release',
+              'url': 'https://piston-meta.mojang.com/$id.json',
+              'releaseTime': '2024-08-08T00:00:00Z',
+            }),
+        ]);
         await tester.pumpWidget(
           harness(
             Padding(
@@ -207,15 +231,11 @@ void main() {
           expect(find.text('2.51 亿 次下载'), findsOneWidget);
           expect(find.text('5 天前更新'), findsOneWidget);
           expect(
-            find.text(
-              'Fabric / NeoForge · Minecraft 1.21.1 / 1.20.1 / 1.19.2 等 4 个版本',
-            ),
+            find.text('Fabric / NeoForge · Minecraft 1.21.1~1.20,1.16.5'),
             findsOneWidget,
           );
           expect(
-            find.byTooltip(
-              '支持的 Minecraft 版本：1.21.1 / 1.20.1 / 1.19.2 / 1.16.5',
-            ),
+            find.byTooltip('支持的 Minecraft 版本：1.21.1~1.20,1.16.5'),
             findsOneWidget,
           );
           expect(tester.takeException(), isNull);

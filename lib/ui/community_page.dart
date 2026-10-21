@@ -138,6 +138,10 @@ class _CommunityPageState extends State<CommunityPage> {
       widget.controller.instances.where((i) => i.id == targetId).firstOrNull;
   @override
   Widget build(BuildContext context) {
+    final releases = widget.controller.versions
+        .where((version) => version.type == 'release')
+        .map((version) => version.id)
+        .toList();
     if (selected != null) {
       return ContentDetails(
         project: selected!,
@@ -360,7 +364,10 @@ class _CommunityPageState extends State<CommunityPage> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            ProjectMetadata(project: project),
+                            ProjectMetadata(
+                              project: project,
+                              releases: releases,
+                            ),
                           ],
                         ),
                       ),
@@ -626,6 +633,10 @@ class _ContentDetailsState extends State<ContentDetails> {
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
     final project = widget.project;
+    final releases = widget.controller.versions
+        .where((version) => version.type == 'release')
+        .map((version) => version.id)
+        .toList();
     final games = {
       ...project.gameVersions.where((v) => RegExp(r'^\d+\.\d+').hasMatch(v)),
       ...versions.expand((v) => v.gameVersions),
@@ -699,7 +710,10 @@ class _ContentDetailsState extends State<ContentDetails> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                ProjectMetadata(project: project),
+                                ProjectMetadata(
+                                  project: project,
+                                  releases: releases,
+                                ),
                               ],
                             ),
                           ),
@@ -896,6 +910,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                       SupportedContentVersions(
                                         gameVersions: release.gameVersions,
                                         loaders: release.loaders,
+                                        releases: releases,
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
