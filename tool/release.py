@@ -193,14 +193,9 @@ def release_files(directory, version):
             raise ValueError(f"Checksum mismatch: {path.name}")
         files.append(path)
     allowed = {entry.name for file in files for entry in (file, file.with_name(file.name + ".sha256"))}
-    allowed.add("SHA256SUMS")
     if any(entry.name not in allowed for entry in directory.iterdir()):
         raise ValueError("Unexpected files in release artifacts")
-    sums = directory / "SHA256SUMS"
-    if sums.is_symlink():
-        raise ValueError("SHA256SUMS must not be a symlink")
-    sums.write_text("".join(f"{digest(path)}  {path.name}\n" for path in files), encoding="utf-8")
-    return files + [sums]
+    return files
 
 
 def publish(root, directory, tag):

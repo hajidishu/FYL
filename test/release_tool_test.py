@@ -146,8 +146,8 @@ class ReleaseTests(unittest.TestCase):
     def test_all_platforms_and_valid_checksums_are_required(self):
         directory = self.artifacts()
         files = release.release_files(directory, "0.1.0")
-        self.assertEqual(len(files), 4)
-        self.assertEqual(len(files[-1].read_text().splitlines()), 3)
+        self.assertEqual(len(files), 3)
+        self.assertFalse((directory / "SHA256SUMS").exists())
         files[0].write_bytes(b"modified archive")
         with self.assertRaisesRegex(ValueError, "Checksum mismatch"):
             release.release_files(directory, "0.1.0")
