@@ -337,7 +337,7 @@ class _CommunityPageState extends State<CommunityPage> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -352,9 +352,10 @@ class _CommunityPageState extends State<CommunityPage> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: c.muted,
-                                fontSize: 11,
-                                height: 1.5,
+                                color: c.secondaryText,
+                                fontSize: 14,
+                                height: 1.6,
+                                letterSpacing: 0,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -362,7 +363,7 @@ class _CommunityPageState extends State<CommunityPage> {
                               '${project.loaders.join(' / ')}${project.loaders.isEmpty ? '' : ' · '}${_downloads(project.downloads)} 次下载${project.author.isEmpty ? '' : ' · ${project.author}'}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: c.muted, fontSize: 10),
+                              style: TextStyle(color: c.muted, fontSize: 12),
                             ),
                           ],
                         ),
@@ -427,7 +428,7 @@ class SourceBadge extends StatelessWidget {
       source.label,
       style: TextStyle(
         color: LauncherColors.of(context).foreground,
-        fontSize: 10,
+        fontSize: 12,
       ),
     ),
   );
@@ -696,9 +697,10 @@ class _ContentDetailsState extends State<ContentDetails> {
                                 Text(
                                   project.summary,
                                   style: TextStyle(
-                                    color: c.muted,
-                                    fontSize: 12,
+                                    color: c.secondaryText,
+                                    fontSize: 14,
                                     height: 1.6,
+                                    letterSpacing: 0,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -706,7 +708,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                   '${_downloads(project.downloads)} 次下载${project.updated == null ? '' : ' · 更新于 ${_date(project.updated!)}'}',
                                   style: TextStyle(
                                     color: c.muted,
-                                    fontSize: 11,
+                                    fontSize: 12,
                                   ),
                                 ),
                                 if (project.author.isNotEmpty)
@@ -714,7 +716,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                     project.author,
                                     style: TextStyle(
                                       color: c.muted,
-                                      fontSize: 11,
+                                      fontSize: 12,
                                     ),
                                   ),
                               ],
@@ -771,9 +773,10 @@ class _ContentDetailsState extends State<ContentDetails> {
                         SelectableText(
                           description ?? project.summary,
                           style: TextStyle(
-                            fontSize: 12,
-                            height: 1.6,
-                            color: c.muted,
+                            fontSize: 14,
+                            height: 1.65,
+                            letterSpacing: 0,
+                            color: c.secondaryText,
                           ),
                         ),
                       ],
@@ -910,7 +913,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -923,7 +926,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                         }}',
                                         style: TextStyle(
                                           color: c.muted,
-                                          fontSize: 10,
+                                          fontSize: 12,
                                         ),
                                       ),
                                     ],
@@ -1029,7 +1032,12 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
                 const SizedBox(height: 8),
                 Text(
                   '发布版本：${widget.release.name}\nMinecraft：${plan.minecraft}\n加载器：${plan.loader?.label ?? '原版'} ${plan.loaderVersion ?? ''}\n文件：${plan.files.length} 项',
-                  style: TextStyle(color: c.muted, fontSize: 12, height: 1.8),
+                  style: TextStyle(
+                    color: c.secondaryText,
+                    fontSize: 14,
+                    height: 1.6,
+                    letterSpacing: 0,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 AppInput(controller: name, label: '版本名称'),

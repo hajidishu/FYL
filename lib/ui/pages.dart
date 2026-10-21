@@ -655,7 +655,7 @@ class InstancesPageState extends State<InstancesPage> {
                           const SizedBox(height: 5),
                           Text(
                             '${instance.components.isEmpty ? '原版' : instance.components} · ${instance.version} · Java ${instance.javaMajor}+',
-                            style: TextStyle(color: c.muted, fontSize: 11),
+                            style: TextStyle(color: c.muted, fontSize: 12),
                           ),
                         ],
                       ),
@@ -693,12 +693,17 @@ class InstancesPageState extends State<InstancesPage> {
                       instance.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: c.muted, fontSize: 11),
+                      style: TextStyle(
+                        color: c.secondaryText,
+                        fontSize: 14,
+                        height: 1.6,
+                        letterSpacing: 0,
+                      ),
                     ),
                   ),
                 SelectableText(
                   instance.gameDirectory,
-                  style: TextStyle(color: c.muted, fontSize: 10),
+                  style: TextStyle(color: c.muted, fontSize: 12, height: 1.5),
                 ),
                 const SizedBox(height: 18),
                 Wrap(

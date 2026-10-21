@@ -15,6 +15,8 @@ class LauncherColors {
   Color get foreground =>
       dark ? const Color(0xFFF0F3F2) : const Color(0xFF192820);
   Color get muted => dark ? const Color(0xFF8E9B99) : const Color(0xFF64776C);
+  Color get secondaryText =>
+      dark ? const Color(0xFFBAC5C1) : const Color(0xFF4C6255);
   Color get accent => dark ? const Color(0xFFA3E5C4) : const Color(0xFF237852);
   Color get accentBackground =>
       dark ? const Color(0xFF263C33) : const Color(0xFFDDEEE4);
@@ -108,7 +110,8 @@ class Tag extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 12,
+          letterSpacing: 0,
           fontWeight: FontWeight.w500,
           color: accent ? c.accent : c.muted,
         ),
