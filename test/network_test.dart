@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:free_your_launcher/core/build_info.dart';
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/core/network.dart';
 import 'package:path/path.dart' as p;
@@ -33,6 +34,10 @@ void main() {
       var requests = 0;
       server.listen((request) async {
         requests++;
+        expect(
+          request.headers.value(HttpHeaders.userAgentHeader),
+          'free_your_launcher/$launcherVersion',
+        );
         request.response.add(data);
         await request.response.close();
       });

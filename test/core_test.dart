@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:free_your_launcher/core/build_info.dart';
 import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/game_log.dart';
 import 'package:free_your_launcher/core/minecraft.dart';
@@ -226,6 +227,7 @@ void main() {
         'jvm': [
           '-cp',
           r'${classpath}',
+          r'-Dminecraft.launcher.version=${launcher_version}',
           {
             'rules': [
               {
@@ -272,6 +274,7 @@ void main() {
       containsAll([
         '-Xms1024M',
         '-Xmx4096M',
+        '-Dminecraft.launcher.version=$launcherVersion',
         '-Dtest=value with spaces',
         r'-Dpath=C:\Java Home',
         '1600',

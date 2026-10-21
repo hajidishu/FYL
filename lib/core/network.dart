@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import 'build_info.dart';
 import 'models.dart';
 
 class Cancelled implements Exception {
@@ -101,7 +102,7 @@ class OfficialNetwork {
   }) : _client = HttpClient() {
     _client.connectionTimeout = Duration(seconds: settings.timeoutSeconds);
     _client.maxConnectionsPerHost = settings.parallelDownloads;
-    _client.userAgent = 'free_your_launcher/0.1.0';
+    _client.userAgent = 'free_your_launcher/$launcherVersion';
   }
 
   void close() => _client.close(force: true);

@@ -132,8 +132,28 @@ void main() {
       expect(restored.instances.single.favorite, isTrue);
       await controller.saveInstance(updated.copyWith(name: 'RENAMED 1.21.1'));
       expect(
-        await File(controller.instances.single.metadataPath).exists(),
-        isTrue,
+        (jsonDecode(
+              await File(
+                controller.instances.single.metadataPath,
+              ).readAsString(),
+            )
+            as Json)['id'],
+        'RENAMED 1.21.1',
+      );
+      expect(
+        await File(controller.instances.single.clientJarPath).readAsString(),
+        'client',
+      );
+      expect(
+        await File(
+          p.join(
+            controller.instances.single.gameDirectory,
+            'saves',
+            'world',
+            'level.dat',
+          ),
+        ).readAsString(),
+        'world',
       );
     },
   );

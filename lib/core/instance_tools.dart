@@ -416,17 +416,20 @@ Future<bool> renameVersionDirectory(
       destination = updated.versionDirectory;
   final invalid = validateVersionName(updated.name);
   if (invalid != null) throw ArgumentError(invalid);
-  if (await FileSystemEntity.type(source, followLinks: false) ==
-      FileSystemEntityType.link) {
+  final sourceType = await FileSystemEntity.type(source, followLinks: false);
+  if (sourceType == FileSystemEntityType.link) {
     throw const FormatException('版本文件夹不能是符号链接。');
   }
-  final samePath = Platform.isWindows
-      ? p.normalize(source).toLowerCase() ==
-            p.normalize(destination).toLowerCase()
-      : p.equals(source, destination);
-  if (!samePath &&
-      await FileSystemEntity.type(destination, followLinks: false) !=
-          FileSystemEntityType.notFound) {
+  final destinationType = await FileSystemEntity.type(
+    destination,
+    followLinks: false,
+  );
+  // Case sensitivity belongs to the filesystem, including macOS APFS volumes.
+  final sameDirectory =
+      sourceType == FileSystemEntityType.directory &&
+      destinationType == FileSystemEntityType.directory &&
+      await FileSystemEntity.identical(source, destination);
+  if (!sameDirectory && destinationType != FileSystemEntityType.notFound) {
     throw StateError('版本文件夹“${updated.name}”已存在。');
   }
   if (!await Directory(source).exists()) return false;

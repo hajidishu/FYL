@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import 'build_info.dart';
 import 'models.dart';
 import 'network.dart';
 import 'accounts.dart';
@@ -498,7 +499,7 @@ LaunchCommand buildLaunchCommand(
     ),
     'natives_directory': nativeDirectory,
     'launcher_name': 'free_your_launcher',
-    'launcher_version': '0.1.0',
+    'launcher_version': launcherVersion,
     'classpath': [
       ...libraries.classpath,
       instance.clientJarPath,
