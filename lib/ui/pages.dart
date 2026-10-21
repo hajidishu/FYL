@@ -229,7 +229,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              height: 134,
+              height: 156,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [c.accentBackground, c.surface],
@@ -261,11 +261,11 @@ class _HomePageState extends State<HomePage> {
                         Row(
                           children: [
                             if (instance != null)
-                              InstanceIcon(instance, size: 23)
+                              InstanceIcon(instance, size: 36)
                             else
                               const ComponentIcon(
                                 GameComponent.minecraft,
-                                size: 23,
+                                size: 36,
                               ),
                             const SizedBox(width: 9),
                             const Tag('MINECRAFT JAVA EDITION', accent: true),
@@ -637,7 +637,7 @@ class InstancesPageState extends State<InstancesPage> {
                         color: c.accentBackground,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: InstanceIcon(instance, size: 32),
+                      child: InstanceIcon(instance, size: 48),
                     ),
                     const SizedBox(width: 15),
                     Expanded(
@@ -1008,7 +1008,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
               color: c.raised,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const ComponentIcon(GameComponent.minecraft, size: 28),
+            child: const ComponentIcon(GameComponent.minecraft, size: 40),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1099,7 +1099,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
               children: [
                 Row(
                   children: [
-                    ComponentIcon(componentFor(task.options.summary), size: 28),
+                    ComponentIcon(componentFor(task.options.summary), size: 40),
                     const SizedBox(width: 13),
                     Expanded(
                       child: Text(

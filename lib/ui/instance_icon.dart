@@ -6,7 +6,7 @@ import 'component_icon.dart';
 class InstanceIcon extends StatelessWidget {
   final GameInstance instance;
   final double size;
-  const InstanceIcon(this.instance, {this.size = 40, super.key});
+  const InstanceIcon(this.instance, {this.size = 48, super.key});
   @override
   Widget build(BuildContext context) {
     Widget fallback() => ComponentIcon(
@@ -25,6 +25,7 @@ class InstanceIcon extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
         errorBuilder: (_, _, _) => fallback(),
       ),
     );

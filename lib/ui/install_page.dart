@@ -191,7 +191,7 @@ class _InstallPageState extends State<InstallPage> {
                 icon: Icon(FIcons.arrowLeft, color: c.muted, size: 19),
               ),
               const SizedBox(width: 8),
-              const ComponentIcon(GameComponent.minecraft, size: 32),
+              const ComponentIcon(GameComponent.minecraft, size: 44),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -458,7 +458,7 @@ class _InstallPageState extends State<InstallPage> {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               child: Row(
                 children: [
-                  ComponentIcon(componentFor(title), size: 26),
+                  ComponentIcon(componentFor(title), size: 40),
                   const SizedBox(width: 12),
                   Text(
                     title,
@@ -571,7 +571,7 @@ class _InstallPageState extends State<InstallPage> {
         ),
         child: Row(
           children: [
-            ComponentIcon(component, size: 26),
+            ComponentIcon(component, size: 40),
             const SizedBox(width: 12),
             Expanded(
               child: Text(

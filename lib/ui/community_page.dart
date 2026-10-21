@@ -323,7 +323,7 @@ class _CommunityPageState extends State<CommunityPage> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ProjectIcon(project: project, size: 46),
+                      ProjectIcon(project: project, size: 64),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -382,7 +382,7 @@ class _CommunityPageState extends State<CommunityPage> {
 class ProjectIcon extends StatelessWidget {
   final ContentProject project;
   final double size;
-  const ProjectIcon({required this.project, this.size = 52, super.key});
+  const ProjectIcon({required this.project, this.size = 72, super.key});
   @override
   Widget build(BuildContext context) {
     final uri = Uri.tryParse(project.icon ?? '');
@@ -402,6 +402,7 @@ class ProjectIcon extends StatelessWidget {
             ? Image.network(
                 uri.toString(),
                 fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
                 errorBuilder: (_, _, _) => fallback,
               )
             : fallback,
@@ -895,13 +896,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                             padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
                             child: Row(
                               children: [
-                                Icon(
-                                  release.releaseType == 'release'
-                                      ? FIcons.package
-                                      : FIcons.flaskConical,
-                                  size: 20,
-                                  color: c.accent,
-                                ),
+                                ProjectIcon(project: project, size: 40),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(

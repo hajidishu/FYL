@@ -380,17 +380,23 @@ class _InstanceModsState extends State<InstanceMods> {
                                     }),
                             ),
                             SizedBox(
-                              width: 34,
-                              height: 34,
+                              width: 48,
+                              height: 48,
                               child: mod.icon == null
-                                  ? Icon(FIcons.box, size: 25, color: c.muted)
+                                  ? Icon(FIcons.box, size: 36, color: c.muted)
                                   : Image.memory(
                                       mod.icon!,
                                       fit: BoxFit.contain,
-                                      cacheWidth: 96,
+                                      cacheWidth:
+                                          (48 *
+                                                  MediaQuery.devicePixelRatioOf(
+                                                    context,
+                                                  ))
+                                              .ceil(),
+                                      filterQuality: FilterQuality.high,
                                       errorBuilder: (_, _, _) => Icon(
                                         FIcons.box,
-                                        size: 25,
+                                        size: 36,
                                         color: c.muted,
                                       ),
                                     ),

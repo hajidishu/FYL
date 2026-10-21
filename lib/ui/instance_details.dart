@@ -462,7 +462,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                 icon: const Icon(FIcons.arrowLeft, size: 20),
               ),
               const SizedBox(width: 10),
-              InstanceIcon(i, size: 44),
+              InstanceIcon(i, size: 56),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -664,7 +664,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       const SizedBox(height: 8),
       Row(
         children: [
-          InstanceIcon(instance.copyWith(icon: icon), size: 42),
+          InstanceIcon(instance.copyWith(icon: icon), size: 48),
           const SizedBox(width: 14),
           Expanded(
             child: SelectBox<String>(

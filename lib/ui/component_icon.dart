@@ -22,7 +22,7 @@ GameComponent componentFor(String components) {
 class ComponentIcon extends StatelessWidget {
   final GameComponent component;
   final double size;
-  const ComponentIcon(this.component, {this.size = 32, super.key});
+  const ComponentIcon(this.component, {this.size = 40, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +43,7 @@ class ComponentIcon extends StatelessWidget {
       fit: BoxFit.contain,
       filterQuality: component == GameComponent.optifine
           ? FilterQuality.none
-          : FilterQuality.medium,
+          : FilterQuality.high,
       excludeFromSemantics: true,
     );
   }
