@@ -15,6 +15,7 @@ import '../core/network.dart';
 import '../core/pack_import.dart';
 import '../core/install_options.dart';
 import 'theme.dart';
+import 'content_metadata.dart';
 
 typedef ModSavePicker = Future<String?> Function(String directory, String name);
 Future<String?> pickModSaveLocation(String directory, String name) async {
@@ -359,12 +360,7 @@ class _CommunityPageState extends State<CommunityPage> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              '${project.loaders.join(' / ')}${project.loaders.isEmpty ? '' : ' · '}${_downloads(project.downloads)} 次下载${project.author.isEmpty ? '' : ' · ${project.author}'}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: c.muted, fontSize: 12),
-                            ),
+                            ProjectMetadata(project: project),
                           ],
                         ),
                       ),
@@ -435,8 +431,6 @@ class SourceBadge extends StatelessWidget {
   );
 }
 
-String _downloads(int count) =>
-    count >= 10000 ? '${(count / 10000).toStringAsFixed(1)} 万' : '$count';
 String _date(DateTime value) =>
     value.toLocal().toIso8601String().substring(0, 10);
 
@@ -705,21 +699,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
-                                  '${_downloads(project.downloads)} 次下载${project.updated == null ? '' : ' · 更新于 ${_date(project.updated!)}'}',
-                                  style: TextStyle(
-                                    color: c.muted,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (project.author.isNotEmpty)
-                                  Text(
-                                    project.author,
-                                    style: TextStyle(
-                                      color: c.muted,
-                                      fontSize: 12,
-                                    ),
-                                  ),
+                                ProjectMetadata(project: project),
                               ],
                             ),
                           ),
@@ -913,8 +893,13 @@ class _ContentDetailsState extends State<ContentDetails> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
+                                      SupportedContentVersions(
+                                        gameVersions: release.gameVersions,
+                                        loaders: release.loaders,
+                                      ),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        '${release.loaders.join(' / ')} · ${_date(release.published)} · ${switch (release.releaseType) {
+                                        '${_date(release.published)} · ${switch (release.releaseType) {
                                           'beta' => '测试版',
                                           'alpha' => '预览版',
                                           _ => '正式版',

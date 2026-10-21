@@ -32,7 +32,8 @@ class MemorySecrets extends SecureAccountTokenStore {
 }
 
 class WidgetCatalog extends CommunityCatalog {
-  WidgetCatalog(super.settings);
+  final ContentProject? result;
+  WidgetCatalog(super.settings, {this.result});
   static const example = ContentProject(
     source: ContentSource.modrinth,
     kind: ContentKind.mod,
@@ -71,7 +72,7 @@ class WidgetCatalog extends CommunityCatalog {
     int page = 0,
     bool newest = false,
     CancellationToken? token,
-  }) async => const ContentSearchResult([example]);
+  }) async => ContentSearchResult([result ?? example]);
   @override
   Future<ContentVersionPage> versions(
     ContentProject project,
@@ -157,6 +158,76 @@ void main() {
   );
 
   for (final size in [const Size(800, 600), const Size(1180, 780)]) {
+    for (final kind in ContentKind.values) {
+      testWidgets('$kind metadata fits list and details at $size', (
+        tester,
+      ) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final project = ContentProject(
+          source: kind == ContentKind.mod
+              ? ContentSource.modrinth
+              : ContentSource.curseforge,
+          kind: kind,
+          id: 'demo',
+          slug: 'demo',
+          name: kind == ContentKind.mod ? 'Example Mod' : 'Example Pack',
+          summary:
+              'A project description with enough detail to wrap across lines.',
+          author: 'An author with a long display name',
+          website: 'https://modrinth.com/mod/demo',
+          downloads: 251234567,
+          updated: DateTime.now().subtract(const Duration(days: 5)),
+          loaders: ['fabric', 'neoforge'],
+          gameVersions: ['1.16.5', '1.19.2', '1.20.1', '1.21.1'],
+        );
+        await tester.pumpWidget(
+          harness(
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                height: size.height - 160,
+                child: CommunityPage(
+                  controller: controller,
+                  kind: kind,
+                  catalog: WidgetCatalog(controller.settings, result: project),
+                  onTaskStarted: () {},
+                  onOpenSettings: () {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text(project.name));
+        await tester.pumpAndSettle();
+        void checkMetadata() {
+          expect(find.text('2.51 亿 次下载'), findsOneWidget);
+          expect(find.text('5 天前更新'), findsOneWidget);
+          expect(
+            find.text(
+              'Fabric / NeoForge · Minecraft 1.21.1 / 1.20.1 / 1.19.2 等 4 个版本',
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.byTooltip(
+              '支持的 Minecraft 版本：1.21.1 / 1.20.1 / 1.19.2 / 1.16.5',
+            ),
+            findsOneWidget,
+          );
+          expect(tester.takeException(), isNull);
+        }
+
+        checkMetadata();
+        await tester.tap(find.text(project.name));
+        await tester.pumpAndSettle();
+        checkMetadata();
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
     testWidgets(
       'community search, version choice and save dialog defaults fit $size',
       (tester) async {
