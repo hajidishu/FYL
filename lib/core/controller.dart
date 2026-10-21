@@ -14,6 +14,7 @@ import 'accounts.dart';
 import 'account_store.dart';
 import 'microsoft_auth.dart';
 import 'install_options.dart';
+import 'install_worker.dart';
 import 'content_installer.dart';
 import 'community_models.dart';
 import 'instance_tools.dart';
@@ -87,6 +88,8 @@ class LauncherController extends ChangeNotifier {
   bool manifestFromCache = false;
   bool preparingLaunch = false;
   String? instanceOperation;
+  String? repairingInstanceId;
+  InstallTask? repairTask;
   CancellationToken? _instanceToken;
   final runningGames = <RunningGame>[];
   int _launchSequence = 0;
@@ -630,6 +633,10 @@ class LauncherController extends ChangeNotifier {
   Future<void> repairInstance(String id) async {
     final instance = editableInstance(id);
     instanceOperation = '修复版本';
+    repairingInstanceId = id;
+    repairTask = null;
+    errorMessage = null;
+    notice = null;
     final token = _instanceToken = CancellationToken();
     notifyListeners();
     final snapshot = instance.effectiveSettings(settings)
@@ -651,17 +658,24 @@ class LauncherController extends ChangeNotifier {
         snapshot,
         options: options,
       );
+      repairTask = task;
       tasks.insert(0, task);
       notifyListeners();
-      final repaired = await MinecraftInstaller(
+      final repaired = await runInstallerWorker(
         platform,
-        network,
+        task,
+        instance,
+        token,
         optifineBridge: options.optifine != null && options.loader == null
             ? (await rootBundle.load(
                 'assets/java/FylOptiFineBridge.class',
               )).buffer.asUint8List()
             : null,
-      ).install(task, token, _throttledNotify, existingInstance: instance);
+        onProgress: (progress) {
+          progress.apply(task!);
+          _throttledNotify();
+        },
+      );
       // Preserve presentation/settings edited while the download was in progress.
       final index = instances.indexWhere((i) => i.id == id);
       final current = instances[index];
@@ -679,20 +693,25 @@ class LauncherController extends ChangeNotifier {
       task.stage = '修复完成';
       notice = '${instance.name} 的游戏文件已修复';
     } on Cancelled {
+      notice = '已取消修复';
       if (task != null) {
         task.status = TaskStatus.cancelled;
         task.stage = '已取消';
       }
     } catch (e) {
+      final message = e is StateError ? e.message.toString() : '$e';
+      errorMessage = '修复失败：$message';
       if (task != null) {
         task.status = TaskStatus.failed;
         task.stage = '修复失败';
-        task.error = '$e';
+        task.error = message;
       }
       rethrow;
     } finally {
       network.close();
       instanceOperation = null;
+      repairingInstanceId = null;
+      repairTask = null;
       _instanceToken = null;
       notifyListeners();
     }

@@ -193,6 +193,25 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     }
   }
 
+  Future<void> repair() async {
+    if (dirty) {
+      setState(() => error = '请先保存修改。');
+      return;
+    }
+    setState(() {
+      error = null;
+      message = null;
+    });
+    try {
+      await widget.controller.repairInstance(instance.id);
+      if (mounted) setState(() => message = widget.controller.notice);
+    } catch (failure) {
+      if (mounted) {
+        setState(() => error = '$failure'.replaceFirst('Bad state: ', ''));
+      }
+    }
+  }
+
   Future<void> save() => run(() async {
     int number(String key) => int.tryParse(fields[key]!.text.trim()) ?? -1;
     await widget.controller.saveInstance(
@@ -541,7 +560,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                 ),
               ),
             ),
-          if (busy)
+          if (busy || widget.controller.repairingInstanceId == i.id)
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Row(
@@ -549,7 +568,11 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                   Expanded(
                     child: LinearProgressIndicator(
                       minHeight: 3,
-                      value: exportTotal > 0 ? exported / exportTotal : null,
+                      value: widget.controller.repairingInstanceId == i.id
+                          ? widget.controller.repairTask?.progress
+                          : exportTotal > 0
+                          ? exported / exportTotal
+                          : null,
                     ),
                   ),
                   if (widget.controller.instanceOperation != null)
@@ -767,14 +790,13 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         runSpacing: 10,
         children: [
           AppButton(
-            '补全与修复文件',
+            widget.controller.repairingInstanceId == instance.id
+                ? '正在修复…'
+                : '补全与修复文件',
             icon: FIcons.refreshCw,
             secondary: true,
             small: true,
-            onPressed: busy || widget.controller.installing
-                ? null
-                : () =>
-                      run(() => widget.controller.repairInstance(instance.id)),
+            onPressed: busy || widget.controller.installing ? null : repair,
           ),
           AppButton(
             '导出离线启动脚本',
