@@ -144,10 +144,7 @@ void main() {
       expect(controller.isGameDirectoryInUse(first.gameDirectory), isTrue);
       await controller.processes.first.finish();
       await waitFor(() => controller.runningGames.isEmpty);
-      expect(
-        await File(oldLog).readAsString(),
-        contains('older client output'),
-      );
+      expect(await File(oldLog).exists(), isFalse);
       expect(
         await File(newLog).readAsString(),
         contains('newer client output'),

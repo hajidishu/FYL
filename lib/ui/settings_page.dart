@@ -38,7 +38,15 @@ class SettingsPageState extends State<SettingsPage> {
   bool scanCancelled = false;
   String? javaScanError;
   JavaScanProgress javaScanProgress = const JavaScanProgress(0, 0);
-  static const groups = ['通用', '游戏与隔离', '默认 Java 与内存', '游戏窗口', '下载与版本', '社区资源'];
+  static const groups = [
+    '通用',
+    '游戏与隔离',
+    '默认 Java 与内存',
+    '游戏窗口',
+    '下载与版本',
+    '社区资源',
+    '日志',
+  ];
 
   @override
   void initState() {
@@ -61,6 +69,7 @@ class SettingsPageState extends State<SettingsPage> {
       'parallelDownloads',
       'downloadRetries',
       'timeoutSeconds',
+      'retainedGameLogs',
     ]) {
       fields[name] = TextEditingController(text: '${json[name]}');
     }
@@ -239,6 +248,7 @@ class SettingsPageState extends State<SettingsPage> {
     next.parallelDownloads = number('parallelDownloads');
     next.downloadRetries = number('downloadRetries');
     next.timeoutSeconds = number('timeoutSeconds');
+    next.retainedGameLogs = number('retainedGameLogs');
     final validation = next.validate();
     if (validation != null) {
       setState(() => error = validation);
@@ -318,7 +328,8 @@ class SettingsPageState extends State<SettingsPage> {
                     2 => _java(),
                     3 => _window(),
                     4 => _downloads(),
-                    _ => _community(),
+                    5 => _community(),
+                    _ => _logs(),
                   },
                   const SizedBox(height: 18),
                   const SizedBox(height: 30),
@@ -417,6 +428,14 @@ class SettingsPageState extends State<SettingsPage> {
       onChanged: (_) => changed(),
     ),
   );
+
+  Widget _logs() => _section('版本日志', '设置每个版本保留的启动日志数量。', [
+    _field(
+      'retainedGameLogs',
+      '每个版本保留的日志份数',
+      description: '默认 1 份，可设置为 1–50。正在使用的日志会在对应客户端退出后清理。',
+    ),
+  ]);
 
   Widget _general() => _section('外观与行为', '设置界面主题和启动行为。', [
     const Text(

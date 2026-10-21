@@ -4,7 +4,6 @@ import 'package:crypto/crypto.dart';
 import 'package:file_selector/file_selector.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -21,6 +20,7 @@ import 'community_page.dart';
 import 'content_tasks.dart';
 import 'instance_details.dart';
 import 'instance_icon.dart';
+import 'version_log_page.dart';
 
 class PageHeader extends StatelessWidget {
   final String title;
@@ -200,7 +200,7 @@ class _HomePageState extends State<HomePage> {
                     '查看日志',
                     secondary: true,
                     small: true,
-                    onPressed: () => widget.navigate(2),
+                    onPressed: () => widget.navigate(1),
                   ),
                 ],
               ),
@@ -447,6 +447,7 @@ class InstancesPage extends StatefulWidget {
 
 class InstancesPageState extends State<InstancesPage> {
   String? opened;
+  String? openedLog;
   String query = '', category = 'all';
   bool favoritesOnly = false;
   bool importing = false;
@@ -524,6 +525,15 @@ class InstancesPageState extends State<InstancesPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (openedLog != null &&
+        controller.instances.any((i) => i.id == openedLog)) {
+      return VersionLogPage(
+        key: ValueKey('version-log-$openedLog'),
+        controller: controller,
+        instanceId: openedLog!,
+        onBack: () => setState(() => openedLog = null),
+      );
+    }
     if (opened != null && controller.instances.any((i) => i.id == opened)) {
       return InstanceDetailsPage(
         key: ValueKey(opened),
@@ -755,6 +765,14 @@ class InstancesPageState extends State<InstancesPage> {
                         ),
                       ),
                     ),
+                    AppButton(
+                      '运行日志',
+                      key: ValueKey('instance-log-${instance.id}'),
+                      icon: FIcons.terminal,
+                      secondary: true,
+                      small: true,
+                      onPressed: () => setState(() => openedLog = instance.id),
+                    ),
                   ],
                 ),
               ],
@@ -788,8 +806,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
     super.initState();
     if (widget.controller.installing) {
       tab = 1;
-    } else if (widget.controller.logs.isNotEmpty) {
-      tab = 2;
     }
   }
 
@@ -818,7 +834,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(title: '下载管理', subtitle: '安装游戏、查看下载进度和运行日志。'),
+          const PageHeader(title: '下载管理', subtitle: '安装游戏、Mod 和整合包，查看下载进度。'),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -832,7 +848,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   '下载任务 (${widget.controller.tasks.length + widget.controller.content.tasks.length})',
                   FIcons.download,
                 ),
-                (2, '运行日志', FIcons.terminal),
               ])
                 AppButton(
                   title,
@@ -855,9 +870,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   )
                 : tab == 0
                 ? _versions()
-                : tab == 1
-                ? _tasks()
-                : _logs(),
+                : _tasks(),
           ),
           if (tab == 0)
             Padding(
@@ -1190,86 +1203,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
           ),
           const SizedBox(height: 14),
         ],
-      ],
-    );
-  }
-
-  Widget _logs() {
-    final c = LauncherColors.of(context);
-    final controller = widget.controller;
-    if (controller.logs.isEmpty) {
-      return const SingleChildScrollView(
-        child: EmptyState(
-          icon: FIcons.terminal,
-          title: '还没有运行日志',
-          description: '启动游戏后，可以在这里查看实时输出。\n完整日志保存在版本文件夹的 .fyl/logs 中。',
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                !controller.hasLiveLog
-                    ? '游戏已退出 · 退出码 ${controller.lastExitCode ?? '—'}'
-                    : '正在记录游戏输出',
-                style: TextStyle(color: c.muted, fontSize: 12),
-              ),
-            ),
-            AppButton(
-              '复制日志',
-              icon: FIcons.copy,
-              secondary: true,
-              small: true,
-              onPressed: () => Clipboard.setData(
-                ClipboardData(text: controller.logs.join('\n')),
-              ),
-            ),
-            const SizedBox(width: 8),
-            AppButton(
-              '日志目录',
-              icon: FIcons.folderOpen,
-              secondary: true,
-              small: true,
-              onPressed: controller.lastLogPath == null
-                  ? null
-                  : () => controller.openDirectory(
-                      controller.lastLogPath!.substring(
-                        0,
-                        controller.lastLogPath!.lastIndexOf(RegExp(r'[/\\]')),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 15),
-        Expanded(
-          child: Surface(
-            padding: const EdgeInsets.all(16),
-            child: SelectionArea(
-              child: ListView.builder(
-                reverse: true,
-                itemCount: controller.logs.length,
-                itemBuilder: (context, index) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    controller.logs[controller.logs.length - 1 - index],
-                    style: TextStyle(
-                      color: c.muted,
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
       ],
     );
   }

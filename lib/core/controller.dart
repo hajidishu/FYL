@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import 'minecraft.dart';
 import 'game_log.dart';
+import 'version_logs.dart';
 import 'models.dart';
 import 'network.dart';
 import 'accounts.dart';
@@ -22,6 +23,7 @@ import 'local_mods.dart';
 import 'pack_import.dart' show ensurePackParents;
 
 class RunningGame {
+  bool finished = false;
   final Process process;
   final String instanceId;
   final String gameDirectory;
@@ -80,6 +82,8 @@ class LauncherController extends ChangeNotifier {
   final versions = <MinecraftVersion>[];
   final tasks = <InstallTask>[];
   final logs = <String>[];
+  final versionLogs = <String, VersionLog>{};
+  final _logWrites = <String, Future<void>>{};
   String? selectedId;
   String? errorMessage;
   String? notice;
@@ -435,6 +439,8 @@ class LauncherController extends ChangeNotifier {
               )
             : path;
         if (lastLogPath != null) lastLogPath = relocated(lastLogPath!);
+        final versionLog = versionLogs[value.id];
+        if (versionLog != null) versionLog.path = relocated(versionLog.path);
         for (final task in content.tasks) {
           if (task.destination != null) {
             task.destination = relocated(task.destination!);
@@ -881,6 +887,44 @@ class LauncherController extends ChangeNotifier {
     runInShell: false,
   );
 
+  Future<VersionLog?> loadVersionLog(String instanceId) async {
+    if (versionLogs.containsKey(instanceId)) return versionLogs[instanceId];
+    final instance = instances
+        .where((item) => item.id == instanceId)
+        .firstOrNull;
+    if (instance == null) return null;
+    final log = await readLatestLog(instance);
+    if (log == null) return null;
+    log.lines.addAll(await loadLogLines(log.path));
+    final current = versionLogs.putIfAbsent(instanceId, () => log);
+    await _pruneLogs(instance);
+    return current;
+  }
+
+  bool isVersionLogLive(VersionLog log) =>
+      log.endedAt == null &&
+      runningGames.any((game) => game.logPath == log.path);
+
+  Future<void> _pruneLogs(GameInstance instance) => pruneVersionLogs(
+    instance,
+    settings.retainedGameLogs,
+    runningGames
+        .where((game) => !game.finished)
+        .map((game) => game.logPath)
+        .toSet(),
+  );
+
+  Future<void> _saveLogMetadata(GameInstance instance, VersionLog log) {
+    final previous = _logWrites[instance.id] ?? Future<void>.value();
+    final next = previous.catchError((_) {}).then((_) async {
+      if (identical(versionLogs[instance.id], log)) {
+        await saveLatestLog(instance, log);
+      }
+    });
+    _logWrites[instance.id] = next;
+    return next;
+  }
+
   Future<bool> launch() async {
     final instance = selectedInstance;
     if (instance == null || preparingLaunch || installing || _disposed) {
@@ -924,9 +968,14 @@ class LauncherController extends ChangeNotifier {
           '${DateTime.now().millisecondsSinceEpoch}-$sequence.log',
         ),
       );
-      await logFile.parent.create(recursive: true);
+      await ensureVersionLogDirectory(instance);
       lastLogPath = logFile.path;
       log = logFile.openWrite();
+      final versionLog = VersionLog(logFile.path, DateTime.now());
+      versionLog.lines.addAll(logs);
+      for (final line in logs) {
+        log.writeln(line);
+      }
       if (_disposed) throw const Cancelled();
       final process = await startGameProcess(command);
       final game = RunningGame(
@@ -935,6 +984,7 @@ class LauncherController extends ChangeNotifier {
         logPath: logFile.path,
       );
       runningGames.add(game);
+      versionLogs[instance.id] = versionLog;
       _logGame = game;
       preparingLaunch = false;
       notice = '游戏已启动';
@@ -946,11 +996,13 @@ class LauncherController extends ChangeNotifier {
           value = value.replaceAll(session.accessToken, '[已隐藏登录凭据]');
         }
         log?.writeln(value);
-        if (_launchSequence != sequence) return;
         final formatted = formatter.format(value);
         if (formatted == null || formatted.isEmpty) return;
-        logs.add(formatted);
-        if (logs.length > 600) logs.removeRange(0, logs.length - 600);
+        versionLog.append(formatted);
+        if (_launchSequence == sequence) {
+          logs.add(formatted);
+          if (logs.length > 600) logs.removeRange(0, logs.length - 600);
+        }
         _throttledNotify();
       }
 
@@ -970,6 +1022,8 @@ class LauncherController extends ChangeNotifier {
         try {
           final code = await process.exitCode;
           await Future.wait([output, errors]);
+          versionLog.exitCode = code;
+          versionLog.endedAt = DateTime.now();
           if (_launchSequence == sequence) {
             lastExitCode = code;
             notice = code == 0 ? '游戏已正常退出' : '游戏退出，退出码 $code。可查看运行日志。';
@@ -979,7 +1033,23 @@ class LauncherController extends ChangeNotifier {
         } finally {
           await log?.close();
           log = null;
+          game.finished = true;
+          try {
+            await _saveLogMetadata(instance, versionLog);
+            await _pruneLogs(instance);
+          } catch (error) {
+            errorMessage = '保存版本日志失败：$error';
+          }
           runningGames.remove(game);
+          notifyListeners();
+        }
+      }());
+      unawaited(() async {
+        try {
+          await _saveLogMetadata(instance, versionLog);
+          await _pruneLogs(instance);
+        } catch (error) {
+          errorMessage = '保存版本日志失败：$error';
           notifyListeners();
         }
       }());

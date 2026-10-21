@@ -37,6 +37,7 @@ class LauncherSettings {
   String theme;
   String microsoftClientId;
   String curseforgeApiKey;
+  int retainedGameLogs;
 
   LauncherSettings({
     required this.gameRoot,
@@ -60,6 +61,7 @@ class LauncherSettings {
     this.showHistorical = false,
     this.minimizeOnLaunch = false,
     this.theme = 'dark',
+    this.retainedGameLogs = 1,
     this.microsoftClientId = defaultMicrosoftClientId,
     this.curseforgeApiKey = const String.fromEnvironment(
       'FYL_CURSEFORGE_API_KEY',
@@ -89,6 +91,7 @@ class LauncherSettings {
         showHistorical: json['showHistorical'] as bool? ?? false,
         minimizeOnLaunch: json['minimizeOnLaunch'] as bool? ?? false,
         theme: json['theme'] as String? ?? 'dark',
+        retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
         microsoftClientId: resolveMicrosoftClientId(
           json['microsoftClientId'] as String?,
         ),
@@ -116,6 +119,7 @@ class LauncherSettings {
     'showHistorical': showHistorical,
     'minimizeOnLaunch': minimizeOnLaunch,
     'theme': theme,
+    'retainedGameLogs': retainedGameLogs,
     'microsoftClientId': microsoftClientId,
   };
 
@@ -124,6 +128,9 @@ class LauncherSettings {
         ..curseforgeApiKey = curseforgeApiKey;
 
   String? validate() {
+    if (retainedGameLogs < 1 || retainedGameLogs > 50) {
+      return '日志保留份数应为 1–50。';
+    }
     if (!p.isAbsolute(gameRoot.trim())) return '游戏根目录需要使用绝对路径。';
     if (minMemory < 256 || maxMemory < minMemory || maxMemory > 131072) {
       return '内存需要在 256–131072 MB 之间，最大内存不能小于初始内存。';
