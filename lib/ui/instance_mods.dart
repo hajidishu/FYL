@@ -192,7 +192,8 @@ class _InstanceModsState extends State<InstanceMods> {
         working ||
         loading ||
         widget.controller.installing ||
-        widget.controller.running;
+        widget.controller.preparingLaunch ||
+        widget.controller.isGameDirectoryInUse(widget.instance.gameDirectory);
     final chosen = mods.where((m) => selected.contains(m.path)).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -330,7 +331,10 @@ class _InstanceModsState extends State<InstanceMods> {
               ),
             ),
           ),
-        if (widget.controller.running)
+        if (widget.controller.preparingLaunch ||
+            widget.controller.isGameDirectoryInUse(
+              widget.instance.gameDirectory,
+            ))
           const Padding(
             padding: EdgeInsets.only(top: 10),
             child: Text('请先关闭游戏再修改 Mod。', style: TextStyle(fontSize: 11)),

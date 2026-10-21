@@ -20,6 +20,19 @@ import 'instance_tools.dart';
 import 'local_mods.dart';
 import 'pack_import.dart' show ensurePackParents;
 
+class RunningGame {
+  final Process process;
+  final String instanceId;
+  final String gameDirectory;
+  final String logPath;
+  RunningGame({
+    required this.process,
+    required GameInstance instance,
+    required this.logPath,
+  }) : instanceId = instance.id,
+       gameDirectory = instance.gameDirectory;
+}
+
 class LauncherController extends ChangeNotifier {
   final String supportDirectory;
   final HostPlatform platform;
@@ -75,8 +88,15 @@ class LauncherController extends ChangeNotifier {
   bool preparingLaunch = false;
   String? instanceOperation;
   CancellationToken? _instanceToken;
-  Process? gameProcess;
-  String? runningInstanceId;
+  final runningGames = <RunningGame>[];
+  int _launchSequence = 0;
+  RunningGame? _logGame;
+  Process? get gameProcess => runningGames.lastOrNull?.process;
+  bool get hasLiveLog => _logGame != null && runningGames.contains(_logGame);
+  bool isInstanceRunning(String id) =>
+      runningGames.any((game) => game.instanceId == id);
+  bool isGameDirectoryInUse(String directory) =>
+      runningGames.any((game) => p.equals(game.gameDirectory, directory));
   String? lastLogPath;
   int? lastExitCode;
   CancellationToken? _installToken;
@@ -116,7 +136,7 @@ class LauncherController extends ChangeNotifier {
       instanceOperation != null ||
       tasks.any((t) => t.status == TaskStatus.running) ||
       content.tasks.any((t) => t.state == ContentTaskState.running);
-  bool get running => preparingLaunch || gameProcess != null;
+  bool get running => preparingLaunch || runningGames.isNotEmpty;
   String get activityText {
     if (preparingLaunch) return '正在准备启动';
     if (instanceOperation != null) return '正在$instanceOperation';
@@ -124,7 +144,7 @@ class LauncherController extends ChangeNotifier {
     if (content.tasks.any((t) => t.state == ContentTaskState.running)) {
       return '正在下载社区资源';
     }
-    return gameProcess != null ? 'Minecraft 正在运行' : '准备就绪';
+    return '准备就绪';
   }
 
   GameInstance? get selectedInstance {
@@ -435,14 +455,7 @@ class LauncherController extends ChangeNotifier {
     final instance = instances.where((i) => i.id == id).firstOrNull;
     if (instance == null) throw StateError('此版本已不存在。');
     if (installing) throw StateError('请等待当前任务完成。');
-    if (preparingLaunch ||
-        runningInstanceId == id ||
-        gameProcess != null &&
-            instances.any(
-              (i) =>
-                  i.id == runningInstanceId &&
-                  p.equals(i.gameDirectory, instance.gameDirectory),
-            )) {
+    if (preparingLaunch || isGameDirectoryInUse(instance.gameDirectory)) {
       throw StateError('请先关闭使用此目录的游戏。');
     }
     return instance;
@@ -450,13 +463,7 @@ class LauncherController extends ChangeNotifier {
 
   void assertGameDirectoryAvailable(String? directory) {
     if (preparingLaunch ||
-        directory != null &&
-            gameProcess != null &&
-            instances.any(
-              (i) =>
-                  i.id == runningInstanceId &&
-                  p.equals(i.gameDirectory, directory),
-            )) {
+        directory != null && isGameDirectoryInUse(directory)) {
       throw StateError('请先关闭使用此游戏目录的游戏。');
     }
   }
@@ -842,11 +849,29 @@ class LauncherController extends ChangeNotifier {
     }
   }
 
-  Future<void> launch() async {
+  Future<LaunchCommand> prepareLaunch(
+    GameInstance instance,
+    LauncherSettings snapshot,
+    GameSession session,
+  ) => MinecraftRunner(platform).prepare(instance, snapshot, session: session);
+
+  Future<Process> startGameProcess(LaunchCommand command) => Process.start(
+    command.executable,
+    command.arguments,
+    workingDirectory: command.workingDirectory,
+    runInShell: false,
+  );
+
+  Future<bool> launch() async {
     final instance = selectedInstance;
-    if (instance == null || running || installing) return;
+    if (instance == null || preparingLaunch || installing || _disposed) {
+      return false;
+    }
+    final sequence = ++_launchSequence;
     preparingLaunch = true;
+    _logGame = null;
     lastExitCode = null;
+    lastLogPath = null;
     notice = null;
     errorMessage = null;
     logs.clear();
@@ -855,9 +880,8 @@ class LauncherController extends ChangeNotifier {
     try {
       final snapshot = instance.effectiveSettings(settings);
       final session = await prepareSession();
-      final command = await MinecraftRunner(
-        platform,
-      ).prepare(instance, snapshot, session: session);
+      final command = await prepareLaunch(instance, snapshot, session);
+      if (_disposed) throw const Cancelled();
       if (snapshot.preLaunchCommand.trim().isNotEmpty) {
         final hook = await runPreLaunchCommand(
           snapshot.preLaunchCommand,
@@ -878,20 +902,21 @@ class LauncherController extends ChangeNotifier {
         p.join(
           instance.launcherDirectory,
           'logs',
-          '${DateTime.now().millisecondsSinceEpoch}.log',
+          '${DateTime.now().millisecondsSinceEpoch}-$sequence.log',
         ),
       );
       await logFile.parent.create(recursive: true);
       lastLogPath = logFile.path;
       log = logFile.openWrite();
-      final process = await Process.start(
-        command.executable,
-        command.arguments,
-        workingDirectory: command.workingDirectory,
-        runInShell: false,
+      if (_disposed) throw const Cancelled();
+      final process = await startGameProcess(command);
+      final game = RunningGame(
+        process: process,
+        instance: instance,
+        logPath: logFile.path,
       );
-      gameProcess = process;
-      runningInstanceId = instance.id;
+      runningGames.add(game);
+      _logGame = game;
       preparingLaunch = false;
       notice = '游戏已启动';
       notifyListeners();
@@ -902,6 +927,7 @@ class LauncherController extends ChangeNotifier {
           value = value.replaceAll(session.accessToken, '[已隐藏登录凭据]');
         }
         log?.writeln(value);
+        if (_launchSequence != sequence) return;
         final formatted = formatter.format(value);
         if (formatted == null || formatted.isEmpty) return;
         logs.add(formatted);
@@ -925,23 +951,30 @@ class LauncherController extends ChangeNotifier {
         try {
           final code = await process.exitCode;
           await Future.wait([output, errors]);
-          lastExitCode = code;
-          notice = code == 0 ? '游戏已正常退出' : '游戏退出，退出码 $code。可查看运行日志。';
+          if (_launchSequence == sequence) {
+            lastExitCode = code;
+            notice = code == 0 ? '游戏已正常退出' : '游戏退出，退出码 $code。可查看运行日志。';
+          }
         } catch (e) {
-          errorMessage = '读取游戏日志失败：$e';
+          if (_launchSequence == sequence) errorMessage = '读取游戏日志失败：$e';
         } finally {
           await log?.close();
           log = null;
-          gameProcess = null;
-          runningInstanceId = null;
+          runningGames.remove(game);
           notifyListeners();
         }
       }());
+      return true;
     } catch (e) {
-      await log?.close();
       preparingLaunch = false;
       errorMessage = '$e';
+      try {
+        await log?.close();
+      } catch (_) {
+        // Preserve the launch failure while still restoring the ready state.
+      }
       notifyListeners();
+      return false;
     }
   }
 

@@ -81,12 +81,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Future<void> launch() async {
-    await widget.controller.launch();
-    if (widget.nativeWindow &&
-        widget.controller.gameProcess != null &&
-        widget.controller.selectedInstance!
-            .effectiveSettings(widget.controller.settings)
-            .minimizeOnLaunch) {
+    final minimize = widget.controller.selectedInstance
+        ?.effectiveSettings(widget.controller.settings)
+        .minimizeOnLaunch;
+    final started = await widget.controller.launch();
+    if (widget.nativeWindow && started && minimize == true) {
       await windowManager.minimize();
     }
   }
@@ -183,8 +182,7 @@ class _HomePageState extends State<HomePage> {
                     );
             },
           ),
-          if (controller.lastExitCode != null ||
-              controller.gameProcess != null) ...[
+          if (controller.lastExitCode != null) ...[
             const SizedBox(height: 22),
             Surface(
               padding: const EdgeInsets.all(18),
@@ -194,9 +192,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      controller.gameProcess != null
-                          ? '游戏正在运行，日志会持续保存。'
-                          : '最近一次游戏退出码：${controller.lastExitCode}',
+                      '最近一次游戏退出码：${controller.lastExitCode}',
                       style: TextStyle(color: c.muted, fontSize: 12),
                     ),
                   ),
@@ -308,7 +304,7 @@ class _HomePageState extends State<HomePage> {
                         for (final item in controller.instances)
                           item.id: '${item.name} · ${item.version}',
                       },
-                      onChanged: controller.running
+                      onChanged: controller.preparingLaunch
                           ? null
                           : (id) => controller.selectInstance(
                               controller.instances.firstWhere(
@@ -319,26 +315,33 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 16),
                   ],
                   FButton(
+                    key: const ValueKey('launch-game'),
                     size: FButtonSizeVariant.lg,
-                    prefix: Icon(
-                      instance == null ? FIcons.plus : FIcons.play,
-                      size: 17,
+                    prefix: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: controller.preparingLaunch
+                          ? SizedBox.square(
+                              key: const ValueKey('launch-progress'),
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: c.onAccent,
+                              ),
+                            )
+                          : Icon(
+                              instance == null ? FIcons.plus : FIcons.play,
+                              size: 18,
+                            ),
                     ),
                     onPress: instance == null
                         ? () => widget.navigate(2)
-                        : controller.running ||
+                        : controller.preparingLaunch ||
                               controller.installing ||
                               !hasAccount
                         ? null
                         : launch,
                     child: Text(
-                      instance == null
-                          ? '安装游戏'
-                          : controller.preparingLaunch
-                          ? '正在准备启动…'
-                          : controller.gameProcess != null
-                          ? '游戏正在运行'
-                          : '启动游戏',
+                      instance == null ? '安装游戏' : '启动游戏',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -458,7 +461,7 @@ class InstancesPageState extends State<InstancesPage> {
   Future<void> importPack() async {
     setState(() => importing = true);
     try {
-      if (controller.installing || controller.running) {
+      if (controller.installing || controller.preparingLaunch) {
         throw StateError('请等待当前任务或游戏结束。');
       }
       final file = await openFile(
@@ -581,7 +584,9 @@ class InstancesPageState extends State<InstancesPage> {
               secondary: true,
               small: true,
               onPressed:
-                  importing || controller.installing || controller.running
+                  importing ||
+                      controller.installing ||
+                      controller.preparingLaunch
                   ? null
                   : importPack,
             ),
@@ -681,7 +686,7 @@ class InstancesPageState extends State<InstancesPage> {
                       InstanceJavaMode.automatic => '自动 Java',
                       InstanceJavaMode.custom => '独立 Java',
                     }),
-                    if (controller.runningInstanceId == instance.id)
+                    if (controller.isInstanceRunning(instance.id))
                       const Tag('正在运行', accent: true),
                   ],
                 ),
@@ -721,7 +726,7 @@ class InstancesPageState extends State<InstancesPage> {
                       '选择并前往启动',
                       icon: FIcons.play,
                       small: true,
-                      onPressed: controller.running
+                      onPressed: controller.preparingLaunch
                           ? null
                           : () {
                               controller.selectInstance(instance);
@@ -1208,7 +1213,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
           children: [
             Expanded(
               child: Text(
-                controller.gameProcess == null
+                !controller.hasLiveLog
                     ? '游戏已退出 · 退出码 ${controller.lastExitCode ?? '—'}'
                     : '正在记录游戏输出',
                 style: TextStyle(color: c.muted, fontSize: 12),

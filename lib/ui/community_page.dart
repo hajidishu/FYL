@@ -554,7 +554,7 @@ class _ContentDetailsState extends State<ContentDetails> {
         if (!release.supports(target.version, instanceModLoader(target))) {
           throw StateError('此版本与目标版本不兼容。');
         }
-        if (widget.controller.runningInstanceId == target.id) {
+        if (widget.controller.isGameDirectoryInUse(target.gameDirectory)) {
           throw StateError('请先关闭目标版本的游戏。');
         }
         final file = release.files

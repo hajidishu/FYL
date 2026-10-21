@@ -191,8 +191,13 @@ void main() {
           javaMajor: 21,
         ),
       );
-      controller.runningInstanceId = 'running';
-      controller.gameProcess = RunningProcessStub();
+      controller.runningGames.add(
+        RunningGame(
+          process: RunningProcessStub(),
+          instance: controller.instances.last,
+          logPath: '',
+        ),
+      );
       await expectLater(
         controller.content.installMod(
           AuditCatalog.example,
@@ -213,7 +218,7 @@ void main() {
         throwsStateError,
       );
       expect(controller.content.tasks, isEmpty);
-      controller.gameProcess = null;
+      controller.runningGames.clear();
     },
   );
   testWidgets(
