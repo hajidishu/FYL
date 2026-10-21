@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../core/controller.dart';
+import '../core/build_info.dart';
 import 'pages.dart';
 import 'settings_page.dart';
 import 'theme.dart';
@@ -273,7 +274,9 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                               _navigation(3, '设置', FIcons.settings, compact),
                               const Spacer(),
                               Text(
-                                compact ? '0.1' : 'v0.1.0',
+                                launcherVersion == 'development'
+                                    ? '开发版'
+                                    : 'v$launcherVersion',
                                 style: TextStyle(
                                   color: c.muted.withValues(alpha: .65),
                                   fontSize: 9,

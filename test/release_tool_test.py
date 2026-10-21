@@ -47,6 +47,30 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(dev["version"], "0.2.0-beta.1.dev.bbbbbbbb")
         self.assertEqual(dev["prerelease"], "true")
 
+    def test_plain_version_can_be_explicitly_published_as_a_test_release(self):
+        self.write("pubspec.yaml", "version: 0.1.1+2\n")
+        self.write(".github/release.json", '{"prerelease": true}')
+        data = release.metadata(self.root, "refs/tags/v0.1.1", "a" * 40)
+        self.assertEqual(data["version"], "0.1.1")
+        self.assertEqual(data["build_name"], "0.1.1")
+        self.assertEqual(data["build_number"], "2")
+        self.assertEqual(data["prerelease"], "true")
+        calls = self.run_publish("0.1.1")
+        create = next(call for call in calls if call[1:3] == ["release", "create"])
+        self.assertIn("--prerelease", create)
+        self.assertIn("--prerelease=true", calls[-1])
+        self.assertIn("--latest=false", calls[-1])
+
+    def test_release_channel_configuration_is_validated(self):
+        for value in ('{"prerelease": "true"}', '{"prerelease": 1}', '{}', '[]'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.write(".github/release.json", value)
+                release.metadata(self.root, "refs/tags/v0.1.0", "a" * 40)
+        self.write(".github/release.json", '{"prerelease": false}')
+        self.write("pubspec.yaml", "version: 0.1.1-beta.1+2\n")
+        data = release.metadata(self.root, "refs/tags/v0.1.1-beta.1", "a" * 40)
+        self.assertEqual(data["prerelease"], "true")
+
     def test_invalid_versions_and_native_build_numbers_are_rejected(self):
         for value in ("01.2.3", "1.2", "1.2.3-beta.01", "1.2.3\nunsafe", "1.2.3+bad", "1.2.3+0", "1.2.3+65536"):
             with self.subTest(version=value), self.assertRaises(ValueError):

@@ -49,6 +49,17 @@ def project_version(root):
     return version, number
 
 
+def project_prerelease(root, version):
+    config = root / ".github/release.json"
+    configured = False
+    if config.exists():
+        data = json.loads(config.read_text(encoding="utf-8-sig"))
+        if not isinstance(data, dict) or set(data) != {"prerelease"} or type(data["prerelease"]) is not bool:
+            raise ValueError(".github/release.json must contain a boolean prerelease field")
+        configured = data["prerelease"]
+    return version_parts(version)[1] or configured
+
+
 def metadata(root, ref, sha):
     version, build = project_version(root)
     core, prerelease = version_parts(version)
@@ -66,7 +77,7 @@ def metadata(root, ref, sha):
         "build_name": ".".join(map(str, core)),
         "build_number": str(build),
         "is_release": str(release).lower(),
-        "prerelease": str(version_parts(version)[1]).lower(),
+        "prerelease": str(project_prerelease(root, version)).lower(),
     }
 
 
@@ -196,7 +207,8 @@ def publish(root, directory, tag):
     version, _ = project_version(root)
     if tag != "v" + version:
         raise ValueError("Release tag does not match pubspec.yaml")
-    core, prerelease = version_parts(version)
+    core, _ = version_parts(version)
+    prerelease = project_prerelease(root, version)
     files = release_files(directory, version)
     existing = subprocess.run(
         ["gh", "release", "view", tag, "--json", "isDraft"],
