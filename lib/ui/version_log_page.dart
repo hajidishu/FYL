@@ -4,16 +4,21 @@ import 'package:forui/forui.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/controller.dart';
+import '../core/crash_report.dart';
+import 'game_failure_dialog.dart'
+    show DiagnosticSavePicker, diagnosticSavePicker;
 import 'theme.dart';
 
 class VersionLogPage extends StatefulWidget {
   final LauncherController controller;
   final String instanceId;
   final VoidCallback onBack;
+  final DiagnosticSavePicker savePicker;
   const VersionLogPage({
     required this.controller,
     required this.instanceId,
     required this.onBack,
+    this.savePicker = diagnosticSavePicker,
     super.key,
   });
   @override
@@ -22,7 +27,9 @@ class VersionLogPage extends StatefulWidget {
 
 class _VersionLogPageState extends State<VersionLogPage> {
   bool loading = true;
+  bool exporting = false;
   String? error;
+  String? exportError;
   @override
   void initState() {
     super.initState();
@@ -36,6 +43,25 @@ class _VersionLogPageState extends State<VersionLogPage> {
       error = '读取日志失败：$failure';
     }
     if (mounted) setState(() => loading = false);
+  }
+
+  Future<void> exportLog() async {
+    final log = widget.controller.versionLogs[widget.instanceId];
+    if (log == null) return;
+    setState(() {
+      exporting = true;
+      exportError = null;
+    });
+    try {
+      var destination = await widget.savePicker('FYL-game.log', 'log');
+      if (destination == null) return;
+      if (!destination.toLowerCase().endsWith('.log')) destination += '.log';
+      await exportSanitizedLog(log.path, destination);
+    } catch (failure) {
+      if (mounted) setState(() => exportError = '导出日志失败：$failure');
+    } finally {
+      if (mounted) setState(() => exporting = false);
+    }
   }
 
   @override
@@ -95,7 +121,9 @@ class _VersionLogPageState extends State<VersionLogPage> {
                     secondary: true,
                     small: true,
                     onPressed: () => Clipboard.setData(
-                      ClipboardData(text: log.lines.join('\n')),
+                      ClipboardData(
+                        text: sanitizeDiagnosticText(log.lines.join('\n')),
+                      ),
                     ),
                   ),
                   AppButton(
@@ -106,10 +134,25 @@ class _VersionLogPageState extends State<VersionLogPage> {
                     onPressed: () =>
                         controller.openDirectory(p.dirname(log.path)),
                   ),
+                  AppButton(
+                    exporting ? '正在导出…' : '导出日志',
+                    icon: FIcons.download,
+                    secondary: true,
+                    small: true,
+                    onPressed: exporting ? null : exportLog,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
             ],
+            if (exportError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  exportError!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
+              ),
             Expanded(
               child: Surface(
                 padding: const EdgeInsets.all(16),

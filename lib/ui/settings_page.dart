@@ -433,7 +433,7 @@ class SettingsPageState extends State<SettingsPage> {
     _field(
       'retainedGameLogs',
       '每个版本保留的日志份数',
-      description: '默认 1 份，可设置为 1–50。正在使用的日志会在对应客户端退出后清理。',
+      description: '默认 1 份，可设置为 1–50。运行中或错误报告正在使用的日志暂不清理。',
     ),
   ]);
 

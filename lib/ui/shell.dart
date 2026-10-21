@@ -8,6 +8,7 @@ import '../core/controller.dart';
 import 'pages.dart';
 import 'settings_page.dart';
 import 'theme.dart';
+import 'game_failure_dialog.dart';
 
 class LauncherShell extends StatefulWidget {
   final LauncherController controller;
@@ -26,10 +27,14 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
   bool settingsDirty = false;
   bool instanceDirty = false;
   bool closing = false;
+  bool showingFailure = false;
+  bool failureScheduled = false;
   final settingsKey = GlobalKey<SettingsPageState>();
   @override
   void initState() {
     super.initState();
+    widget.controller.addListener(_scheduleFailure);
+    _scheduleFailure();
     if (widget.nativeWindow) {
       windowManager.addListener(this);
       unawaited(windowManager.setPreventClose(true));
@@ -38,8 +43,48 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
 
   @override
   void dispose() {
+    widget.controller.removeListener(_scheduleFailure);
     if (widget.nativeWindow) windowManager.removeListener(this);
     super.dispose();
+  }
+
+  void _scheduleFailure() {
+    if (!mounted ||
+        closing ||
+        showingFailure ||
+        failureScheduled ||
+        widget.controller.gameFailures.isEmpty) {
+      return;
+    }
+    failureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      failureScheduled = false;
+      if (mounted &&
+          !closing &&
+          !showingFailure &&
+          widget.controller.gameFailures.isNotEmpty) {
+        unawaited(_showFailure());
+      }
+    });
+  }
+
+  Future<void> _showFailure() async {
+    showingFailure = true;
+    final failure = widget.controller.gameFailures.first;
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => GameFailureDialog(failure: failure),
+      );
+      if (mounted) await widget.controller.dismissGameFailure(failure);
+    } catch (error) {
+      widget.controller.errorMessage = '处理错误报告失败：$error';
+      widget.controller.notifyListeners();
+    } finally {
+      showingFailure = false;
+      if (mounted) _scheduleFailure();
+    }
   }
 
   Future<bool> _confirm(String title, String message, String button) async =>

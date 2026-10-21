@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'minecraft.dart';
 import 'game_log.dart';
 import 'version_logs.dart';
+import 'crash_report.dart';
 import 'models.dart';
 import 'network.dart';
 import 'accounts.dart';
@@ -83,6 +84,7 @@ class LauncherController extends ChangeNotifier {
   final tasks = <InstallTask>[];
   final logs = <String>[];
   final versionLogs = <String, VersionLog>{};
+  final gameFailures = <GameFailure>[];
   final _logWrites = <String, Future<void>>{};
   String? selectedId;
   String? errorMessage;
@@ -441,6 +443,11 @@ class LauncherController extends ChangeNotifier {
         if (lastLogPath != null) lastLogPath = relocated(lastLogPath!);
         final versionLog = versionLogs[value.id];
         if (versionLog != null) versionLog.path = relocated(versionLog.path);
+        for (final failure in gameFailures.where(
+          (failure) => failure.instanceId == value.id,
+        )) {
+          failure.logPath = relocated(failure.logPath);
+        }
         for (final task in content.tasks) {
           if (task.destination != null) {
             task.destination = relocated(task.destination!);
@@ -911,8 +918,18 @@ class LauncherController extends ChangeNotifier {
     runningGames
         .where((game) => !game.finished)
         .map((game) => game.logPath)
+        .followedBy(gameFailures.map((failure) => failure.logPath))
         .toSet(),
   );
+
+  Future<void> dismissGameFailure(GameFailure failure) async {
+    gameFailures.remove(failure);
+    notifyListeners();
+    final instance = instances
+        .where((item) => item.id == failure.instanceId)
+        .firstOrNull;
+    if (instance != null) await _pruneLogs(instance);
+  }
 
   Future<void> _saveLogMetadata(GameInstance instance, VersionLog log) {
     final previous = _logWrites[instance.id] ?? Future<void>.value();
@@ -971,7 +988,11 @@ class LauncherController extends ChangeNotifier {
       await ensureVersionLogDirectory(instance);
       lastLogPath = logFile.path;
       log = logFile.openWrite();
-      final versionLog = VersionLog(logFile.path, DateTime.now());
+      final versionLog = VersionLog(
+        logFile.path,
+        DateTime.now(),
+        gameDirectory: instance.gameDirectory,
+      );
       versionLog.lines.addAll(logs);
       for (final line in logs) {
         log.writeln(line);
@@ -1019,20 +1040,82 @@ class LauncherController extends ChangeNotifier {
           .transform(const LineSplitter())
           .forEach((value) => line(value, stderrFormatter));
       unawaited(() async {
+        int? exitCode;
         try {
           final code = await process.exitCode;
-          await Future.wait([output, errors]);
+          exitCode = code;
           versionLog.exitCode = code;
           versionLog.endedAt = DateTime.now();
+          await Future.wait([output, errors]);
           if (_launchSequence == sequence) {
             lastExitCode = code;
-            notice = code == 0 ? '游戏已正常退出' : '游戏退出，退出码 $code。可查看运行日志。';
+            notice = code == 0 ? '游戏已正常退出' : null;
           }
         } catch (e) {
           if (_launchSequence == sequence) errorMessage = '读取游戏日志失败：$e';
         } finally {
-          await log?.close();
+          try {
+            await log?.close();
+          } catch (error) {
+            errorMessage = '写入游戏日志失败：$error';
+          }
           log = null;
+          if (exitCode != null && exitCode != 0 && !_disposed) {
+            final secrets = [session.accessToken, snapshot.curseforgeApiKey];
+            try {
+              int? pid;
+              try {
+                pid = process.pid;
+              } catch (_) {
+                // Some embedded process adapters do not expose a native PID.
+              }
+              final latest = !versionLogs.values.any(
+                (other) =>
+                    other.gameDirectory != null &&
+                    p.equals(other.gameDirectory!, game.gameDirectory) &&
+                    other.startedAt.isAfter(versionLog.startedAt),
+              );
+              final shared = runningGames.any(
+                (other) =>
+                    !identical(other, game) &&
+                    p.equals(other.gameDirectory, game.gameDirectory),
+              );
+              gameFailures.add(
+                await captureGameFailure(
+                  instance: instance,
+                  log: versionLog,
+                  platform: platform,
+                  java: command.executable,
+                  minMemory: snapshot.minMemory,
+                  maxMemory: snapshot.maxMemory,
+                  exitCode: exitCode,
+                  pid: pid,
+                  includeGameLogs: latest && !shared,
+                  secrets: secrets,
+                ),
+              );
+            } catch (failure) {
+              gameFailures.add(
+                GameFailure(
+                  instanceId: instance.id,
+                  instanceName: instance.name,
+                  logPath: versionLog.path,
+                  exitCode: exitCode,
+                  secrets: secrets,
+                  files: {
+                    'report.txt': sanitizeDiagnosticText(
+                      '版本名称: ${instance.name}\n退出码: $exitCode\n读取附加诊断信息失败: $failure',
+                      secrets,
+                    ),
+                    'launcher.log': sanitizeDiagnosticText(
+                      versionLog.lines.join('\n'),
+                      secrets,
+                    ),
+                  },
+                ),
+              );
+            }
+          }
           game.finished = true;
           try {
             await _saveLogMetadata(instance, versionLog);

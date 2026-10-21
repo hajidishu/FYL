@@ -118,6 +118,8 @@ void main() {
     expect(controller.isInstanceRunning(second.id), isTrue);
     await older.finish(1);
     await waitFor(() => controller.runningGames.length == 1);
+    expect(controller.gameFailures.single.instanceName, first.name);
+    expect(controller.gameFailures.single.exitCode, 1);
     expect(controller.gameProcess, same(controller.processes.last));
     expect(controller.lastExitCode, isNull);
     expect(controller.isInstanceRunning(second.id), isTrue);
@@ -153,6 +155,33 @@ void main() {
         await File(newLog).readAsString(),
         isNot(contains('older client output')),
       );
+      expect(controller.gameFailures, isEmpty);
+    },
+  );
+
+  test(
+    'a crashed older client keeps its log until its report is dismissed',
+    () async {
+      await controller.launch();
+      final oldLog = controller.lastLogPath!;
+      await controller.launch();
+      final newLog = controller.lastLogPath!;
+      controller.processes.first.line('older client crash details');
+      await controller.processes.first.finish(42);
+      await waitFor(() => controller.runningGames.length == 1);
+      final failure = controller.gameFailures.single;
+      expect(failure.logPath, oldLog);
+      expect(
+        failure.files['launcher.log'],
+        contains('older client crash details'),
+      );
+      expect(await File(oldLog).exists(), isTrue);
+      expect(await File(newLog).exists(), isTrue);
+      await controller.dismissGameFailure(failure);
+      expect(controller.gameFailures, isEmpty);
+      expect(await File(oldLog).exists(), isFalse);
+      expect(await File(newLog).exists(), isTrue);
+      expect(controller.isInstanceRunning(first.id), isTrue);
     },
   );
 

@@ -11,10 +11,17 @@ import 'models.dart';
 class VersionLog {
   String path;
   final DateTime startedAt;
+  final String? gameDirectory;
   DateTime? endedAt;
   int? exitCode;
   final lines = <String>[];
-  VersionLog(this.path, this.startedAt, {this.endedAt, this.exitCode});
+  VersionLog(
+    this.path,
+    this.startedAt, {
+    this.endedAt,
+    this.exitCode,
+    this.gameDirectory,
+  });
 
   void append(String line) {
     lines.add(line);
@@ -70,6 +77,7 @@ Future<VersionLog?> readLatestLog(GameInstance instance) async {
             DateTime.parse(json['startedAt'] as String),
             endedAt: DateTime.tryParse(json['endedAt'] as String? ?? ''),
             exitCode: json['exitCode'] as int?,
+            gameDirectory: instance.gameDirectory,
           );
         }
       }
@@ -82,6 +90,7 @@ Future<VersionLog?> readLatestLog(GameInstance instance) async {
   return VersionLog(
     files.first.path,
     DateTime.fromMillisecondsSinceEpoch(_stamp(files.first.path)),
+    gameDirectory: instance.gameDirectory,
   );
 }
 
