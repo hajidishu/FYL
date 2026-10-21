@@ -77,7 +77,7 @@ void main() {
     }
 
     expect(find.text('选择游戏版本和账号。'), findsOneWidget);
-    await tester.tap(find.text('添加账号'));
+    await tester.tap(find.byKey(const ValueKey('switch-account')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('添加离线账号'));
     await tester.pumpAndSettle();
@@ -97,7 +97,7 @@ void main() {
     controller.notifyListeners();
     await tester.pumpAndSettle();
     await screenshot('home');
-    await tester.tap(find.text('添加账号'));
+    await tester.tap(find.byKey(const ValueKey('switch-account')));
     await tester.pumpAndSettle();
     expect(find.text('正版账号'), findsOneWidget);
     await screenshot('accounts');

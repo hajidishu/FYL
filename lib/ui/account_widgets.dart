@@ -270,8 +270,9 @@ class _HomeAccountCardState extends State<HomeAccountCard> {
             Center(child: AccountBadge(online: account.online)),
           const SizedBox(height: 20),
           AppButton(
-            '添加账号',
-            icon: FIcons.userPlus,
+            '切换账号',
+            key: const ValueKey('switch-account'),
+            icon: FIcons.users,
             secondary: true,
             small: true,
             onPressed: manage,

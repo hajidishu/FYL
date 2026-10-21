@@ -348,31 +348,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 13),
-                  Row(
-                    children: [
-                      Icon(
-                        instance?.isolated == false
-                            ? FIcons.folder
-                            : FIcons.shieldCheck,
-                        size: 13,
-                        color: c.accent,
-                      ),
-                      const SizedBox(width: 7),
-                      Expanded(
-                        child: Text(
-                          instance == null
-                              ? '安装游戏后即可开始'
-                              : instance.isolated
-                              ? '存档与 Mod 保存在版本文件夹'
-                              : '存档与 Mod 保存在游戏根目录',
-                          style: TextStyle(fontSize: 11, color: c.muted),
-                        ),
-                      ),
-                      if (instance != null)
-                        Icon(FIcons.circleCheck, size: 13, color: c.accent),
-                    ],
-                  ),
                   if (instance != null && !hasAccount)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),

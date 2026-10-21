@@ -47,13 +47,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Local_Player'), findsOneWidget);
-      expect(find.text('切换账号'), findsNothing);
+      expect(find.text('切换账号'), findsOneWidget);
       final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await pointer.addPointer(location: Offset.zero);
       await pointer.moveTo(tester.getCenter(find.byType(SkinAvatar).first));
       await tester.pumpAndSettle();
       expect(find.text('切换账号'), findsWidgets);
-      await tester.tap(find.text('添加账号'));
+      await tester.tap(find.byKey(const ValueKey('switch-account')));
       await tester.pumpAndSettle();
       Finder inAccounts(String text) => find.descendant(
         of: find.byType(AccountManagerDialog),
@@ -84,7 +84,7 @@ void main() {
       LauncherApp(controller: controller, nativeWindow: false),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('添加账号'));
+    await tester.tap(find.byKey(const ValueKey('switch-account')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('添加离线账号'));
     await tester.pumpAndSettle();

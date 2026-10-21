@@ -58,7 +58,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('选择游戏版本和账号。'), findsOneWidget);
       expect(find.text('尚未添加账号'), findsOneWidget);
-      expect(find.text('添加账号'), findsOneWidget);
+      expect(find.text('切换账号'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.byKey(const ValueKey('navigation-3')));
       await tester.pumpAndSettle();
