@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../core/controller.dart';
 import '../core/models.dart';
+import '../core/download_source.dart';
 import '../core/pack_import.dart';
 import 'theme.dart';
 import 'account_widgets.dart';
@@ -152,7 +153,7 @@ class _HomePageState extends State<HomePage> {
                 _quickCard(
                   FIcons.download,
                   '下载游戏',
-                  '从 Minecraft 官方源安装',
+                  '下载 Minecraft 和游戏组件',
                   () => widget.navigate(2),
                 ),
                 _quickCard(
@@ -865,7 +866,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Minecraft 官方源${widget.controller.manifestFromCache ? ' · 当前显示本地缓存' : ''}',
+                      '${widget.controller.settings.downloadSource.attribution}${widget.controller.manifestFromCache ? ' · 当前显示本地缓存' : ''}',
                       style: TextStyle(color: c.muted, fontSize: 10),
                     ),
                   ),

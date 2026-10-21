@@ -3,6 +3,11 @@ import 'package:xml/xml.dart';
 import 'install_options.dart';
 import 'models.dart';
 import 'network.dart';
+import 'download_source.dart';
+
+final _optifineFile = RegExp(
+  r'^(?:preview_)?OptiFine_([^_]+)_(HD_U|HD_S|HD_L|HD|L|S)_([A-Za-z0-9_.]+)\.jar$',
+);
 
 int compareComponentVersions(String first, String second) {
   final a = RegExp(
@@ -30,6 +35,40 @@ class ModCatalog {
     String minecraft,
     CancellationToken token,
   ) async {
+    if (loader == ModLoader.forge &&
+        network.settings.downloadSource == DownloadSource.bmclapi) {
+      final rows =
+          await network.jsonValue(
+                'https://$bmclMirrorHost/forge/minecraft/${Uri.encodeComponent(minecraft)}',
+                token: token,
+              )
+              as List;
+      final results = <LoaderVersion>[];
+      for (final row in rows.cast<Json>()) {
+        final files = (row['files'] as List? ?? []).cast<Json>();
+        if (!files.any(
+          (file) => file['category'] == 'installer' && file['format'] == 'jar',
+        )) {
+          continue;
+        }
+        final branch = row['branch'] as String?;
+        final version =
+            '${row['version']}${branch == null || branch.isEmpty ? '' : '-$branch'}';
+        if (!RegExp(r'^[0-9A-Za-z._-]+$').hasMatch(version)) continue;
+        final full = '$minecraft-$version';
+        results.add(
+          LoaderVersion(
+            loader,
+            version,
+            coordinate: 'net.minecraftforge:forge:$full',
+            installerUrl:
+                'https://maven.minecraftforge.net/net/minecraftforge/forge/$full/forge-$full-installer.jar',
+          ),
+        );
+      }
+      results.sort((a, b) => compareComponentVersions(b.version, a.version));
+      return results;
+    }
     if (loader == ModLoader.fabric) {
       final rows =
           await network.jsonValue(
@@ -104,6 +143,25 @@ class ModCatalog {
     String minecraft,
     CancellationToken token,
   ) async {
+    if (network.settings.downloadSource == DownloadSource.bmclapi) {
+      final rows =
+          await network.jsonValue(
+                'https://$bmclMirrorHost/optifine/${Uri.encodeComponent(minecraft)}',
+                token: token,
+              )
+              as List;
+      return rows
+          .cast<Json>()
+          .map(
+            (row) =>
+                row['filename'] as String? ??
+                'OptiFine_${row['mcversion']}_${row['type']}_${row['patch']}.jar',
+          )
+          .where((name) => _optifineFile.hasMatch(name))
+          .toSet()
+          .map(OptiFineVersion.new)
+          .toList();
+    }
     final html = await network.text(
       'https://optifine.net/downloads',
       token: token,
@@ -123,6 +181,14 @@ class ModCatalog {
     OptiFineVersion version,
     CancellationToken token,
   ) async {
+    if (network.settings.downloadSource == DownloadSource.bmclapi) {
+      final match = _optifineFile.firstMatch(version.fileName);
+      if (match == null) throw const FormatException('无法识别 OptiFine 文件名。');
+      return Uri.https(
+        bmclMirrorHost,
+        '/optifine/${match[1]}/${match[2]}/${match[3]}',
+      ).toString();
+    }
     final html = await network.text(
       'https://optifine.net/adloadx?f=${Uri.encodeQueryComponent(version.fileName)}',
       token: token,

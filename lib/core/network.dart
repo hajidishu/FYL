@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 
 import 'build_info.dart';
 import 'models.dart';
+import 'download_source.dart';
 
 class Cancelled implements Exception {
   const Cancelled();
@@ -107,7 +108,7 @@ class OfficialNetwork {
 
   void close() => _client.close(force: true);
 
-  Uri _uri(String url) {
+  Uri _uri(String url, {bool mirrorRedirect = false}) {
     final uri = Uri.parse(url);
     const hosts = [
       'piston-meta.mojang.com',
@@ -132,6 +133,10 @@ class OfficialNetwork {
       'edge.forgecdn.net',
     ];
     if (allowLocalhost && uri.host == '127.0.0.1') return uri;
+    if ((uri.host == bmclMirrorHost || mirrorRedirect) &&
+        isPublicMirrorRedirect(uri)) {
+      return uri;
+    }
     const communityHosts = [
       'api.curseforge.com',
       'api.modrinth.com',
@@ -149,7 +154,7 @@ class OfficialNetwork {
         !(hosts.contains(uri.host) ||
             community && communityHosts.contains(uri.host)) ||
         uri.userInfo.isNotEmpty) {
-      throw FormatException('下载地址不属于受支持的官方组件源：${uri.host}');
+      throw FormatException('下载地址不属于受支持的源：${uri.host}');
     }
     return uri;
   }
@@ -158,9 +163,13 @@ class OfficialNetwork {
     String url,
     CancellationToken token, [
     int redirects = 0,
+    bool mirrorRedirect = false,
   ]) async {
     token.check();
-    final uri = _uri(url);
+    final uri = _uri(
+      sourceDownloadUri(Uri.parse(url), settings.downloadSource).toString(),
+      mirrorRedirect: mirrorRedirect,
+    );
     final request = await _client.getUrl(uri);
     for (final header
         in (hostHeaders[uri.host] ?? const <String, String>{}).entries) {
@@ -183,9 +192,10 @@ class OfficialNetwork {
         );
         token.remove(abort);
         return _get(
-          _uri(url).resolve(location).toString(),
+          uri.resolve(location).toString(),
           token,
           redirects + 1,
+          mirrorRedirect || uri.host == bmclMirrorHost,
         );
       }
       if (response.statusCode != 200) {

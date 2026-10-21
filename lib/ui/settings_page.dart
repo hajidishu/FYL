@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../core/controller.dart';
 import '../core/java_discovery.dart';
 import '../core/models.dart';
+import '../core/download_source.dart';
 import 'pages.dart';
 import 'java_installation_tile.dart';
 import 'theme.dart';
@@ -616,15 +617,25 @@ class SettingsPageState extends State<SettingsPage> {
   ]);
 
   Widget _downloads() => _section('下载与版本列表', '管理版本筛选与下载。', [
-    const Row(
-      children: [
-        Icon(FIcons.globe, size: 16),
-        SizedBox(width: 9),
-        Text('Minecraft 官方源', style: TextStyle(fontSize: 13)),
-        SizedBox(width: 10),
-        Tag('已启用', accent: true),
-      ],
+    const Text('游戏下载源', style: TextStyle(fontSize: 13)),
+    const SizedBox(height: 8),
+    SelectBox<DownloadSource>(
+      value: draft.downloadSource,
+      items: {for (final source in DownloadSource.values) source: source.label},
+      onChanged: (value) {
+        draft.downloadSource = value;
+        changed();
+      },
     ),
+    const SizedBox(height: 8),
+    Text(
+      draft.downloadSource.attribution,
+      style: TextStyle(
+        fontSize: 12,
+        color: LauncherColors.of(context).secondaryText,
+      ),
+    ),
+    const Text('用于 Minecraft、Java 运行库和游戏组件下载。', style: TextStyle(fontSize: 12)),
     const SizedBox(height: 25),
     _switch(
       '显示快照版本',

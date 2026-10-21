@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'install_options.dart';
+import 'download_source.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -38,6 +39,7 @@ class LauncherSettings {
   String microsoftClientId;
   String curseforgeApiKey;
   int retainedGameLogs;
+  DownloadSource downloadSource;
 
   LauncherSettings({
     required this.gameRoot,
@@ -62,6 +64,7 @@ class LauncherSettings {
     this.minimizeOnLaunch = false,
     this.theme = 'dark',
     this.retainedGameLogs = 1,
+    this.downloadSource = DownloadSource.official,
     this.microsoftClientId = defaultMicrosoftClientId,
     this.curseforgeApiKey = const String.fromEnvironment(
       'FYL_CURSEFORGE_API_KEY',
@@ -92,6 +95,11 @@ class LauncherSettings {
         minimizeOnLaunch: json['minimizeOnLaunch'] as bool? ?? false,
         theme: json['theme'] as String? ?? 'dark',
         retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
+        downloadSource:
+            DownloadSource.values
+                .where((source) => source.name == json['downloadSource'])
+                .firstOrNull ??
+            DownloadSource.official,
         microsoftClientId: resolveMicrosoftClientId(
           json['microsoftClientId'] as String?,
         ),
@@ -120,6 +128,7 @@ class LauncherSettings {
     'minimizeOnLaunch': minimizeOnLaunch,
     'theme': theme,
     'retainedGameLogs': retainedGameLogs,
+    'downloadSource': downloadSource.name,
     'microsoftClientId': microsoftClientId,
   };
 
