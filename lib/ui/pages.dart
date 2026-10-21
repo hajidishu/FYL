@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:crypto/crypto.dart';
 import 'package:file_selector/file_selector.dart';
 
 import 'package:flutter/material.dart';
@@ -10,7 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import '../core/controller.dart';
 import '../core/models.dart';
 import '../core/download_source.dart';
-import '../core/pack_import.dart';
+import 'local_pack_import.dart';
 import 'theme.dart';
 import 'account_widgets.dart';
 import 'install_page.dart';
@@ -439,7 +437,7 @@ class InstancesPageState extends State<InstancesPage> {
     setState(() => importing = true);
     try {
       if (controller.installing || controller.preparingLaunch) {
-        throw StateError('请等待当前任务或游戏结束。');
+        throw StateError('请等待当前任务完成。');
       }
       final file = await openFile(
         acceptedTypeGroups: const [
@@ -447,50 +445,15 @@ class InstancesPageState extends State<InstancesPage> {
         ],
       );
       if (file == null) return;
-      final plan = await inspectModpack(file.path);
-      final hash = (await sha256.bind(File(file.path).openRead()).first)
-          .toString();
       if (!mounted) return;
-      final release = ContentVersion(
-        source: plan.source,
-        id: hash,
-        projectId: 'local-$hash',
-        name: plan.version,
-        number: plan.version,
-        published: DateTime.now(),
-        gameVersions: [plan.minecraft],
-      );
-      final choices = await showDialog<PackChoices>(
-        context: context,
-        builder: (_) => PackInstallDialog(
-          plan: plan,
-          release: release,
-          isolated: controller.settings.isolateVersions,
-        ),
-      );
-      if (choices == null || !mounted) return;
-      final project = ContentProject(
-        source: plan.source,
-        kind: ContentKind.modpack,
-        id: 'local-$hash',
-        slug: '',
-        name: plan.name,
-        summary: '',
-        author: '',
-        website: '',
-      );
-      final operation = controller.content.installPack(
-        project,
-        release,
-        plan,
-        choices.name,
-        isolated: choices.isolated,
-        optional: choices.optional,
-        onStarted: (_) {
+      await importLocalPack(
+        context,
+        controller,
+        file.path,
+        onStarted: () {
           if (mounted) navigate(2);
         },
       );
-      await operation;
     } catch (e) {
       controller.errorMessage = '整合包导入失败：$e';
       controller.notifyListeners();

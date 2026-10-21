@@ -10,6 +10,7 @@ import 'pages.dart';
 import 'settings_page.dart';
 import 'theme.dart';
 import 'game_failure_dialog.dart';
+import 'file_drop.dart';
 
 class LauncherShell extends StatefulWidget {
   final LauncherController controller;
@@ -149,7 +150,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
     final controller = widget.controller;
-    return Scaffold(
+    final content = Scaffold(
       body: FScaffold(
         childPad: false,
         child: Column(
@@ -370,6 +371,12 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
           ],
         ),
       ),
+    );
+    return FileDropRegion(
+      controller: controller,
+      enabled: !closing && !showingFailure,
+      onTaskStarted: () => unawaited(navigate(2)),
+      child: content,
     );
   }
 
