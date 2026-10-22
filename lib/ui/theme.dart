@@ -156,6 +156,7 @@ class AppInput extends StatelessWidget {
   final bool enabled;
   final int maxLines;
   final bool obscureText;
+  final bool compact;
   const AppInput({
     this.initial = '',
     this.hint,
@@ -167,10 +168,12 @@ class AppInput extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.obscureText = false,
+    this.compact = false,
     super.key,
   });
   @override
   Widget build(BuildContext context) => FTextField(
+    size: compact ? FTextFieldSizeVariant.sm : FTextFieldSizeVariant.md,
     control: FTextFieldControl.managed(
       controller: controller,
       initial: controller == null ? TextEditingValue(text: initial) : null,

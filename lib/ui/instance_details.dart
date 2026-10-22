@@ -520,7 +520,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -583,7 +583,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                 ],
               ),
             ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Expanded(
             child: tab == 2
                 ? _mods()
@@ -608,9 +608,9 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
   }
 
   Widget section(String title, List<Widget> children) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.only(bottom: 12),
     child: Surface(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -618,7 +618,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             title,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
           ...children,
         ],
       ),
@@ -631,10 +631,11 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     int lines = 1,
     String? description,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 14),
+    padding: const EdgeInsets.only(bottom: 10),
     child: AppInput(
       key: ValueKey('instance-field-$key'),
       controller: fields[key],
+      compact: true,
       label: label,
       maxLines: lines,
       description: description,
@@ -654,11 +655,15 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     key: key,
     contentPadding: EdgeInsets.zero,
     dense: true,
+    visualDensity: VisualDensity.compact,
+    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    minVerticalPadding: 4,
+    horizontalTitleGap: 8,
     controlAffinity: ListTileControlAffinity.leading,
-    title: Text(title, style: const TextStyle(fontSize: 12)),
+    title: Text(title, style: const TextStyle(fontSize: 13)),
     subtitle: subtitle == null
         ? null
-        : Text(subtitle, style: const TextStyle(fontSize: 11)),
+        : Text(subtitle, style: const TextStyle(fontSize: 12)),
     value: value,
     onChanged: busy
         ? null
@@ -821,68 +826,91 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
   ];
   List<Widget> settings() => [
     section('Java', [
-      Text(switch (instance.javaMode) {
-        InstanceJavaMode.inherit => '跟随默认 Java',
-        InstanceJavaMode.automatic => '自动选择 Java',
-        InstanceJavaMode.custom => '指定 Java',
-      }, style: const TextStyle(fontSize: 13)),
-      const SizedBox(height: 8),
-      SelectableText(
-        instance.javaExecutable(widget.controller.settings),
-        style: TextStyle(fontSize: 11, color: LauncherColors.of(context).muted),
-      ),
-      const SizedBox(height: 14),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: AppButton(
-          '选择 Java',
-          secondary: true,
-          small: true,
-          onPressed: busy
-              ? null
-              : () => showDialog<bool>(
-                  context: context,
-                  builder: (_) => InstanceJavaDialog(
-                    controller: widget.controller,
-                    instance: instance,
+      Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(switch (instance.javaMode) {
+                  InstanceJavaMode.inherit => '跟随默认 Java',
+                  InstanceJavaMode.automatic => '自动选择 Java',
+                  InstanceJavaMode.custom => '指定 Java',
+                }, style: const TextStyle(fontSize: 13)),
+                const SizedBox(height: 4),
+                SelectableText(
+                  instance.javaExecutable(widget.controller.settings),
+                  maxLines: 2,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: LauncherColors.of(context).muted,
                   ),
                 ),
-        ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          AppButton(
+            '选择 Java',
+            secondary: true,
+            small: true,
+            onPressed: busy
+                ? null
+                : () => showDialog<bool>(
+                    context: context,
+                    builder: (_) => InstanceJavaDialog(
+                      controller: widget.controller,
+                      instance: instance,
+                    ),
+                  ),
+          ),
+        ],
       ),
     ]),
-    section('内存', [
-      check('单独设置内存', ownMemory, (v) {
-        setOverride(v, ownMemory, const ['minMemory', 'maxMemory']);
-        ownMemory = v;
-      }, key: const ValueKey('instance-override-memory')),
-      pair(
-        field('minMemory', '初始内存（MB）', enabled: ownMemory),
-        field('maxMemory', '最大内存（MB）', enabled: ownMemory),
-      ),
-    ]),
-    section('游戏窗口', [
-      check('单独设置游戏窗口', ownWindow, (v) {
-        setOverride(v, ownWindow, const ['width', 'height']);
-        ownWindow = v;
-      }),
-      if (ownWindow) check('全屏启动', fullscreen, (v) => fullscreen = v),
-      pair(
-        field('width', '宽度（像素）', enabled: ownWindow && !fullscreen),
-        field('height', '高度（像素）', enabled: ownWindow && !fullscreen),
-      ),
-      const Text('启动后最小化 FYL', style: TextStyle(fontSize: 12)),
-      const SizedBox(height: 8),
-      SelectBox<int>(
-        value: minimize,
-        items: const {-1: '跟随全局设置', 1: '最小化', 0: '保持窗口'},
-        onChanged: busy
-            ? null
-            : (v) {
-                minimize = v;
-                changed();
-              },
-      ),
-    ]),
+    LayoutBuilder(
+      builder: (context, constraints) {
+        final memory = section('内存', [
+          check('单独设置内存', ownMemory, (v) {
+            setOverride(v, ownMemory, const ['minMemory', 'maxMemory']);
+            ownMemory = v;
+          }, key: const ValueKey('instance-override-memory')),
+          pair(
+            field('minMemory', '初始内存（MB）', enabled: ownMemory),
+            field('maxMemory', '最大内存（MB）', enabled: ownMemory),
+          ),
+        ]);
+        final window = section('游戏窗口', [
+          check('单独设置游戏窗口', ownWindow, (v) {
+            setOverride(v, ownWindow, const ['width', 'height']);
+            ownWindow = v;
+          }),
+          if (ownWindow) check('全屏启动', fullscreen, (v) => fullscreen = v),
+          pair(
+            field('width', '宽度（像素）', enabled: ownWindow && !fullscreen),
+            field('height', '高度（像素）', enabled: ownWindow && !fullscreen),
+          ),
+          const Text('启动后最小化 FYL', style: TextStyle(fontSize: 12)),
+          const SizedBox(height: 6),
+          SelectBox<int>(
+            compact: true,
+            value: minimize,
+            items: const {-1: '跟随全局设置', 1: '最小化', 0: '保持窗口'},
+            onChanged: busy
+                ? null
+                : (v) {
+                    minimize = v;
+                    changed();
+                  },
+          ),
+        ]);
+        return constraints.maxWidth >= 720
+            ? pair(memory, window)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [memory, window],
+              );
+      },
+    ),
     section('高级启动选项', [
       check('单独设置 JVM 参数', ownJvm, (v) {
         setOverride(v, ownJvm, const ['jvmArguments']);
@@ -892,14 +920,14 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         'jvmArguments',
         '额外 JVM 参数',
         enabled: ownJvm,
-        lines: 3,
+        lines: 2,
         description: '覆盖全局额外 JVM 参数；单个参数包含空格时请加引号。',
       ),
       check('单独设置游戏参数', ownGame, (v) {
         setOverride(v, ownGame, const ['gameArguments']);
         ownGame = v;
       }),
-      field('gameArguments', '额外游戏参数', enabled: ownGame, lines: 2),
+      field('gameArguments', '额外游戏参数', enabled: ownGame),
       check('单独设置启动前命令', ownHook, (v) {
         setOverride(v, ownHook, const ['preLaunchCommand']);
         ownHook = v;
@@ -908,7 +936,6 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         'preLaunchCommand',
         '启动前执行',
         enabled: ownHook,
-        lines: 2,
         description:
             '在游戏目录中执行；Windows 使用 cmd，macOS/Linux 使用 sh。失败时停止启动，最长运行 2 分钟。',
       ),
@@ -922,6 +949,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       const Text('下载文件校验', style: TextStyle(fontSize: 12)),
       const SizedBox(height: 8),
       SelectBox<int>(
+        compact: true,
         value: verify,
         items: const {-1: '跟随全局设置', 1: '开启校验', 0: '关闭校验'},
         onChanged: busy
@@ -931,7 +959,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                 changed();
               },
       ),
-      const SizedBox(height: 18),
+      const SizedBox(height: 12),
       Align(
         alignment: Alignment.centerLeft,
         child: AppButton(
