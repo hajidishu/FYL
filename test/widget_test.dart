@@ -69,7 +69,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('下载与版本'));
       await tester.pumpAndSettle();
-      expect(find.text('显示快照版本'), findsOneWidget);
+      expect(find.text('默认展开预览版'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
@@ -97,15 +97,18 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('navigation-2')));
       await tester.pumpAndSettle();
-      expect(find.text('其他版本 (1)'), findsOneWidget);
+      expect(find.text('最新版本'), findsOneWidget);
+      expect(find.text('正式版 (2)'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('install-version-1.21.1')),
         findsOneWidget,
       );
+      await tester.tap(find.byKey(const ValueKey('version-group-release')));
+      await tester.pumpAndSettle();
       expect(find.text('1.20.1'), findsOneWidget);
       await tester.enterText(find.byType(EditableText).first, '1.20.1');
       await tester.pumpAndSettle();
-      expect(find.text('全部版本 (1)'), findsOneWidget);
+      expect(find.text('正式版 (1)'), findsOneWidget);
       expect(find.text('1.21.1'), findsNothing);
       expect(find.text('最新正式版'), findsNothing);
       await tester.enterText(find.byType(EditableText).first, '1.21.1');
@@ -114,7 +117,7 @@ void main() {
         find.byKey(const ValueKey('install-version-1.21.1')),
         findsOneWidget,
       );
-      expect(find.text('最新正式版'), findsNWidgets(2));
+      expect(find.text('最新正式版'), findsOneWidget);
       expect(find.textContaining('其他版本'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

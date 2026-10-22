@@ -782,14 +782,14 @@ class SettingsPageState extends State<SettingsPage> {
     const Text('用于 Minecraft、Java 运行库和游戏组件下载。', style: TextStyle(fontSize: 12)),
     const SizedBox(height: 25),
     _switch(
-      '显示快照版本',
-      '在下载列表中显示开发快照和预发布版本。',
+      '默认展开预览版',
+      '打开版本列表时展开快照和预发布版本分组。',
       draft.showSnapshots,
       (value) => draft.showSnapshots = value,
     ),
     _switch(
-      '显示远古版本',
-      '显示官方清单中的 Alpha / Beta 历史版本；部分版本对现代系统的支持有限。',
+      '默认展开远古版',
+      '打开版本列表时展开 Alpha / Beta 等远古版本分组。',
       draft.showHistorical,
       (value) => draft.showHistorical = value,
     ),

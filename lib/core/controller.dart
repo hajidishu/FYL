@@ -96,6 +96,7 @@ class LauncherController extends ChangeNotifier {
   String? errorMessage;
   String? notice;
   String? latestRelease;
+  String? latestSnapshot;
   bool loadingVersions = false;
   bool manifestFromCache = false;
   bool preparingLaunch = false;
@@ -824,6 +825,7 @@ class LauncherController extends ChangeNotifier {
       ..clear()
       ..addAll(list);
     latestRelease = (manifest['latest'] as Json)['release'] as String;
+    latestSnapshot = (manifest['latest'] as Json)['snapshot'] as String?;
   }
 
   Future<void> install(
