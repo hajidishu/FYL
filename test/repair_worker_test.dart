@@ -37,6 +37,13 @@ void failingWorker(InstallWorkerRequest request) {
   throw StateError('Worker failure');
 }
 
+void transferWorker(InstallWorkerRequest request) {
+  request.task.downloadedBytes = 1048576;
+  request.events.send(InstallerProgress(request.task));
+  request.events.send(InstallerProgress(request.task));
+  request.events.send(request.instance);
+}
+
 class RepairController extends LauncherController {
   final finish = Completer<void>();
   RepairController({required super.supportDirectory, required super.platform});
@@ -117,6 +124,23 @@ void main() {
       throwsA(isA<Cancelled>()),
     );
   });
+
+  test(
+    'worker transfer progress updates the speed without duplicate bytes',
+    () async {
+      await runInstallerWorker(
+        platform,
+        task,
+        instance,
+        CancellationToken(),
+        entryPoint: transferWorker,
+        onProgress: (progress) => progress.apply(task),
+      );
+      expect(task.downloadedBytes, 1048576);
+      expect(task.downloadRate.bytesPerSecond, greaterThan(0));
+      expect(task.downloadRate.bytesPerSecond, lessThanOrEqualTo(4 * 1048576));
+    },
+  );
 
   test(
     'worker crashes and progress errors do not leave a pending repair',

@@ -9,3 +9,16 @@ String formatByteSize(int bytes) {
   }
   return '${value.toStringAsFixed(1)} ${units[unit]}';
 }
+
+String formatDownloadSpeed(double bytesPerSecond) {
+  var value = bytesPerSecond.isFinite && bytesPerSecond > 0
+      ? bytesPerSecond / 1024
+      : 0.0;
+  const units = ['KB/s', 'MB/s', 'GB/s'];
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return '${value.toStringAsFixed(1)} ${units[unit]}';
+}

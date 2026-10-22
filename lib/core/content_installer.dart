@@ -305,6 +305,9 @@ class ContentInstaller {
   }
 
   Future<void> _run(ContentTask task) async {
+    // Archive preparation and earlier attempts are already included in bytes,
+    // but only this attempt's live transfers belong in the current speed.
+    task.downloadRate.reset();
     final snapshot = settings();
     final catalog = catalogFactory(snapshot);
     try {

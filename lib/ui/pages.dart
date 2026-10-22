@@ -11,6 +11,7 @@ import '../core/download_source.dart';
 import 'local_pack_import.dart';
 import 'theme.dart';
 import 'byte_size.dart';
+import 'download_speed.dart';
 import 'account_widgets.dart';
 import 'install_page.dart';
 import 'component_icon.dart';
@@ -1095,9 +1096,17 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    '${task.completedFiles} / ${task.totalFiles} 个文件 · 已传输 ${formatByteSize(task.downloadedBytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
-                    style: TextStyle(color: c.muted, fontSize: 11),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '${task.completedFiles} / ${task.totalFiles} 个文件 · 已传输 ${formatByteSize(task.downloadedBytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
+                        style: TextStyle(color: c.muted, fontSize: 11),
+                      ),
+                      DownloadSpeed(task.downloadRate),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(

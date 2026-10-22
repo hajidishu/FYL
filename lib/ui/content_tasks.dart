@@ -7,6 +7,7 @@ import '../core/controller.dart';
 import '../core/community_models.dart';
 import 'theme.dart';
 import 'byte_size.dart';
+import 'download_speed.dart';
 
 class ContentTaskCard extends StatefulWidget {
   final LauncherController controller;
@@ -74,9 +75,17 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
               backgroundColor: c.raised,
             ),
             const SizedBox(height: 10),
-            Text(
-              '${task.done} / ${task.total} · 已传输 ${formatByteSize(task.bytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
-              style: TextStyle(color: c.muted, fontSize: 11),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '${task.done} / ${task.total} · 已传输 ${formatByteSize(task.bytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
+                  style: TextStyle(color: c.muted, fontSize: 11),
+                ),
+                DownloadSpeed(task.downloadRate),
+              ],
             ),
             if (task.detail.isNotEmpty)
               Text(

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'install_options.dart';
 import 'download_source.dart';
+import 'download_rate.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -407,7 +408,19 @@ class InstallTask {
   String detail = '';
   int completedFiles = 0;
   int totalFiles = 0;
-  int downloadedBytes = 0;
+  int _downloadedBytes = 0;
+  final downloadRate = DownloadRate();
+  int get downloadedBytes => _downloadedBytes;
+  set downloadedBytes(int value) {
+    final delta = value - _downloadedBytes;
+    _downloadedBytes = value;
+    if (delta < 0) {
+      downloadRate.reset();
+    } else {
+      downloadRate.add(delta);
+    }
+  }
+
   int cachedBytes = 0;
   String? error;
   InstallTask(
