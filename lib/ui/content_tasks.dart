@@ -59,6 +59,14 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
               ),
               const SizedBox(width: 12),
               Tag(task.stage, accent: task.state == ContentTaskState.completed),
+              if (task.state != ContentTaskState.running &&
+                  task.state != ContentTaskState.waiting)
+                IconButton(
+                  key: ValueKey('dismiss-content-task-${task.id}'),
+                  tooltip: '移除任务记录',
+                  icon: const Icon(FIcons.x, size: 16),
+                  onPressed: () => widget.controller.dismissContentTask(task),
+                ),
             ],
           ),
           const SizedBox(height: 8),

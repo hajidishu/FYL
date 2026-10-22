@@ -276,6 +276,19 @@ class ContentInstaller {
     onChanged();
   }
 
+  bool dismiss(ContentTask task) {
+    if (task.state == ContentTaskState.running ||
+        task.state == ContentTaskState.waiting) {
+      return false;
+    }
+    if (!tasks.remove(task)) return false;
+    _packs.remove(task.id);
+    _mods.remove(task.id);
+    _missingTargets.remove(task.id);
+    onChanged();
+    return true;
+  }
+
   void dispose() {
     for (final task in tasks) {
       task.token.cancel();

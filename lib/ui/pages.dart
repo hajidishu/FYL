@@ -903,6 +903,15 @@ class _DownloadsPageState extends State<DownloadsPage> {
                       task.stage,
                       accent: task.status == TaskStatus.completed,
                     ),
+                    if (task.status != TaskStatus.running)
+                      IconButton(
+                        key: ValueKey(
+                          'dismiss-install-task-${identityHashCode(task)}',
+                        ),
+                        tooltip: '移除任务记录',
+                        icon: const Icon(FIcons.x, size: 16),
+                        onPressed: () => controller.dismissInstallTask(task),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 18),

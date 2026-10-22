@@ -913,6 +913,19 @@ class LauncherController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool dismissInstallTask(InstallTask task) {
+    if (task.status == TaskStatus.running || !tasks.remove(task)) return false;
+    if (identical(repairTask, task)) repairTask = null;
+    notifyListeners();
+    return true;
+  }
+
+  bool dismissContentTask(ContentTask task) {
+    if (!content.dismiss(task)) return false;
+    notifyListeners();
+    return true;
+  }
+
   Future<void> stopActiveTasks() async {
     cancelInstall();
     for (final task in content.tasks) {
