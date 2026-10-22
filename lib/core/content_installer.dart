@@ -636,6 +636,8 @@ class ContentInstaller {
         ),
         'files',
       );
+      bool isOptions(String relative) =>
+          relative.replaceAll('\\', '/').toLowerCase() == 'options.txt';
       for (final relative in [
         ...plan.overrides.keys,
         for (final (_, cached) in session.files!)
@@ -687,13 +689,14 @@ class ContentInstaller {
         languageOptions = File(
           p.join(_cache('pack-language:${task.id}'), 'options.txt'),
         );
+        final override = plan.overrides.keys.where(isOptions).firstOrNull;
+        final downloaded = session.files!
+            .where((entry) => isOptions(p.relative(entry.$2, from: cacheRoot)))
+            .firstOrNull;
         final source = File(
-          p.join(
-            plan.overrides.containsKey('options.txt')
-                ? overridesRoot
-                : instance.gameDirectory,
-            'options.txt',
-          ),
+          override != null
+              ? safeJoin(overridesRoot, override)
+              : downloaded?.$2 ?? p.join(instance.gameDirectory, 'options.txt'),
         );
         final type = await FileSystemEntity.type(
           source.path,
@@ -742,15 +745,17 @@ class ContentInstaller {
         instance.root,
         [
           for (final (_, cached) in session.files!)
-            (
-              cached,
-              safeJoin(
-                instance.gameDirectory,
-                p.relative(cached, from: cacheRoot),
+            if (languageOptions == null ||
+                !isOptions(p.relative(cached, from: cacheRoot)))
+              (
+                cached,
+                safeJoin(
+                  instance.gameDirectory,
+                  p.relative(cached, from: cacheRoot),
+                ),
               ),
-            ),
           for (final path in plan.overrides.keys)
-            if (languageOptions == null || path != 'options.txt')
+            if (languageOptions == null || !isOptions(path))
               (
                 safeJoin(overridesRoot, path),
                 safeJoin(instance.gameDirectory, path),

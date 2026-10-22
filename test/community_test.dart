@@ -80,6 +80,7 @@ void main() {
   final installed = <GameInstance>[];
   final requests = <String>[];
   final jar = utf8.encode('a verified mod file');
+  final optionsBytes = utf8.encode('lang:en_us\nrenderDistance:12\n');
   List<int> packBytes = [];
   bool restricted = false;
   InstallTask? baseTask;
@@ -275,8 +276,14 @@ void main() {
       if (path.startsWith('/cf/')) {
         expect(request.headers.value('x-api-key'), 'test-cf-key');
       }
-      if (path == '/artifact' || path == '/pack' || path == '/icon') {
-        request.response.add(path == '/pack' ? packBytes : jar);
+      if (['/artifact', '/pack', '/icon', '/options'].contains(path)) {
+        request.response.add(
+          path == '/pack'
+              ? packBytes
+              : path == '/options'
+              ? optionsBytes
+              : jar,
+        );
       } else {
         request.response.headers.contentType = ContentType.json;
         if (path == '/mr/search') {
@@ -619,6 +626,40 @@ void main() {
       expect(task.state, ContentTaskState.completed, reason: task.error);
       expect(task.bytes, packBytes.length + jar.length + simulatedBaseBytes);
       expect(task.cachedBytes, simulatedBaseCacheBytes);
+    },
+  );
+  test(
+    'downloaded options can be initialized in Chinese without duplicate destinations',
+    () async {
+      final manifest = mrManifest();
+      (manifest['files'] as List).add({
+        'path': 'options.txt',
+        'hashes': hashes(optionsBytes),
+        'downloads': ['$base/options'],
+        'fileSize': optionsBytes.length,
+      });
+      await writePack(manifest);
+      final info = project(kind: ContentKind.modpack);
+      final release = packRelease(ContentSource.modrinth);
+      final plan = await installer.preparePack(
+        info,
+        release,
+        CancellationToken(),
+      );
+      final task = await installer.installPack(
+        info,
+        release,
+        plan,
+        'Options Pack',
+        isolated: true,
+      );
+      expect(task.state, ContentTaskState.completed, reason: task.error);
+      expect(
+        await File(
+          p.join(installed.single.gameDirectory, 'options.txt'),
+        ).readAsString(),
+        'renderDistance:12\nlang:zh_cn\n',
+      );
     },
   );
   for (final bundled in [true, false]) {
