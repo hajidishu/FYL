@@ -11,6 +11,7 @@ import 'settings_page.dart';
 import 'theme.dart';
 import 'game_failure_dialog.dart';
 import 'file_drop.dart';
+import 'launcher_background.dart';
 
 class LauncherShell extends StatefulWidget {
   final LauncherController controller;
@@ -288,79 +289,83 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                         ),
                       ),
                       Expanded(
-                        child: Column(
-                          children: [
-                            if (controller.errorMessage != null ||
-                                controller.notice != null)
-                              _message(),
-                            Expanded(
-                              child: switch (page) {
-                                0 => HomePage(
-                                  controller: controller,
-                                  navigate: navigate,
-                                  nativeWindow: widget.nativeWindow,
-                                ),
-                                1 => InstancesPage(
-                                  controller: controller,
-                                  navigate: navigate,
-                                  onDirty: (value) => instanceDirty = value,
-                                ),
-                                2 => DownloadsPage(
-                                  controller: controller,
-                                  navigate: navigate,
-                                ),
-                                _ => SettingsPage(
-                                  key: settingsKey,
-                                  controller: controller,
-                                  onDirty: (value) {
-                                    settingsDirty = value;
-                                  },
-                                ),
-                              },
-                            ),
-                            Container(
-                              height: 32,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 28,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(
-                                    color: c.border.withValues(alpha: .5),
+                        child: LauncherBackground(
+                          path: controller.settings.backgroundPath,
+                          opacity: controller.settings.backgroundOpacity ?? .35,
+                          child: Column(
+                            children: [
+                              if (controller.errorMessage != null ||
+                                  controller.notice != null)
+                                _message(),
+                              Expanded(
+                                child: switch (page) {
+                                  0 => HomePage(
+                                    controller: controller,
+                                    navigate: navigate,
+                                    nativeWindow: widget.nativeWindow,
                                   ),
-                                ),
+                                  1 => InstancesPage(
+                                    controller: controller,
+                                    navigate: navigate,
+                                    onDirty: (value) => instanceDirty = value,
+                                  ),
+                                  2 => DownloadsPage(
+                                    controller: controller,
+                                    navigate: navigate,
+                                  ),
+                                  _ => SettingsPage(
+                                    key: settingsKey,
+                                    controller: controller,
+                                    onDirty: (value) {
+                                      settingsDirty = value;
+                                    },
+                                  ),
+                                },
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 5,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: c.accent,
-                                      shape: BoxShape.circle,
+                              Container(
+                                height: 32,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    top: BorderSide(
+                                      color: c.border.withValues(alpha: .5),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      controller.activityText,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: c.accent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        controller.activityText,
+                                        style: TextStyle(
+                                          color: c.muted,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      'FYL · ${controller.platform.os} / ${controller.platform.arch}',
                                       style: TextStyle(
                                         color: c.muted,
                                         fontSize: 10,
                                       ),
                                     ),
-                                  ),
-                                  Text(
-                                    'FYL · ${controller.platform.os} / ${controller.platform.arch}',
-                                    style: TextStyle(
-                                      color: c.muted,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],

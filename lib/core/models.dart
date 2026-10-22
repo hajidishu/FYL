@@ -43,6 +43,8 @@ class LauncherSettings {
   DownloadSource downloadSource;
   bool autoChinese;
   int? accentColor;
+  String? backgroundPath;
+  double? backgroundOpacity;
 
   LauncherSettings({
     required this.gameRoot,
@@ -70,49 +72,53 @@ class LauncherSettings {
     this.downloadSource = DownloadSource.official,
     this.autoChinese = true,
     this.accentColor,
+    this.backgroundPath,
+    this.backgroundOpacity = .35,
     this.microsoftClientId = defaultMicrosoftClientId,
     this.curseforgeApiKey = const String.fromEnvironment(
       'FYL_CURSEFORGE_API_KEY',
     ),
   });
 
-  factory LauncherSettings.fromJson(Json json, String defaultRoot) =>
-      LauncherSettings(
-        gameRoot: json['gameRoot'] as String? ?? defaultRoot,
-        username: json['username'] as String? ?? '',
-        isolateVersions: json['isolateVersions'] as bool? ?? true,
-        automaticJava: json['automaticJava'] as bool? ?? true,
-        javaPath: json['javaPath'] as String? ?? '',
-        minMemory: json['minMemory'] as int? ?? 512,
-        maxMemory: json['maxMemory'] as int? ?? 2048,
-        width: json['width'] as int? ?? 1280,
-        height: json['height'] as int? ?? 720,
-        fullscreen: json['fullscreen'] as bool? ?? false,
-        jvmArguments: json['jvmArguments'] as String? ?? '',
-        gameArguments: json['gameArguments'] as String? ?? '',
-        preLaunchCommand: json['preLaunchCommand'] as String? ?? '',
-        parallelDownloads: json['parallelDownloads'] as int? ?? 6,
-        downloadRetries: json['downloadRetries'] as int? ?? 2,
-        timeoutSeconds: json['timeoutSeconds'] as int? ?? 30,
-        verifyDownloads: json['verifyDownloads'] as bool? ?? true,
-        showSnapshots: json['showSnapshots'] as bool? ?? false,
-        showHistorical: json['showHistorical'] as bool? ?? false,
-        minimizeOnLaunch: json['minimizeOnLaunch'] as bool? ?? false,
-        theme: json['theme'] as String? ?? 'dark',
-        retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
-        autoChinese: json['autoChinese'] as bool? ?? true,
-        accentColor: json['accentColor'] is int
-            ? json['accentColor'] as int
-            : null,
-        downloadSource:
-            DownloadSource.values
-                .where((source) => source.name == json['downloadSource'])
-                .firstOrNull ??
-            DownloadSource.official,
-        microsoftClientId: resolveMicrosoftClientId(
-          json['microsoftClientId'] as String?,
-        ),
-      );
+  factory LauncherSettings.fromJson(
+    Json json,
+    String defaultRoot,
+  ) => LauncherSettings(
+    gameRoot: json['gameRoot'] as String? ?? defaultRoot,
+    username: json['username'] as String? ?? '',
+    isolateVersions: json['isolateVersions'] as bool? ?? true,
+    automaticJava: json['automaticJava'] as bool? ?? true,
+    javaPath: json['javaPath'] as String? ?? '',
+    minMemory: json['minMemory'] as int? ?? 512,
+    maxMemory: json['maxMemory'] as int? ?? 2048,
+    width: json['width'] as int? ?? 1280,
+    height: json['height'] as int? ?? 720,
+    fullscreen: json['fullscreen'] as bool? ?? false,
+    jvmArguments: json['jvmArguments'] as String? ?? '',
+    gameArguments: json['gameArguments'] as String? ?? '',
+    preLaunchCommand: json['preLaunchCommand'] as String? ?? '',
+    parallelDownloads: json['parallelDownloads'] as int? ?? 6,
+    downloadRetries: json['downloadRetries'] as int? ?? 2,
+    timeoutSeconds: json['timeoutSeconds'] as int? ?? 30,
+    verifyDownloads: json['verifyDownloads'] as bool? ?? true,
+    showSnapshots: json['showSnapshots'] as bool? ?? false,
+    showHistorical: json['showHistorical'] as bool? ?? false,
+    minimizeOnLaunch: json['minimizeOnLaunch'] as bool? ?? false,
+    theme: json['theme'] as String? ?? 'dark',
+    retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
+    autoChinese: json['autoChinese'] as bool? ?? true,
+    accentColor: json['accentColor'] is int ? json['accentColor'] as int : null,
+    backgroundPath: json['backgroundPath'] as String?,
+    backgroundOpacity: (json['backgroundOpacity'] as num?)?.toDouble() ?? .35,
+    downloadSource:
+        DownloadSource.values
+            .where((source) => source.name == json['downloadSource'])
+            .firstOrNull ??
+        DownloadSource.official,
+    microsoftClientId: resolveMicrosoftClientId(
+      json['microsoftClientId'] as String?,
+    ),
+  );
 
   Json toJson() => {
     'gameRoot': gameRoot,
@@ -140,6 +146,8 @@ class LauncherSettings {
     'downloadSource': downloadSource.name,
     'autoChinese': autoChinese,
     'accentColor': accentColor,
+    'backgroundPath': backgroundPath,
+    'backgroundOpacity': backgroundOpacity,
     'microsoftClientId': microsoftClientId,
   };
 
@@ -148,6 +156,12 @@ class LauncherSettings {
         ..curseforgeApiKey = curseforgeApiKey;
 
   String? validate() {
+    if (backgroundOpacity != null &&
+        (!backgroundOpacity!.isFinite ||
+            backgroundOpacity! < 0 ||
+            backgroundOpacity! > 1)) {
+      return '背景可见度应在 0–100% 之间。';
+    }
     if (accentColor != null && (accentColor! < 0 || accentColor! > 0xffffff)) {
       return '请选择有效的界面色调。';
     }

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -12,6 +13,7 @@ import 'pages.dart';
 import 'java_installation_tile.dart';
 import 'theme.dart';
 import 'accent_picker.dart';
+import 'launcher_background.dart';
 
 class SettingsPage extends StatefulWidget {
   final LauncherController controller;
@@ -512,6 +514,83 @@ class SettingsPageState extends State<SettingsPage> {
         ),
       ],
     ),
+    const SizedBox(height: 24),
+    const Text(
+      '启动器背景',
+      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+    ),
+    const SizedBox(height: 9),
+    Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        AppButton(
+          '选择背景图片',
+          key: const ValueKey('choose-background'),
+          icon: FIcons.image,
+          secondary: true,
+          small: true,
+          onPressed: saving
+              ? null
+              : () async {
+                  final image = await openFile(
+                    acceptedTypeGroups: const [
+                      XTypeGroup(
+                        label: '图片',
+                        extensions: ['png', 'jpg', 'jpeg', 'webp'],
+                      ),
+                    ],
+                  );
+                  if (image == null || !mounted) return;
+                  try {
+                    final path = await importLauncherBackground(
+                      image.path,
+                      widget.controller.supportDirectory,
+                    );
+                    if (!mounted) return;
+                    draft.backgroundPath = path;
+                    changed();
+                  } catch (e) {
+                    if (mounted) setState(() => error = '背景图片读取失败：$e');
+                  }
+                },
+        ),
+        AppButton(
+          '移除背景',
+          key: const ValueKey('remove-background'),
+          secondary: true,
+          small: true,
+          onPressed: saving || draft.backgroundPath == null
+              ? null
+              : () {
+                  draft.backgroundPath = null;
+                  changed();
+                },
+        ),
+      ],
+    ),
+    if (draft.backgroundPath?.isNotEmpty == true) ...[
+      const SizedBox(height: 12),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.file(
+          File(draft.backgroundPath!),
+          height: 130,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const Text('背景图片无法读取，请重新选择。'),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text('背景可见度 ${((draft.backgroundOpacity ?? .35) * 100).round()}%'),
+      Slider(
+        key: const ValueKey('background-opacity'),
+        value: (draft.backgroundOpacity ?? .35).clamp(0, 1),
+        onChanged: (value) {
+          draft.backgroundOpacity = value;
+          changed();
+        },
+      ),
+    ],
   ]);
 
   Widget _general() => _section('启动行为', '设置启动器行为和登录选项。', [
