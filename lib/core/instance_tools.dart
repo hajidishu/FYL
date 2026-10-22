@@ -299,14 +299,17 @@ Future<int> exportInstancePack(
     if (await File(temporary).exists()) await File(temporary).delete();
     rethrow;
   }
-  await encoder.close();
-  token.check();
-  if (await File(temporary).length() > 512 * 1024 * 1024) {
-    await File(temporary).delete();
-    throw StateError('压缩后超过 512 MB，无法作为 FYL 整合包导入，请减少内容。');
+  try {
+    await encoder.close();
+    token.check();
+    if (await File(temporary).length() > 512 * 1024 * 1024) {
+      throw StateError('压缩后超过 512 MB，无法作为 FYL 整合包导入，请减少内容。');
+    }
+    await File(temporary).rename(output);
+    return files.length;
+  } finally {
+    if (await File(temporary).exists()) await File(temporary).delete();
   }
-  await File(temporary).rename(output);
-  return files.length;
 }
 
 Future<void> copyInstanceData(

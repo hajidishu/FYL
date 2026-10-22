@@ -307,6 +307,31 @@ modId="minecraft"
     },
   );
   test(
+    'cancelled export removes its completed staging archive and preserves previous output',
+    () async {
+      await file('config/demo.cfg', 'configuration');
+      final output = File(p.join(temporary.path, 'existing.mrpack'));
+      await output.writeAsString('previous export');
+      final token = CancellationToken();
+      await expectLater(
+        exportInstancePack(
+          instance,
+          output.path,
+          token,
+          folders: {'config'},
+          version: '1',
+          gameOptions: false,
+          onProgress: (done, total) {
+            if (done == total) token.cancel();
+          },
+        ),
+        throwsA(isA<Cancelled>()),
+      );
+      expect(await output.readAsString(), 'previous export');
+      expect(await File('${output.path}.fyl-part').exists(), isFalse);
+    },
+  );
+  test(
     'directory switching copies game data only and rejects conflicting files',
     () async {
       final shared = instance.copyWith(isolated: false);
