@@ -28,7 +28,7 @@ Future<void> main() async {
         minimumSize: Size(780, 560),
         center: true,
         backgroundColor: Color(0xFF101215),
-        title: 'free_your_launcher',
+        title: 'FYL',
         titleBarStyle: TitleBarStyle.hidden,
         windowButtonVisibility: false,
       ),
@@ -55,7 +55,7 @@ class LauncherApp extends StatelessWidget {
     listenable: controller,
     builder: (context, _) {
       return MaterialApp(
-        title: 'free_your_launcher',
+        title: 'FYL',
         debugShowCheckedModeBanner: false,
         locale: const Locale('zh', 'CN'),
         supportedLocales: const [Locale('zh', 'CN'), Locale('en')],

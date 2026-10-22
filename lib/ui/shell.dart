@@ -193,7 +193,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                             ),
                             const SizedBox(width: 11),
                             Text(
-                              'free_your_launcher',
+                              'FYL',
                               style: TextStyle(
                                 color: c.foreground,
                                 fontSize: 14,
