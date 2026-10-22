@@ -35,6 +35,9 @@ class _InstanceModsState extends State<InstanceMods> {
   ModUpdateCheck? updateCheck;
   CancellationToken? updateToken;
   String? progress, message;
+  int get updatableCount => selected
+      .where((path) => updateCheck?.updates.containsKey(path) == true)
+      .length;
   CancellationToken token = CancellationToken();
   @override
   void initState() {
@@ -93,6 +96,12 @@ class _InstanceModsState extends State<InstanceMods> {
         () => progress = '$stage${total > 0 ? ' · $done / $total' : ''}',
       );
     }
+  }
+
+  String? versionChange(LocalMod mod) {
+    final update = updateCheck?.updates[mod.path];
+    if (update == null) return null;
+    return '${mod.version.isEmpty ? update.installed.current.number : mod.version} → ${update.latest.number}';
   }
 
   Future<ModUpdateCheck?> checkUpdates({bool selectAvailable = false}) async {
@@ -415,11 +424,14 @@ class _InstanceModsState extends State<InstanceMods> {
                   style: TextStyle(color: c.muted, fontSize: 12),
                 ),
                 AppButton(
-                  '更新所选',
+                  updateCheck == null ? '更新所选' : '更新所选($updatableCount)',
                   key: const ValueKey('update-selected-mods'),
                   small: true,
                   icon: FIcons.download,
-                  onPressed: disabled ? null : () => updateChosen(chosen),
+                  onPressed:
+                      disabled || updateCheck != null && updatableCount == 0
+                      ? null
+                      : () => updateChosen(chosen),
                 ),
                 AppButton(
                   '启用',
@@ -617,13 +629,19 @@ class _InstanceModsState extends State<InstanceMods> {
                                       letterSpacing: 0,
                                     ),
                                   ),
-                                  Text(
-                                    '${mod.loader.isEmpty ? '' : '${mod.loader} · '}${p.basename(mod.path)}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: c.muted,
-                                      fontSize: 12,
+                                  Tooltip(
+                                    message:
+                                        versionChange(mod) ??
+                                        p.basename(mod.path),
+                                    child: Text(
+                                      versionChange(mod) ??
+                                          '${mod.loader.isEmpty ? '' : '${mod.loader} · '}${p.basename(mod.path)}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: c.muted,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ],

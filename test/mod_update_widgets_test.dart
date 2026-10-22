@@ -167,6 +167,8 @@ void main() {
           isTrue,
         );
         expect(find.text('发现 2 个可更新 Mod'), findsOneWidget);
+        expect(find.text('更新所选(2)'), findsOneWidget);
+        expect(find.text('1 → 2'), findsWidgets);
         await tester.tap(find.byKey(const ValueKey('update-selected-mods')));
         await settle(tester);
         expect(controller.applied, ['Alpha', 'Gamma']);

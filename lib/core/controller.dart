@@ -45,7 +45,9 @@ class LauncherController extends ChangeNotifier {
   final AccountTokenStore tokenStore;
   final MicrosoftAuth Function() authFactory;
   final SecureAccountTokenStore appSecrets;
-  final ContentCatalogFactory communityCatalogFactory;
+  final ContentCatalogFactory? _communityCatalogFactory;
+  ContentCatalogFactory get communityCatalogFactory =>
+      _communityCatalogFactory ?? CommunityCatalog.new;
   static const _curseforgeKey = 'settings.curseforge-api-key';
   late final content = ContentInstaller(
     platform: platform,
@@ -126,8 +128,7 @@ class LauncherController extends ChangeNotifier {
     MicrosoftAuth Function()? authFactory,
     SecureAccountTokenStore? appSecrets,
     ContentCatalogFactory? communityCatalogFactory,
-  }) : communityCatalogFactory =
-           communityCatalogFactory ?? CommunityCatalog.new,
+  }) : _communityCatalogFactory = communityCatalogFactory,
        appSecrets =
            appSecrets ??
            SecureAccountTokenStore(supportDirectory: supportDirectory),
