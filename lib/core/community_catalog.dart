@@ -273,6 +273,50 @@ class CommunityCatalog {
     return file;
   }
 
+  Future<Map<String, ContentVersion>> versionsFromHashes(
+    List<String> hashes,
+    CancellationToken token, {
+    String? minecraft,
+    String? loader,
+    List<String>? channels,
+  }) async {
+    final update = minecraft != null && loader != null;
+    final data = await network.postJson(
+      '$_modrinthVersionFiles${update ? '/update' : ''}',
+      {
+        'hashes': hashes,
+        'algorithm': 'sha1',
+        if (update) 'game_versions': [minecraft],
+        if (update) 'loaders': [loader],
+        'version_types': ?channels,
+      },
+      token,
+    );
+    return {
+      for (final entry in data.entries)
+        entry.key: _modrinthVersion(
+          entry.value as Json,
+          'https://modrinth.com/mod/${entry.value['project_id']}',
+        ),
+    };
+  }
+
+  String get _modrinthVersionFiles => '$modrinthBase/version_files';
+
+  Future<List<ContentVersion>> fingerprintMatches(
+    List<int> fingerprints,
+    CancellationToken token,
+  ) async {
+    _requireCurseForge();
+    final data = await network.postJson('$curseforgeBase/fingerprints/432', {
+      'fingerprints': fingerprints,
+    }, token);
+    return [
+      for (final match in data['data']['exactMatches'] as List? ?? [])
+        _curseVersion(match['file'] as Json, ''),
+    ];
+  }
+
   Future<List<ContentFile>> modFiles(
     ContentProject project,
     ContentVersion release,

@@ -231,6 +231,44 @@ class OfficialNetwork {
   }) async =>
       jsonDecode(await text(url, expectedHash: expectedHash, token: token));
 
+  Future<Json> postJson(String url, Json body, CancellationToken token) =>
+      _retry(() async {
+        token.check();
+        final uri = _uri(url);
+        final request = await _client.postUrl(uri);
+        request.followRedirects = false;
+        request.headers.contentType = ContentType.json;
+        for (final header
+            in (hostHeaders[uri.host] ?? const <String, String>{}).entries) {
+          request.headers.set(header.key, header.value);
+        }
+        void abort() => request.abort(const Cancelled());
+        token.add(abort);
+        try {
+          request.add(utf8.encode(jsonEncode(body)));
+          final response = await request.close().timeout(
+            Duration(seconds: settings.timeoutSeconds),
+          );
+          if (response.statusCode != 200) {
+            await response.drain<void>().timeout(
+              Duration(seconds: settings.timeoutSeconds),
+            );
+            throw HttpException('HTTP ${response.statusCode}', uri: uri);
+          }
+          final bytes = <int>[];
+          await for (final chunk in _body(response, token)) {
+            token.check();
+            bytes.addAll(chunk);
+            if (bytes.length > 32 * 1024 * 1024) {
+              throw const FormatException('元数据超过大小限制');
+            }
+          }
+          return jsonDecode(utf8.decode(bytes)) as Json;
+        } finally {
+          token.remove(abort);
+        }
+      }, token);
+
   Future<String> text(
     String url, {
     String? expectedHash,

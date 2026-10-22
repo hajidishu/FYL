@@ -21,6 +21,8 @@ import 'content_installer.dart';
 import 'community_models.dart';
 import 'instance_tools.dart';
 import 'local_mods.dart';
+import 'mod_updates.dart';
+import 'community_catalog.dart';
 import 'pack_import.dart' show ensurePackParents;
 
 class RunningGame {
@@ -43,11 +45,13 @@ class LauncherController extends ChangeNotifier {
   final AccountTokenStore tokenStore;
   final MicrosoftAuth Function() authFactory;
   final SecureAccountTokenStore appSecrets;
+  final ContentCatalogFactory communityCatalogFactory;
   static const _curseforgeKey = 'settings.curseforge-api-key';
   late final content = ContentInstaller(
     platform: platform,
     supportDirectory: supportDirectory,
     settings: () => settings.copy(),
+    catalogFactory: communityCatalogFactory,
     busy: () => installing,
     checkModTarget: (target) {
       final current = editableInstance(target.id);
@@ -121,7 +125,10 @@ class LauncherController extends ChangeNotifier {
     AccountTokenStore? tokenStore,
     MicrosoftAuth Function()? authFactory,
     SecureAccountTokenStore? appSecrets,
-  }) : appSecrets =
+    ContentCatalogFactory? communityCatalogFactory,
+  }) : communityCatalogFactory =
+           communityCatalogFactory ?? CommunityCatalog.new,
+       appSecrets =
            appSecrets ??
            SecureAccountTokenStore(supportDirectory: supportDirectory),
        tokenStore =
@@ -610,6 +617,51 @@ class LauncherController extends ChangeNotifier {
       await importLocalMods(instance, paths, replace: replace);
     } finally {
       instanceOperation = null;
+      notifyListeners();
+    }
+  }
+
+  Future<ModUpdateCheck> checkModUpdates(
+    String id,
+    List<LocalMod> mods,
+    CancellationToken token, {
+    ModUpdateProgress? onProgress,
+  }) async {
+    final instance = instances.where((i) => i.id == id).firstOrNull;
+    if (instance == null) throw StateError('版本已移除。');
+    final catalog = communityCatalogFactory(settings.copy());
+    try {
+      return await ModUpdater(
+        catalog,
+        supportDirectory,
+      ).check(instance, mods, token, onProgress: onProgress);
+    } finally {
+      catalog.close();
+    }
+  }
+
+  Future<void> installModUpdates(
+    String id,
+    List<ModUpdate> updates,
+    ModUpdateCheck check, {
+    ModUpdateProgress? onProgress,
+  }) async {
+    if (updates.isEmpty) return;
+    final instance = editableInstance(id);
+    instanceOperation = '更新 Mod';
+    final token = _instanceToken = CancellationToken();
+    final catalog = communityCatalogFactory(settings.copy());
+    notifyListeners();
+    try {
+      await ModUpdater(
+        catalog,
+        supportDirectory,
+      ).apply(instance, updates, check, token, onProgress: onProgress);
+      notice = '${updates.length} 个 Mod 已更新';
+    } finally {
+      catalog.close();
+      instanceOperation = null;
+      _instanceToken = null;
       notifyListeners();
     }
   }

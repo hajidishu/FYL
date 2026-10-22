@@ -8,6 +8,7 @@ import '../core/controller.dart';
 import '../core/local_mods.dart';
 import '../core/models.dart';
 import '../core/network.dart';
+import '../core/mod_updates.dart';
 import 'theme.dart';
 
 class InstanceMods extends StatefulWidget {
@@ -30,6 +31,10 @@ class _InstanceModsState extends State<InstanceMods> {
   String query = '', filter = 'all';
   String? error;
   bool loading = true, working = false;
+  bool checkingUpdates = false;
+  ModUpdateCheck? updateCheck;
+  CancellationToken? updateToken;
+  String? progress, message;
   CancellationToken token = CancellationToken();
   @override
   void initState() {
@@ -40,7 +45,9 @@ class _InstanceModsState extends State<InstanceMods> {
   @override
   void didUpdateWidget(InstanceMods old) {
     super.didUpdateWidget(old);
-    if (old.instance.gameDirectory != widget.instance.gameDirectory) {
+    if (old.instance.gameDirectory != widget.instance.gameDirectory ||
+        old.instance.version != widget.instance.version ||
+        old.instance.components != widget.instance.components) {
       unawaited(refresh());
     }
   }
@@ -48,17 +55,20 @@ class _InstanceModsState extends State<InstanceMods> {
   @override
   void dispose() {
     token.cancel();
+    updateToken?.cancel();
     super.dispose();
   }
 
   Future<void> refresh() async {
     if (!mounted) return;
     token.cancel();
+    updateToken?.cancel();
     token = CancellationToken();
     final request = token;
     setState(() {
       loading = true;
       error = null;
+      updateCheck = null;
     });
     try {
       final results = await scanLocalMods(widget.instance, request);
@@ -74,6 +84,111 @@ class _InstanceModsState extends State<InstanceMods> {
       if (mounted && !request.cancelled) setState(() => error = '$e');
     } finally {
       if (mounted && !request.cancelled) setState(() => loading = false);
+    }
+  }
+
+  void updateProgress(String stage, int done, int total) {
+    if (mounted) {
+      setState(
+        () => progress = '$stage${total > 0 ? ' · $done / $total' : ''}',
+      );
+    }
+  }
+
+  Future<ModUpdateCheck?> checkUpdates({bool selectAvailable = false}) async {
+    if (checkingUpdates) return null;
+    final request = updateToken = CancellationToken();
+    setState(() {
+      checkingUpdates = true;
+      error = null;
+      message = null;
+    });
+    try {
+      final result = await widget.controller.checkModUpdates(
+        widget.instance.id,
+        mods,
+        request,
+        onProgress: updateProgress,
+      );
+      if (!mounted || request.cancelled) return null;
+      setState(() {
+        updateCheck = result;
+        if (selectAvailable) selected = result.updates.keys.toSet();
+      });
+      return result;
+    } on Cancelled {
+      return null;
+    } catch (e) {
+      if (mounted && !request.cancelled) {
+        setState(() => error = '$e'.replaceFirst('Bad state: ', ''));
+      }
+      return null;
+    } finally {
+      if (mounted && identical(updateToken, request)) {
+        setState(() {
+          checkingUpdates = false;
+          progress = null;
+        });
+      }
+    }
+  }
+
+  Future<void> selectAvailable() async {
+    if (updateCheck == null) {
+      await checkUpdates(selectAvailable: true);
+    } else {
+      setState(() => selected = updateCheck!.updates.keys.toSet());
+    }
+  }
+
+  Future<void> updateChosen(List<LocalMod> chosen) async {
+    setState(() {
+      working = true;
+      error = null;
+      message = null;
+    });
+    try {
+      final result = updateCheck ?? await checkUpdates();
+      if (result == null || !mounted) return;
+      final candidates = chosen
+          .map((m) => result.updates[m.path])
+          .whereType<ModUpdate>()
+          .toList();
+      if (candidates.isEmpty) {
+        setState(() => message = '所选 Mod 未发现兼容更新。');
+        return;
+      }
+      await widget.controller.installModUpdates(
+        widget.instance.id,
+        candidates,
+        result,
+        onProgress: updateProgress,
+      );
+      if (!mounted) return;
+      await refresh();
+      if (mounted) setState(() => message = '已更新 ${candidates.length} 个 Mod。');
+    } on Cancelled {
+      if (mounted) setState(() => message = '更新已取消。');
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => error = '$e'
+              .replaceFirst('Bad state: ', '')
+              .replaceAll(
+                widget.controller.settings.curseforgeApiKey.isEmpty
+                    ? '\u0000'
+                    : widget.controller.settings.curseforgeApiKey,
+                '[已隐藏密钥]',
+              ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          working = false;
+          progress = null;
+        });
+      }
     }
   }
 
@@ -190,6 +305,7 @@ class _InstanceModsState extends State<InstanceMods> {
         visiblePaths.isNotEmpty && visiblePaths.every(selected.contains);
     final disabled =
         working ||
+        checkingUpdates ||
         loading ||
         widget.controller.installing ||
         widget.controller.preparingLaunch ||
@@ -236,6 +352,14 @@ class _InstanceModsState extends State<InstanceMods> {
               small: true,
               onPressed: disabled ? null : refresh,
             ),
+            AppButton(
+              '检查更新',
+              key: const ValueKey('check-mod-updates'),
+              icon: FIcons.refreshCw,
+              secondary: true,
+              small: true,
+              onPressed: disabled ? null : () => checkUpdates(),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -269,6 +393,13 @@ class _InstanceModsState extends State<InstanceMods> {
                       }
                     }),
             ),
+            AppButton(
+              '可更新',
+              key: const ValueKey('select-updatable-mods'),
+              small: true,
+              secondary: true,
+              onPressed: disabled ? null : selectAvailable,
+            ),
           ],
         ),
         if (selected.isNotEmpty)
@@ -282,6 +413,13 @@ class _InstanceModsState extends State<InstanceMods> {
                 Text(
                   '已选择 ${selected.length} 项',
                   style: TextStyle(color: c.muted, fontSize: 12),
+                ),
+                AppButton(
+                  '更新所选',
+                  key: const ValueKey('update-selected-mods'),
+                  small: true,
+                  icon: FIcons.download,
+                  onPressed: disabled ? null : () => updateChosen(chosen),
                 ),
                 AppButton(
                   '启用',
@@ -320,6 +458,31 @@ class _InstanceModsState extends State<InstanceMods> {
               ],
             ),
           ),
+        if (updateCheck != null || message != null || progress != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              progress ??
+                  message ??
+                  '发现 ${updateCheck!.updates.length} 个可更新 Mod${updateCheck!.unidentified > 0 ? ' · ${updateCheck!.unidentified} 个未识别' : ''}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: c.muted, fontSize: 12),
+            ),
+          ),
+        if (updateCheck?.notices.isNotEmpty == true)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Tooltip(
+              message: updateCheck!.notices.join('\n'),
+              child: Text(
+                updateCheck!.notices.join('\n'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: c.muted, fontSize: 12),
+              ),
+            ),
+          ),
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -339,7 +502,7 @@ class _InstanceModsState extends State<InstanceMods> {
             padding: EdgeInsets.only(top: 10),
             child: Text('请先关闭游戏再修改 Mod。', style: TextStyle(fontSize: 11)),
           ),
-        if (loading || working)
+        if (loading || working || checkingUpdates)
           const Padding(
             padding: EdgeInsets.only(top: 12),
             child: LinearProgressIndicator(minHeight: 3),
@@ -411,17 +574,30 @@ class _InstanceModsState extends State<InstanceMods> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '${mod.name}${mod.version.isEmpty ? '' : ' · ${mod.version}'}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: mod.enabled
-                                          ? c.foreground
-                                          : c.muted,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${mod.name}${mod.version.isEmpty ? '' : ' · ${mod.version}'}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: mod.enabled
+                                                ? c.foreground
+                                                : c.muted,
+                                          ),
+                                        ),
+                                      ),
+                                      if (updateCheck?.updates.containsKey(
+                                            mod.path,
+                                          ) ==
+                                          true) ...[
+                                        const SizedBox(width: 6),
+                                        const Tag('可更新', accent: true),
+                                      ],
+                                    ],
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -454,6 +630,26 @@ class _InstanceModsState extends State<InstanceMods> {
                               ),
                             ),
                             const SizedBox(width: 8),
+                            IconButton(
+                              key: ValueKey('update-mod-${mod.path}'),
+                              tooltip: updateCheck?.updates[mod.path] == null
+                                  ? '检查并更新此 Mod'
+                                  : '更新到 ${updateCheck!.updates[mod.path]!.latest.number}',
+                              icon: Icon(
+                                FIcons.download,
+                                size: 18,
+                                color:
+                                    updateCheck?.updates.containsKey(
+                                          mod.path,
+                                        ) ==
+                                        true
+                                    ? c.accent
+                                    : c.muted,
+                              ),
+                              onPressed: disabled
+                                  ? null
+                                  : () => updateChosen([mod]),
+                            ),
                             Tooltip(
                               message: mod.enabled ? '禁用此 Mod' : '启用此 Mod',
                               child: Switch(

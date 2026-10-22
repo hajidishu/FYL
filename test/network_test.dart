@@ -87,6 +87,68 @@ void main() {
     expect(await File('$destination.part').exists(), isFalse);
   });
   test(
+    'JSON POST uses scoped headers and rejects redirects and unsupported hosts',
+    () async {
+      final api = OfficialNetwork(
+        network.settings,
+        allowLocalhost: true,
+        hostHeaders: {
+          '127.0.0.1': {'x-api-key': 'fixture-api-key'},
+        },
+      );
+      addTearDown(api.close);
+      server.listen((request) async {
+        expect(request.headers.value('x-api-key'), 'fixture-api-key');
+        expect(request.headers.contentType?.mimeType, 'application/json');
+        expect(jsonDecode(await utf8.decoder.bind(request).join()), {
+          'hashes': ['test'],
+        });
+        if (request.uri.path == '/redirect') {
+          request.response.statusCode = HttpStatus.temporaryRedirect;
+          request.response.headers.set(
+            HttpHeaders.locationHeader,
+            'https://example.invalid/credentials',
+          );
+        } else {
+          request.response.write('{"ok":true}');
+        }
+        await request.response.close();
+      });
+      expect(
+        await api.postJson('$base/post', {
+          'hashes': ['test'],
+        }, CancellationToken()),
+        {'ok': true},
+      );
+      await expectLater(
+        api.postJson('$base/redirect', {
+          'hashes': ['test'],
+        }, CancellationToken()),
+        throwsA(isA<HttpException>()),
+      );
+      await expectLater(
+        api.postJson('https://example.invalid/post', {}, CancellationToken()),
+        throwsFormatException,
+      );
+    },
+  );
+  test(
+    'JSON POST can be cancelled while waiting for the provider response',
+    () async {
+      final seen = Completer<void>();
+      server.listen((request) {
+        if (!seen.isCompleted) seen.complete();
+      });
+      final token = CancellationToken();
+      final pending = network.postJson('$base/wait', {
+        'hashes': ['test'],
+      }, token);
+      await seen.future;
+      token.cancel();
+      await expectLater(pending, throwsA(isA<Cancelled>()));
+    },
+  );
+  test(
     'community hash verification remains mandatory and alternatives work without retries',
     () async {
       final bytes = utf8.encode('verified community file');
