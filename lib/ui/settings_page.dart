@@ -11,6 +11,7 @@ import '../core/build_info.dart';
 import 'pages.dart';
 import 'java_installation_tile.dart';
 import 'theme.dart';
+import 'accent_picker.dart';
 
 class SettingsPage extends StatefulWidget {
   final LauncherController controller;
@@ -42,6 +43,7 @@ class SettingsPageState extends State<SettingsPage> {
   JavaScanProgress javaScanProgress = const JavaScanProgress(0, 0);
   static const groups = [
     '通用',
+    '外观',
     '游戏与隔离',
     '默认 Java 与内存',
     '游戏窗口',
@@ -326,11 +328,12 @@ class SettingsPageState extends State<SettingsPage> {
                 children: [
                   switch (group) {
                     0 => _general(),
-                    1 => _storage(),
-                    2 => _java(),
-                    3 => _window(),
-                    4 => _downloads(),
-                    5 => _community(),
+                    1 => _appearance(),
+                    2 => _storage(),
+                    3 => _java(),
+                    4 => _window(),
+                    5 => _downloads(),
+                    6 => _community(),
                     _ => _logs(),
                   },
                   const SizedBox(height: 18),
@@ -439,7 +442,7 @@ class SettingsPageState extends State<SettingsPage> {
     ),
   ]);
 
-  Widget _general() => _section('外观与行为', '设置界面主题和启动行为。', [
+  Widget _appearance() => _section('界面外观', '调整主题和界面色调。', [
     const Text(
       '界面主题',
       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
@@ -454,6 +457,64 @@ class SettingsPageState extends State<SettingsPage> {
       },
     ),
     const SizedBox(height: 25),
+    const Text(
+      '界面色调',
+      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+    ),
+    const SizedBox(height: 9),
+    Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: Color(0xff000000 | (draft.accentColor ?? 0x237852)),
+            shape: BoxShape.circle,
+          ),
+        ),
+        Text(
+          draft.accentColor == null
+              ? '默认绿色'
+              : '#${draft.accentColor!.toRadixString(16).padLeft(6, '0').toUpperCase()}',
+        ),
+        AppButton(
+          '选择色调',
+          key: const ValueKey('choose-accent'),
+          secondary: true,
+          small: true,
+          onPressed: saving
+              ? null
+              : () async {
+                  final value = await showDialog<int>(
+                    context: context,
+                    builder: (_) =>
+                        AccentPicker(initial: draft.accentColor ?? 0x237852),
+                  );
+                  if (!mounted || value == null) return;
+                  draft.accentColor = value;
+                  changed();
+                },
+        ),
+        AppButton(
+          '重置色调',
+          key: const ValueKey('reset-accent'),
+          secondary: true,
+          small: true,
+          onPressed: saving || draft.accentColor == null
+              ? null
+              : () {
+                  draft.accentColor = null;
+                  changed();
+                },
+        ),
+      ],
+    ),
+  ]);
+
+  Widget _general() => _section('启动行为', '设置启动器行为和登录选项。', [
     _switch(
       '启动游戏后最小化',
       '游戏进程成功启动后，将启动器最小化到任务栏。',

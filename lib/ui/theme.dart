@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
+class LauncherAccent extends ThemeExtension<LauncherAccent> {
+  final int? color;
+  const LauncherAccent(this.color);
+  @override
+  LauncherAccent copyWith({int? color}) => LauncherAccent(color ?? this.color);
+  @override
+  LauncherAccent lerp(covariant LauncherAccent? other, double t) =>
+      t < .5 ? this : other ?? this;
+}
+
 class LauncherColors {
   final bool dark;
-  const LauncherColors(this.dark);
-  static LauncherColors of(BuildContext context) =>
-      LauncherColors(Theme.of(context).brightness == Brightness.dark);
+  final int? accentColor;
+  const LauncherColors(this.dark, {this.accentColor});
+  static LauncherColors of(BuildContext context) => LauncherColors(
+    Theme.of(context).brightness == Brightness.dark,
+    accentColor: Theme.of(context).extension<LauncherAccent>()?.color,
+  );
   Color get background =>
       dark ? const Color(0xFF101215) : const Color(0xFFF6F8F7);
   Color get sidebar => dark ? const Color(0xFF121518) : const Color(0xFFEDF1EF);
@@ -17,10 +30,24 @@ class LauncherColors {
   Color get muted => dark ? const Color(0xFF8E9B99) : const Color(0xFF64776C);
   Color get secondaryText =>
       dark ? const Color(0xFFBAC5C1) : const Color(0xFF4C6255);
-  Color get accent => dark ? const Color(0xFFA3E5C4) : const Color(0xFF237852);
-  Color get accentBackground =>
-      dark ? const Color(0xFF263C33) : const Color(0xFFDDEEE4);
-  Color get onAccent => dark ? const Color(0xFF10271C) : Colors.white;
+  Color get accent {
+    if (accentColor == null) {
+      return dark ? const Color(0xFFA3E5C4) : const Color(0xFF237852);
+    }
+    final hsl = HSLColor.fromColor(Color(0xff000000 | accentColor!));
+    return hsl
+        .withLightness(hsl.lightness.clamp(dark ? .65 : .25, dark ? .82 : .45))
+        .toColor();
+  }
+
+  Color get accentBackground => accentColor == null
+      ? (dark ? const Color(0xFF263C33) : const Color(0xFFDDEEE4))
+      : Color.alphaBlend(accent.withValues(alpha: dark ? .16 : .12), surface);
+  Color get onAccent => accentColor == null
+      ? (dark ? const Color(0xFF10271C) : Colors.white)
+      : ThemeData.estimateBrightnessForColor(accent) == Brightness.light
+      ? const Color(0xFF101215)
+      : Colors.white;
 
   FThemeData get forui => FThemeData(
     touch: false,
@@ -40,13 +67,14 @@ class LauncherColors {
 
   ThemeData get material => ThemeData(
     brightness: dark ? Brightness.dark : Brightness.light,
+    extensions: [LauncherAccent(accentColor)],
     scaffoldBackgroundColor: background,
     fontFamily: 'Microsoft YaHei',
     fontFamilyFallback: const ['PingFang SC', 'Noto Sans CJK SC', 'sans-serif'],
     colorScheme: ColorScheme.fromSeed(
       seedColor: accent,
       brightness: dark ? Brightness.dark : Brightness.light,
-    ),
+    ).copyWith(primary: accent, onPrimary: onAccent, secondary: accent),
     textTheme: TextTheme(
       bodyMedium: TextStyle(fontSize: 13, height: 1.5, color: foreground),
     ),

@@ -42,6 +42,7 @@ class LauncherSettings {
   int retainedGameLogs;
   DownloadSource downloadSource;
   bool autoChinese;
+  int? accentColor;
 
   LauncherSettings({
     required this.gameRoot,
@@ -68,6 +69,7 @@ class LauncherSettings {
     this.retainedGameLogs = 1,
     this.downloadSource = DownloadSource.official,
     this.autoChinese = true,
+    this.accentColor,
     this.microsoftClientId = defaultMicrosoftClientId,
     this.curseforgeApiKey = const String.fromEnvironment(
       'FYL_CURSEFORGE_API_KEY',
@@ -99,6 +101,9 @@ class LauncherSettings {
         theme: json['theme'] as String? ?? 'dark',
         retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
         autoChinese: json['autoChinese'] as bool? ?? true,
+        accentColor: json['accentColor'] is int
+            ? json['accentColor'] as int
+            : null,
         downloadSource:
             DownloadSource.values
                 .where((source) => source.name == json['downloadSource'])
@@ -134,6 +139,7 @@ class LauncherSettings {
     'retainedGameLogs': retainedGameLogs,
     'downloadSource': downloadSource.name,
     'autoChinese': autoChinese,
+    'accentColor': accentColor,
     'microsoftClientId': microsoftClientId,
   };
 
@@ -142,6 +148,9 @@ class LauncherSettings {
         ..curseforgeApiKey = curseforgeApiKey;
 
   String? validate() {
+    if (accentColor != null && (accentColor! < 0 || accentColor! > 0xffffff)) {
+      return '请选择有效的界面色调。';
+    }
     if (retainedGameLogs < 1 || retainedGameLogs > 50) {
       return '日志保留份数应为 1–50。';
     }

@@ -64,8 +64,14 @@ class LauncherApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        theme: const LauncherColors(false).material,
-        darkTheme: const LauncherColors(true).material,
+        theme: LauncherColors(
+          false,
+          accentColor: controller.settings.accentColor,
+        ).material,
+        darkTheme: LauncherColors(
+          true,
+          accentColor: controller.settings.accentColor,
+        ).material,
         themeMode: switch (controller.settings.theme) {
           'light' => ThemeMode.light,
           'system' => ThemeMode.system,
