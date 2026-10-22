@@ -85,6 +85,7 @@ class _CommunityPageState extends State<CommunityPage> {
   String source = 'all', loader = '';
   bool newest = false, loading = false, hasMore = false;
   int page = 0;
+  String? searchError;
   List<ContentProject> projects = [];
   List<String> notices = [];
   ContentProject? selected;
@@ -118,7 +119,9 @@ class _CommunityPageState extends State<CommunityPage> {
       if (!next) {
         page = 0;
         projects = [];
+        hasMore = false;
       }
+      searchError = null;
     });
     ContentSearchResult result;
     try {
@@ -138,6 +141,7 @@ class _CommunityPageState extends State<CommunityPage> {
       if (mounted && !request.cancelled) {
         setState(() {
           loading = false;
+          searchError = '$e';
           notices = ['$e'];
         });
       }
@@ -145,12 +149,19 @@ class _CommunityPageState extends State<CommunityPage> {
     }
     if (!mounted || request.cancelled) return;
     setState(() {
+      if (result.failed) {
+        notices = result.notices;
+        searchError = '社区来源暂时无法连接';
+        loading = false;
+        return;
+      }
       if (next) page++;
       final ids = projects.map((p) => '${p.source.name}:${p.id}').toSet();
       projects.addAll(
         result.projects.where((p) => ids.add('${p.source.name}:${p.id}')),
       );
       notices = result.notices;
+      searchError = result.failed ? '社区来源暂时无法连接' : null;
       hasMore = result.hasMore;
       loading = false;
     });
@@ -318,6 +329,25 @@ class _CommunityPageState extends State<CommunityPage> {
             hasScrollBody: false,
             child: Center(child: CircularProgressIndicator()),
           )
+        else if (projects.isEmpty && searchError != null)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('社区搜索失败', style: TextStyle(color: c.muted)),
+                  const SizedBox(height: 10),
+                  AppButton(
+                    '重试搜索',
+                    key: const ValueKey('retry-community-search'),
+                    secondary: true,
+                    onPressed: loading ? null : () => search(),
+                  ),
+                ],
+              ),
+            ),
+          )
         else if (projects.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,
@@ -332,7 +362,11 @@ class _CommunityPageState extends State<CommunityPage> {
             itemBuilder: (context, index) {
               if (index == projects.length) {
                 return AppButton(
-                  loading ? '正在加载…' : '加载更多',
+                  loading
+                      ? '正在加载…'
+                      : searchError == null
+                      ? '加载更多'
+                      : '重试加载',
                   secondary: true,
                   onPressed: loading ? null : () => search(next: true),
                 );

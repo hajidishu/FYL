@@ -1043,7 +1043,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       return SingleChildScrollView(
         child: EmptyState(
           icon: FIcons.download,
-          title: '下载队列很安静',
+          title: '暂无下载任务',
           description: '选择一个版本开始安装。',
           action: AppButton('浏览版本', onPressed: () => setState(() => tab = 0)),
         ),

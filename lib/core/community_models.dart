@@ -147,10 +147,12 @@ class ContentVersion {
 class ContentSearchResult {
   final List<ContentProject> projects;
   final bool hasMore;
+  final bool failed;
   final List<String> notices;
   const ContentSearchResult(
     this.projects, {
     this.hasMore = false,
+    this.failed = false,
     this.notices = const [],
   });
 }

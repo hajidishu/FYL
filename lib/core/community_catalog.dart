@@ -115,6 +115,7 @@ class CommunityCatalog {
           cancellation.check();
           return ContentSearchResult(
             [],
+            failed: true,
             notices: ['${provider.label}：${_cleanError(e)}'],
           );
         }
@@ -130,7 +131,12 @@ class CommunityCatalog {
           ? (b.updated ?? DateTime(1970)).compareTo(a.updated ?? DateTime(1970))
           : b.downloads.compareTo(a.downloads),
     );
-    return ContentSearchResult(projects, hasMore: hasMore, notices: notices);
+    return ContentSearchResult(
+      projects,
+      hasMore: hasMore,
+      failed: results.isNotEmpty && results.every((result) => result.failed),
+      notices: notices,
+    );
   }
 
   Future<ContentProject> project(
