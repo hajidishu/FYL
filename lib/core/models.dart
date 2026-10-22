@@ -40,6 +40,7 @@ class LauncherSettings {
   String curseforgeApiKey;
   int retainedGameLogs;
   DownloadSource downloadSource;
+  bool autoChinese;
 
   LauncherSettings({
     required this.gameRoot,
@@ -65,6 +66,7 @@ class LauncherSettings {
     this.theme = 'dark',
     this.retainedGameLogs = 1,
     this.downloadSource = DownloadSource.official,
+    this.autoChinese = true,
     this.microsoftClientId = defaultMicrosoftClientId,
     this.curseforgeApiKey = const String.fromEnvironment(
       'FYL_CURSEFORGE_API_KEY',
@@ -95,6 +97,7 @@ class LauncherSettings {
         minimizeOnLaunch: json['minimizeOnLaunch'] as bool? ?? false,
         theme: json['theme'] as String? ?? 'dark',
         retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
+        autoChinese: json['autoChinese'] as bool? ?? true,
         downloadSource:
             DownloadSource.values
                 .where((source) => source.name == json['downloadSource'])
@@ -129,6 +132,7 @@ class LauncherSettings {
     'theme': theme,
     'retainedGameLogs': retainedGameLogs,
     'downloadSource': downloadSource.name,
+    'autoChinese': autoChinese,
     'microsoftClientId': microsoftClientId,
   };
 

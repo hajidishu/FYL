@@ -498,6 +498,8 @@ void main() {
         final oldConfig = File(p.join(directory.path, 'config', 'test.cfg'));
         await oldConfig.parent.create(recursive: true);
         await oldConfig.writeAsString('shared old config');
+        final oldOptions = File(p.join(directory.path, 'options.txt'));
+        await oldOptions.writeAsString('lang:en_us\nfov:0.5\n');
         final info = project(kind: ContentKind.modpack);
         final release = packRelease(ContentSource.modrinth);
         final plan = await transactional.preparePack(
@@ -522,6 +524,7 @@ void main() {
         );
         expect(await oldMod.readAsString(), 'shared old mod');
         expect(await oldConfig.readAsString(), 'shared old config');
+        expect(await oldOptions.readAsString(), 'lang:en_us\nfov:0.5\n');
         await transactional.retry(task);
         expect(task.state, ContentTaskState.completed, reason: task.error);
         expect(baseCalls, 2);
@@ -616,6 +619,50 @@ void main() {
       expect(task.cachedBytes, simulatedBaseCacheBytes);
     },
   );
+  for (final enabled in [true, false]) {
+    for (final withOptions in [true, false]) {
+      test(
+        'pack Chinese initialization (enabled=$enabled, override=$withOptions)',
+        () async {
+          settings.autoChinese = enabled;
+          await writePack(
+            mrManifest(),
+            extra: {
+              if (withOptions) 'overrides/options.txt': 'lang:en_us\nfov:0.5\n',
+            },
+          );
+          final info = project(kind: ContentKind.modpack);
+          final release = packRelease(ContentSource.modrinth);
+          final plan = await installer.preparePack(
+            info,
+            release,
+            CancellationToken(),
+          );
+          final task = await installer.installPack(
+            info,
+            release,
+            plan,
+            'Language Pack',
+            isolated: true,
+          );
+          expect(task.state, ContentTaskState.completed, reason: task.error);
+          expect(baseTask!.settings.autoChinese, isFalse);
+          final file = File(
+            p.join(installed.single.gameDirectory, 'options.txt'),
+          );
+          expect(await file.exists(), enabled || withOptions);
+          if (enabled || withOptions) {
+            expect(
+              await file.readAsString(),
+              enabled
+                  ? '${withOptions ? 'fov:0.5\n' : ''}lang:zh_cn\n'
+                  : 'lang:en_us\nfov:0.5\n',
+            );
+          }
+        },
+      );
+    }
+  }
   test(
     'mod installation resolves required dependencies and writes only to chosen destination',
     () async {

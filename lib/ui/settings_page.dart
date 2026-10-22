@@ -513,9 +513,12 @@ class SettingsPageState extends State<SettingsPage> {
       draft.isolateVersions,
       (value) => draft.isolateVersions = value,
     ),
-    const Text(
-      '此选项不会改变已有版本的存档位置。',
-      style: TextStyle(fontSize: 11, height: 1.8),
+    const SizedBox(height: 12),
+    _switch(
+      '自动将 Minecraft 游戏设为中文',
+      '为新安装的游戏设置简体中文。',
+      draft.autoChinese,
+      (value) => draft.autoChinese = value,
     ),
   ]);
 

@@ -11,6 +11,7 @@ import 'models.dart';
 import 'network.dart';
 import 'accounts.dart';
 import 'mod_installer.dart';
+import 'game_options.dart';
 
 const versionManifestUrl =
     'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
@@ -301,13 +302,28 @@ class MinecraftInstaller {
           ...metadata,
           'id': instance.name,
         });
+        if (existingInstance == null && settings.autoChinese) {
+          await setChineseGameOptions(
+            File(p.join(instance.gameDirectory, 'options.txt')),
+            version,
+            token,
+          );
+        }
         return instance;
       }
-      return await ModInstaller(
+      final installed = await ModInstaller(
         platform,
         network,
         optifineBridge: optifineBridge,
       ).install(instance, metadata, task, token, update);
+      if (existingInstance == null && settings.autoChinese) {
+        await setChineseGameOptions(
+          File(p.join(installed.gameDirectory, 'options.txt')),
+          version,
+          token,
+        );
+      }
+      return installed;
     } catch (_) {
       if (existingInstance == null) {
         try {

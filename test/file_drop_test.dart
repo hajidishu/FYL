@@ -349,7 +349,7 @@ void main() {
             p.join(controller.instances.last.gameDirectory, 'options.txt'),
           ).readAsString(),
         ),
-        'pack-options',
+        'pack-options\nlang:zh_cn\n',
       );
       await tester.pumpWidget(const SizedBox.shrink());
     },

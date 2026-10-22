@@ -13,6 +13,7 @@ import 'pack_import.dart';
 import 'instance_tools.dart' show isGameDataPath;
 import 'file_transaction.dart';
 import 'resource_packs.dart';
+import 'game_options.dart';
 
 typedef ContentCatalogFactory = CommunityCatalog Function(LauncherSettings);
 typedef PackBaseInstaller =
@@ -586,7 +587,7 @@ class ContentInstaller {
     final install = InstallTask(
       MinecraftVersion.fromJson(raw),
       session.name,
-      session.settings,
+      session.settings.copy()..autoChinese = false,
       options: options,
     );
     var transferredBase = 0, reusedBase = 0;
@@ -648,6 +649,39 @@ class ContentInstaller {
         'files',
       );
       await extractPackOverrides(plan, overridesRoot, task.token);
+      File? languageOptions;
+      if (session.settings.autoChinese) {
+        languageOptions = File(
+          p.join(_cache('pack-language:${task.id}'), 'options.txt'),
+        );
+        final source = File(
+          p.join(
+            plan.overrides.containsKey('options.txt')
+                ? overridesRoot
+                : instance.gameDirectory,
+            'options.txt',
+          ),
+        );
+        final type = await FileSystemEntity.type(
+          source.path,
+          followLinks: false,
+        );
+        if (type != FileSystemEntityType.file &&
+            type != FileSystemEntityType.notFound) {
+          throw const FormatException('游戏选项必须是普通文件。');
+        }
+        await languageOptions.parent.create(recursive: true);
+        if (type == FileSystemEntityType.file) {
+          await source.copy(languageOptions.path);
+        } else {
+          await languageOptions.writeAsBytes([]);
+        }
+        await setChineseGameOptions(
+          languageOptions,
+          plan.minecraft,
+          task.token,
+        );
+      }
       final provenance = File(
         p.join(_cache('pack-provenance:${task.id}'), 'modpack.json'),
       );
@@ -682,9 +716,15 @@ class ContentInstaller {
               ),
             ),
           for (final path in plan.overrides.keys)
+            if (languageOptions == null || path != 'options.txt')
+              (
+                safeJoin(overridesRoot, path),
+                safeJoin(instance.gameDirectory, path),
+              ),
+          if (languageOptions != null)
             (
-              safeJoin(overridesRoot, path),
-              safeJoin(instance.gameDirectory, path),
+              languageOptions.path,
+              p.join(instance.gameDirectory, 'options.txt'),
             ),
           (provenance.path, p.join(instance.launcherDirectory, 'modpack.json')),
         ],
