@@ -319,9 +319,13 @@ class OfficialNetwork {
     DownloadFile item,
     CancellationToken token, {
     void Function(int)? onBytes,
+    void Function(int)? onCachedBytes,
   }) async {
     final file = File(item.path);
-    if (await item.matches(file, verify: settings.verifyDownloads)) return;
+    if (await item.matches(file, verify: settings.verifyDownloads)) {
+      onCachedBytes?.call(await file.length());
+      return;
+    }
     await file.parent.create(recursive: true);
     var urlIndex = 0;
     final urls = [item.url, ...item.alternativeUrls];
@@ -374,6 +378,7 @@ class OfficialNetwork {
     CancellationToken token, {
     void Function(int completed, int total, String path)? onProgress,
     void Function(int)? onBytes,
+    void Function(int)? onCachedBytes,
   }) async {
     final files = {for (final file in input) file.path: file}.values.toList();
     var cursor = 0;
@@ -385,7 +390,12 @@ class OfficialNetwork {
         final file = files[cursor++];
         try {
           token.check();
-          await download(file, token, onBytes: onBytes);
+          await download(
+            file,
+            token,
+            onBytes: onBytes,
+            onCachedBytes: onCachedBytes,
+          );
           onProgress?.call(++completed, files.length, file.path);
         } catch (error, stack) {
           failure ??= error;

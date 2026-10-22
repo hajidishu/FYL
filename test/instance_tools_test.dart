@@ -484,6 +484,7 @@ class RepairFixtureNetwork extends OfficialNetwork {
     CancellationToken token, {
     void Function(int, int, String)? onProgress,
     void Function(int)? onBytes,
+    void Function(int)? onCachedBytes,
   }) async {
     for (var i = 0; i < files.length; i++) {
       await File(files[i].path).parent.create(recursive: true);

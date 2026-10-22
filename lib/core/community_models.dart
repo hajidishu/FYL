@@ -188,7 +188,7 @@ class ContentTask {
   ContentTaskState state = ContentTaskState.running;
   String stage = '准备下载', detail = '';
   String? error, destination;
-  int done = 0, total = 0, bytes = 0;
+  int done = 0, total = 0, bytes = 0, cachedBytes = 0;
   List<ContentFile> missing = [];
   CancellationToken token = CancellationToken();
   ContentTask(this.title, this.kind, this.source)

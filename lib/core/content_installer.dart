@@ -73,6 +73,7 @@ class ContentInstaller {
   final _packs = <String, _PackSession>{};
   final _mods = <String, _ModSession>{};
   final _missingTargets = <String, List<(ContentFile, String)>>{};
+  final _archiveTransfers = <String, (int, int)>{};
   ContentInstaller({
     required this.platform,
     required this.supportDirectory,
@@ -112,9 +113,15 @@ class ContentInstaller {
       contentFileName(file.name),
     );
     final catalog = catalogFactory(settings());
+    var transferred = 0, reused = 0;
     try {
       if (localPath == null) {
-        await catalog.network.download(file.download(archive), token);
+        await catalog.network.download(
+          file.download(archive),
+          token,
+          onBytes: (count) => transferred += count,
+          onCachedBytes: (count) => reused += count,
+        );
       } else {
         if (!await file.matches(File(localPath))) {
           throw const FormatException('所选整合包文件与发布版本不匹配。');
@@ -123,9 +130,12 @@ class ContentInstaller {
         if (p.normalize(localPath) != p.normalize(archive)) {
           await File(localPath).copy(archive);
         }
+        reused = await File(archive).length();
       }
       token.check();
-      return await inspectModpack(archive);
+      final plan = await inspectModpack(archive);
+      _archiveTransfers[plan.archive] = (transferred, reused);
+      return plan;
     } finally {
       catalog.close();
     }
@@ -209,13 +219,17 @@ class ContentInstaller {
             FileSystemEntityType.notFound) {
       throw StateError('版本名称“$normalizedName”已存在，请使用其他名称。');
     }
+    final archiveTransfer = _archiveTransfers.remove(plan.archive);
+    final localArchiveBytes =
+        archiveTransfer == null && await File(plan.archive).exists()
+        ? await File(plan.archive).length()
+        : 0;
     _checkBusy();
     checkPackTarget?.call(snapshot.gameRoot, isolated);
-    final task = ContentTask(
-      normalizedName,
-      ContentKind.modpack,
-      project.source,
-    );
+    final task =
+        ContentTask(normalizedName, ContentKind.modpack, project.source)
+          ..bytes = archiveTransfer?.$1 ?? 0
+          ..cachedBytes = archiveTransfer?.$2 ?? localArchiveBytes;
     tasks.insert(0, task);
     _packs[task.id] = _PackSession(
       project,
@@ -339,6 +353,8 @@ class ContentInstaller {
         downloads.add(file.download(path));
       } else if (await file.matches(File(path))) {
         task.done++;
+        task.cachedBytes += await File(path).length();
+        onChanged();
       } else {
         missing.add((file, path));
       }
@@ -352,7 +368,14 @@ class ContentInstaller {
         task.detail = p.basename(path);
         onChanged();
       },
-      onBytes: (count) => task.bytes += count,
+      onBytes: (count) {
+        task.bytes += count;
+        onChanged();
+      },
+      onCachedBytes: (count) {
+        task.cachedBytes += count;
+        onChanged();
+      },
     );
     task.missing = missing.map((e) => e.$1).toList();
     _missingTargets[task.id] = missing;
@@ -566,7 +589,18 @@ class ContentInstaller {
       session.settings,
       options: options,
     );
+    var transferredBase = 0, reusedBase = 0;
     void update() {
+      task.bytes += (install.downloadedBytes - transferredBase).clamp(
+        0,
+        install.downloadedBytes,
+      );
+      task.cachedBytes += (install.cachedBytes - reusedBase).clamp(
+        0,
+        install.cachedBytes,
+      );
+      transferredBase = install.downloadedBytes;
+      reusedBase = install.cachedBytes;
       task.stage = install.stage;
       task.detail = install.detail;
       task.done = install.completedFiles;
@@ -586,6 +620,7 @@ class ContentInstaller {
             : await installBase!(install, task.token, update);
         session.baseInstance = instance;
       } finally {
+        update();
         network.close();
       }
     }

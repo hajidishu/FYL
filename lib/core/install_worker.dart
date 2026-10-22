@@ -22,13 +22,14 @@ class InstallWorkerRequest {
 
 class InstallerProgress {
   final String stage, detail;
-  final int completedFiles, totalFiles, downloadedBytes;
+  final int completedFiles, totalFiles, downloadedBytes, cachedBytes;
   InstallerProgress(InstallTask task)
     : stage = task.stage,
       detail = task.detail,
       completedFiles = task.completedFiles,
       totalFiles = task.totalFiles,
-      downloadedBytes = task.downloadedBytes;
+      downloadedBytes = task.downloadedBytes,
+      cachedBytes = task.cachedBytes;
 
   void apply(InstallTask task) {
     task.stage = stage;
@@ -36,6 +37,7 @@ class InstallerProgress {
     task.completedFiles = completedFiles;
     task.totalFiles = totalFiles;
     task.downloadedBytes = downloadedBytes;
+    task.cachedBytes = cachedBytes;
   }
 }
 
@@ -152,6 +154,7 @@ void _installVersion(InstallWorkerRequest request) async {
           progress,
           existingInstance: request.instance,
         );
+    request.events.send(InstallerProgress(request.task));
     request.events.send(instance);
   } catch (error) {
     request.events.send(

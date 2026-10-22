@@ -176,6 +176,11 @@ class MinecraftInstaller {
         },
         onBytes: (bytes) {
           task.downloadedBytes += bytes;
+          update();
+        },
+        onCachedBytes: (bytes) {
+          task.cachedBytes += bytes;
+          update();
         },
       );
     }

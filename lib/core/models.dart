@@ -404,6 +404,7 @@ class InstallTask {
   int completedFiles = 0;
   int totalFiles = 0;
   int downloadedBytes = 0;
+  int cachedBytes = 0;
   String? error;
   InstallTask(
     this.version,

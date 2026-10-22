@@ -83,6 +83,8 @@ void main() {
   List<int> packBytes = [];
   bool restricted = false;
   InstallTask? baseTask;
+  var sawStreamingBytes = false;
+  var simulatedBaseBytes = 0, simulatedBaseCacheBytes = 0;
   Map<String, String> hashes(List<int> bytes) => {
     'sha1': sha1.convert(bytes).toString(),
     'sha512': sha512.convert(bytes).toString(),
@@ -219,6 +221,8 @@ void main() {
     installed.clear();
     requests.clear();
     baseTask = null;
+    sawStreamingBytes = false;
+    simulatedBaseBytes = simulatedBaseCacheBytes = 0;
     CommunityCatalog create(LauncherSettings value) => CommunityCatalog(
       value,
       network: FixtureNetwork(value),
@@ -231,12 +235,26 @@ void main() {
       supportDirectory: directory.path,
       settings: settings.copy,
       catalogFactory: create,
-      onChanged: () {},
+      onChanged: () {
+        if (installer.tasks.isNotEmpty) {
+          final task = installer.tasks.first;
+          if (task.kind == ContentKind.mod &&
+              task.stage.startsWith('下载') &&
+              task.bytes > 0 &&
+              task.done == 0) {
+            sawStreamingBytes = true;
+          }
+        }
+      },
       busy: () =>
           installer.tasks.any((t) => t.state == ContentTaskState.running),
       onInstalled: (instance) async => installed.add(instance),
       installBase: (task, token, update) async {
         baseTask = task;
+        task.downloadedBytes = simulatedBaseBytes;
+        task.cachedBytes = simulatedBaseCacheBytes;
+        update();
+        update();
         return GameInstance(
           id: 'installed-pack',
           name: task.instanceName,
@@ -542,6 +560,60 @@ void main() {
       expect(settings.toJson().containsKey('curseforgeApiKey'), isFalse);
       settings.curseforgeApiKey = 'private-key';
       expect(settings.copy().curseforgeApiKey, 'private-key');
+    },
+  );
+  test(
+    'Mod byte notifications arrive before the first file completes',
+    () async {
+      final release = (await catalog.versions(
+        project(),
+        CancellationToken(),
+        minecraft: '1.21.1',
+        loader: 'fabric',
+      )).versions.first;
+      final target = GameInstance(
+        id: 'streaming',
+        name: 'Streaming',
+        version: '1.21.1',
+        root: directory.path,
+        isolated: true,
+        javaMajor: 21,
+        components: 'Fabric 0.16.10',
+      );
+      final task = await installer.installMod(
+        project(),
+        release,
+        target,
+        p.join(target.gameDirectory, 'mods', 'demo.jar'),
+      );
+      expect(task.state, ContentTaskState.completed, reason: task.error);
+      expect(sawStreamingBytes, isTrue);
+      expect(task.bytes, greaterThan(0));
+    },
+  );
+  test(
+    'pack transfer includes its archive and game downloads exactly once',
+    () async {
+      await writePack(mrManifest());
+      simulatedBaseBytes = 2 * 1048576;
+      simulatedBaseCacheBytes = 4096;
+      final info = project(kind: ContentKind.modpack);
+      final release = packRelease(ContentSource.modrinth);
+      final plan = await installer.preparePack(
+        info,
+        release,
+        CancellationToken(),
+      );
+      final task = await installer.installPack(
+        info,
+        release,
+        plan,
+        'Counted Pack',
+        isolated: true,
+      );
+      expect(task.state, ContentTaskState.completed, reason: task.error);
+      expect(task.bytes, packBytes.length + jar.length + simulatedBaseBytes);
+      expect(task.cachedBytes, simulatedBaseCacheBytes);
     },
   );
   test(

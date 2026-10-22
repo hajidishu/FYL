@@ -50,7 +50,14 @@ class ModInstaller {
           task.detail = p.basename(path);
           update();
         },
-        onBytes: (bytes) => task.downloadedBytes += bytes,
+        onBytes: (bytes) {
+          task.downloadedBytes += bytes;
+          update();
+        },
+        onCachedBytes: (bytes) {
+          task.cachedBytes += bytes;
+          update();
+        },
       );
     }
 

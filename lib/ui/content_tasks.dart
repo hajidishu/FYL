@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../core/controller.dart';
 import '../core/community_models.dart';
 import 'theme.dart';
+import 'byte_size.dart';
 
 class ContentTaskCard extends StatefulWidget {
   final LauncherController controller;
@@ -74,7 +75,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
             ),
             const SizedBox(height: 10),
             Text(
-              '${task.done} / ${task.total} · ${(task.bytes / 1048576).toStringAsFixed(1)} MB',
+              '${task.done} / ${task.total} · 已传输 ${formatByteSize(task.bytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
               style: TextStyle(color: c.muted, fontSize: 11),
             ),
             if (task.detail.isNotEmpty)

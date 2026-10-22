@@ -50,8 +50,16 @@ void main() {
       );
       await network.download(file, CancellationToken());
       expect(await File(destination).readAsBytes(), data);
-      await network.download(file, CancellationToken());
+      var cachedBytes = 0, transferredBytes = 0;
+      await network.download(
+        file,
+        CancellationToken(),
+        onCachedBytes: (count) => cachedBytes += count,
+        onBytes: (count) => transferredBytes += count,
+      );
       expect(requests, 1);
+      expect(cachedBytes, data.length);
+      expect(transferredBytes, 0);
       await File(destination).writeAsBytes(List.filled(data.length, 0));
       await network.download(file, CancellationToken());
       expect(requests, 2);
