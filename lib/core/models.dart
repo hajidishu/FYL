@@ -310,6 +310,30 @@ class GameInstance {
   String get clientJarPath => safeJoin(versionDirectory, '$name.jar');
   String get launcherDirectory => p.join(versionDirectory, '.fyl');
 
+  String get displayTag {
+    if (category.trim().isNotEmpty) return category.trim();
+    if (installation['modpack'] == true) return '整合包';
+    final recipe = installation['loader'];
+    final type = recipe is Map ? recipe['type'] : null;
+    final installedLoader = ModLoader.values
+        .where((loader) => loader.name == type)
+        .firstOrNull;
+    if (installedLoader != null) return installedLoader.label;
+    final summary = components.toLowerCase();
+    for (final loader in ModLoader.values) {
+      if (RegExp('(^|[^a-z])${loader.name}([^a-z]|\$)').hasMatch(summary)) {
+        return loader.label;
+      }
+    }
+    if (installation['optifine'] != null ||
+        RegExp(r'(^|[^a-z])optifine([^a-z]|$)').hasMatch(summary)) {
+      return 'OptiFine';
+    }
+    return components.isEmpty
+        ? '原版'
+        : components.split(' · ').first.split(' ').first;
+  }
+
   String javaExecutable(LauncherSettings defaults) => switch (javaMode) {
     InstanceJavaMode.custom => javaPath.trim(),
     InstanceJavaMode.automatic => managedJava ?? 'java',

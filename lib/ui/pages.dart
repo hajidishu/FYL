@@ -430,11 +430,7 @@ class InstancesPageState extends State<InstancesPage> {
   bool importing = false;
   LauncherController get controller => widget.controller;
   void navigate(int index) => widget.navigate(index);
-  String categoryOf(GameInstance i) => i.category.isNotEmpty
-      ? i.category
-      : i.components.isEmpty
-      ? '原版'
-      : '模组';
+  String categoryOf(GameInstance i) => i.displayTag;
 
   Future<void> importPack() async {
     setState(() => importing = true);
@@ -557,7 +553,7 @@ class InstancesPageState extends State<InstancesPage> {
                   value: category,
                   compact: true,
                   items: {
-                    'all': '全部分类',
+                    'all': '全部标签',
                     for (final value in categories) value: value,
                   },
                   onChanged: (v) => setState(() => category = v),

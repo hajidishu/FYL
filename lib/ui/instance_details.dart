@@ -684,7 +684,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     section('个性化', [
       field('name', '版本名称'),
       field('description', '描述', lines: 2),
-      field('category', '分类', description: '留空时按原版或模组版本自动分类。'),
+      field('category', '版本标签', description: '留空时自动显示加载器或版本类型。'),
       Text(
         '版本图标',
         style: TextStyle(color: LauncherColors.of(context).muted, fontSize: 12),
