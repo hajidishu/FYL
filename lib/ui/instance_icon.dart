@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
+import 'package:path/path.dart' as p;
 import '../core/models.dart';
 import 'component_icon.dart';
 
@@ -9,11 +11,33 @@ class InstanceIcon extends StatelessWidget {
   const InstanceIcon(this.instance, {this.size = 48, super.key});
   @override
   Widget build(BuildContext context) {
-    Widget fallback() => ComponentIcon(
-      GameComponent.values.where((v) => v.name == instance.icon).firstOrNull ??
-          componentFor(instance.components),
-      size: size,
-    );
+    Widget fallback() =>
+        instance.icon == 'auto' &&
+            (instance.installation['modpack'] == true ||
+                instance.category == '整合包')
+        ? Icon(FIcons.package, size: size)
+        : ComponentIcon(
+            GameComponent.values
+                    .where((v) => v.name == instance.icon)
+                    .firstOrNull ??
+                componentFor(instance.components),
+            size: size,
+          );
+    if (instance.icon == 'auto' &&
+        (instance.installation['modpack'] == true ||
+            instance.category == '整合包')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(7),
+        child: Image.file(
+          File(p.join(instance.launcherDirectory, 'pack-icon')),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, _, _) => fallback(),
+        ),
+      );
+    }
     if (instance.icon == 'auto' ||
         GameComponent.values.any((v) => v.name == instance.icon)) {
       return fallback();

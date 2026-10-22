@@ -651,7 +651,37 @@ class ContentInstaller {
         ),
         'files',
       );
-      await extractPackOverrides(plan, overridesRoot, task.token);
+      final icon = File(p.join(_cache('pack-icon:${task.id}'), 'pack-icon'));
+      await extractPackOverrides(
+        plan,
+        overridesRoot,
+        task.token,
+        iconDestination: icon.path,
+      );
+      final projectIcon = session.project.icon;
+      if (!await icon.exists() &&
+          projectIcon != null &&
+          projectIcon.isNotEmpty) {
+        try {
+          await catalog.network.download(
+            DownloadFile(projectIcon, icon.path),
+            task.token,
+            onBytes: (bytes) {
+              task.bytes += bytes;
+              onChanged();
+            },
+            onCachedBytes: (bytes) {
+              task.cachedBytes += bytes;
+              onChanged();
+            },
+          );
+          if (await icon.length() > 8 * 1024 * 1024) await icon.delete();
+        } on Cancelled {
+          rethrow;
+        } catch (_) {
+          // An unavailable thumbnail must not prevent installing the pack.
+        }
+      }
       File? languageOptions;
       if (session.settings.autoChinese) {
         languageOptions = File(
@@ -706,6 +736,7 @@ class ContentInstaller {
       final installedInstance = instance.copyWith(
         description: session.project.summary,
         category: '整合包',
+        installation: {...instance.installation, 'modpack': true},
       );
       await publishFiles(
         instance.root,
@@ -730,6 +761,8 @@ class ContentInstaller {
               p.join(instance.gameDirectory, 'options.txt'),
             ),
           (provenance.path, p.join(instance.launcherDirectory, 'modpack.json')),
+          if (await icon.exists())
+            (icon.path, p.join(instance.launcherDirectory, 'pack-icon')),
         ],
         task.token,
         onProgress: (done, total) {

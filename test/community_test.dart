@@ -134,6 +134,7 @@ void main() {
   ContentProject project({
     ContentSource source = ContentSource.modrinth,
     ContentKind kind = ContentKind.mod,
+    String? icon,
   }) => ContentProject(
     source: source,
     kind: kind,
@@ -143,6 +144,7 @@ void main() {
     summary: 'Example project',
     author: 'Author',
     website: 'https://modrinth.com/mod/demo',
+    icon: icon,
   );
   ContentVersion packRelease(ContentSource source) => ContentVersion(
     source: source,
@@ -273,8 +275,8 @@ void main() {
       if (path.startsWith('/cf/')) {
         expect(request.headers.value('x-api-key'), 'test-cf-key');
       }
-      if (path == '/artifact' || path == '/pack') {
-        request.response.add(path == '/artifact' ? jar : packBytes);
+      if (path == '/artifact' || path == '/pack' || path == '/icon') {
+        request.response.add(path == '/pack' ? packBytes : jar);
       } else {
         request.response.headers.contentType = ContentType.json;
         if (path == '/mr/search') {
@@ -619,6 +621,37 @@ void main() {
       expect(task.cachedBytes, simulatedBaseCacheBytes);
     },
   );
+  for (final bundled in [true, false]) {
+    test('pack artwork is stored locally (bundled=$bundled)', () async {
+      await writePack(
+        mrManifest(),
+        extra: {if (bundled) 'icon.png': 'bundled artwork'},
+      );
+      final info = project(kind: ContentKind.modpack, icon: '$base/icon');
+      final release = packRelease(ContentSource.modrinth);
+      final plan = await installer.preparePack(
+        info,
+        release,
+        CancellationToken(),
+      );
+      final task = await installer.installPack(
+        info,
+        release,
+        plan,
+        'Icon Pack',
+        isolated: true,
+      );
+      expect(task.state, ContentTaskState.completed, reason: task.error);
+      final game = installed.single;
+      expect(game.icon, 'auto');
+      expect(game.installation['modpack'], isTrue);
+      expect(
+        await File(p.join(game.launcherDirectory, 'pack-icon')).readAsBytes(),
+        bundled ? utf8.encode('bundled artwork') : jar,
+      );
+      expect(requests.contains('/icon'), !bundled);
+    });
+  }
   for (final enabled in [true, false]) {
     for (final withOptions in [true, false]) {
       test(

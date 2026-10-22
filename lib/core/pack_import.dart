@@ -26,6 +26,7 @@ class PackPlan {
   final ContentSource source;
   final ModLoader? loader;
   final String? loaderVersion;
+  final String? iconEntry;
   final List<PackEntry> files;
   final Map<String, String> overrides;
   const PackPlan({
@@ -38,6 +39,7 @@ class PackPlan {
     required this.overrides,
     this.loader,
     this.loaderVersion,
+    this.iconEntry,
   });
 }
 
@@ -257,6 +259,13 @@ Future<PackPlan> inspectModpack(String path) async {
       overrides: overrides,
       loader: loader,
       loaderVersion: dependencies.isEmpty ? null : dependencies.values.single,
+      iconEntry: ['icon.png', 'pack.png', 'modpack.png']
+          .map((name) => '$prefix$name')
+          .where((name) {
+            final icon = archive.findFile(name);
+            return icon != null && icon.isFile && icon.size <= 8 * 1024 * 1024;
+          })
+          .firstOrNull,
     );
   } finally {
     input.close();
@@ -266,11 +275,23 @@ Future<PackPlan> inspectModpack(String path) async {
 Future<void> extractPackOverrides(
   PackPlan plan,
   String destination,
-  CancellationToken token,
-) async {
+  CancellationToken token, {
+  String? iconDestination,
+}) async {
   final input = InputFileStream(plan.archive);
   try {
     final archive = ZipDecoder().decodeStream(input);
+    if (iconDestination != null && plan.iconEntry != null) {
+      token.check();
+      final icon = archive.findFile(plan.iconEntry!);
+      if (icon != null &&
+          icon.isFile &&
+          !icon.isSymbolicLink &&
+          icon.size <= 8 * 1024 * 1024) {
+        await File(iconDestination).parent.create(recursive: true);
+        await File(iconDestination).writeAsBytes(icon.content, flush: true);
+      }
+    }
     for (final entry in plan.overrides.entries) {
       token.check();
       final source = archive.findFile(entry.value);
