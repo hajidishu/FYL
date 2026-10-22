@@ -26,6 +26,7 @@ class FixtureCatalog extends ModCatalog {
       ModLoader.forge => '47.3.0',
       ModLoader.neoforge => '20.1.0',
       ModLoader.fabric => '0.16.10',
+      ModLoader.quilt => '0.30.1',
     }),
   ];
   @override
@@ -90,6 +91,14 @@ void main() {
       expect(find.text('全部版本 (1)'), findsOneWidget);
       await tester.tap(find.text('47.3.0').first);
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Quilt'));
+      await tester.tap(find.text('Quilt'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('0.30.1').first);
+      await tester.tap(find.text('0.30.1').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FButton, '开始安装'));
+      expect(selected!.loader!.loader, ModLoader.quilt);
       await tester.ensureVisible(find.text('Fabric'));
       await tester.tap(find.text('Fabric'));
       await tester.pumpAndSettle();

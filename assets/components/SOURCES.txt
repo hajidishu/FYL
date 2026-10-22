@@ -29,5 +29,9 @@ optifabric.png: original 512 x 512 assets/optifabric/icon.png extracted from the
 author's OptiFabric 1.14.3 mod JAR.
 https://www.curseforge.com/minecraft/mc-mods/optifabric
 
+quilt.svg: Quilt Project vector logo from the official website. CSS fills are
+inlined for Flutter SVG rendering; all paths and colors are preserved.
+https://github.com/QuiltMC/quiltmc.org/blob/main/public/assets/img/logo.svg
+
 Block / item renderer and source model information:
 https://blockrender.dev/

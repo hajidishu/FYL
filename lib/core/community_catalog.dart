@@ -355,6 +355,7 @@ class CommunityCatalog {
   int? _loaderId(String? value) => switch (value) {
     'forge' => 1,
     'fabric' => 4,
+    'quilt' => 5,
     'neoforge' => 6,
     _ => null,
   };

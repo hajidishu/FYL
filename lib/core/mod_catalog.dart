@@ -69,10 +69,13 @@ class ModCatalog {
       results.sort((a, b) => compareComponentVersions(b.version, a.version));
       return results;
     }
-    if (loader == ModLoader.fabric) {
+    if (loader == ModLoader.fabric || loader == ModLoader.quilt) {
+      final meta = loader == ModLoader.quilt
+          ? 'https://meta.quiltmc.org/v3'
+          : 'https://meta.fabricmc.net/v2';
       final rows =
           await network.jsonValue(
-                'https://meta.fabricmc.net/v2/versions/loader/${Uri.encodeComponent(minecraft)}',
+                '$meta/versions/loader/${Uri.encodeComponent(minecraft)}',
                 token: token,
               )
               as List<dynamic>;
@@ -82,7 +85,11 @@ class ModCatalog {
               loader,
               row['loader']['version'] as String,
               coordinate: row['loader']['maven'] as String,
-              stable: row['loader']['stable'] == true,
+              stable: loader == ModLoader.quilt
+                  ? !RegExp(
+                      r'[-+]',
+                    ).hasMatch(row['loader']['version'] as String)
+                  : row['loader']['stable'] == true,
             ),
           )
           .toList();
@@ -245,6 +252,15 @@ class ModCatalog {
     CancellationToken token,
   ) => network.json(
     'https://meta.fabricmc.net/v2/versions/loader/${Uri.encodeComponent(minecraft)}/${Uri.encodeComponent(loader)}/profile/json',
+    token: token,
+  );
+
+  Future<Json> quiltProfile(
+    String minecraft,
+    String loader,
+    CancellationToken token,
+  ) => network.json(
+    'https://meta.quiltmc.org/v3/versions/loader/${Uri.encodeComponent(minecraft)}/${Uri.encodeComponent(loader)}/profile/json',
     token: token,
   );
 }

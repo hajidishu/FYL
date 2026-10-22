@@ -805,7 +805,7 @@ void main() {
     },
   );
   test(
-    'pack parser rejects traversal, conflicting loaders and unsupported Quilt',
+    'pack parser supports Quilt and rejects traversal and conflicting loaders',
     () async {
       final manifest = mrManifest();
       final archive = await writePack(
@@ -818,7 +818,25 @@ void main() {
         'quilt-loader': '0.28',
       };
       final quilt = await writePack(manifest);
-      await expectLater(inspectModpack(quilt), throwsFormatException);
+      expect((await inspectModpack(quilt)).loader?.name, 'quilt');
+      for (final id in ['quilt-0.28', 'quilt-loader-0.28']) {
+        final curse = await writePack({
+          'manifestType': 'minecraftModpack',
+          'manifestVersion': 1,
+          'name': 'Quilt Pack',
+          'version': '1',
+          'minecraft': {
+            'version': '1.21.1',
+            'modLoaders': [
+              {'id': id, 'primary': true},
+            ],
+          },
+          'files': [],
+        }, curse: true);
+        final plan = await inspectModpack(curse);
+        expect(plan.loader?.name, 'quilt');
+        expect(plan.loaderVersion, '0.28');
+      }
       manifest['dependencies'] = {
         'minecraft': '1.21.1',
         'forge': '52.0',

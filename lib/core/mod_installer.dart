@@ -69,10 +69,20 @@ class ModInstaller {
     if (options.loader != null) {
       final loader = options.loader!;
       stage('安装 ${loader.loader.label} ${loader.version}');
-      if (loader.loader == ModLoader.fabric) {
-        final overlay = await ModCatalog(
-          network,
-        ).fabricProfile(instance.version, loader.version, token);
+      if (loader.loader == ModLoader.fabric ||
+          loader.loader == ModLoader.quilt) {
+        final catalog = ModCatalog(network);
+        final overlay = loader.loader == ModLoader.quilt
+            ? await catalog.quiltProfile(
+                instance.version,
+                loader.version,
+                token,
+              )
+            : await catalog.fabricProfile(
+                instance.version,
+                loader.version,
+                token,
+              );
         profile = mergeVersionProfiles(profile, overlay);
         await _libraries(
           profile['libraries'] as List<dynamic>,

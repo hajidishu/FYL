@@ -1,10 +1,11 @@
-enum ModLoader { forge, neoforge, fabric }
+enum ModLoader { forge, neoforge, fabric, quilt }
 
 extension ModLoaderName on ModLoader {
   String get label => switch (this) {
     ModLoader.forge => 'Forge',
     ModLoader.neoforge => 'NeoForge',
     ModLoader.fabric => 'Fabric',
+    ModLoader.quilt => 'Quilt',
   };
 }
 
@@ -93,6 +94,9 @@ class InstallOptions {
     if (optifabric != null) 'OptiFabric ${optifabric!.version}',
   ].join(' · ');
   String? get validationError {
+    if (loader?.loader == ModLoader.quilt && optifine != null) {
+      return '暂不支持将 OptiFine 安装到 Quilt，请取消 OptiFine；光影可使用兼容的 Iris 版本。';
+    }
     if (loader?.loader == ModLoader.neoforge && optifine != null) {
       return 'OptiFine 不支持直接安装到 NeoForge。请取消 OptiFine，或选择兼容的加载器；光影可考虑 Iris。';
     }

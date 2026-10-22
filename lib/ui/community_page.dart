@@ -48,6 +48,7 @@ Map<String, String> contentLoaderFilters(ContentKind kind) => switch (kind) {
     'forge': 'Forge',
     'neoforge': 'NeoForge',
     'fabric': 'Fabric',
+    'quilt': 'Quilt',
   },
   _ => const {},
 };

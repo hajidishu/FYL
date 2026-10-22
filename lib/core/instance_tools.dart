@@ -201,9 +201,11 @@ Future<int> exportInstancePack(
   final dependencies = <String, String>{'minecraft': instance.version};
   final recipe = instance.installation['loader'] as Json?;
   if (recipe != null) {
-    dependencies[recipe['type'] == 'fabric'
-            ? 'fabric-loader'
-            : recipe['type'] as String] =
+    dependencies[switch (recipe['type']) {
+          'fabric' => 'fabric-loader',
+          'quilt' => 'quilt-loader',
+          _ => recipe['type'] as String,
+        }] =
         recipe['version'] as String;
   } else {
     for (final type in ModLoader.values) {
@@ -211,7 +213,11 @@ Future<int> exportInstancePack(
         '(?:^| · )${type.label} ([^ ·]+)',
       ).firstMatch(instance.components);
       if (match != null) {
-        dependencies[type == ModLoader.fabric ? 'fabric-loader' : type.name] =
+        dependencies[switch (type) {
+              ModLoader.fabric => 'fabric-loader',
+              ModLoader.quilt => 'quilt-loader',
+              _ => type.name,
+            }] =
             match[1]!;
       }
     }

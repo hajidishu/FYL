@@ -75,7 +75,11 @@ class _InstallPageState extends State<InstallPage> {
     if (loading.isNotEmpty) return;
     setState(() {
       failures.clear();
-      loading.addAll(['forge', 'neoforge', 'fabric', 'optifine', 'optifabric']);
+      loading.addAll([
+        ...ModLoader.values.map((kind) => kind.name),
+        'optifine',
+        'optifabric',
+      ]);
     });
     Future<void> fetch<T>(
       String key,

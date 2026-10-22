@@ -174,7 +174,11 @@ Future<PackPlan> inspectModpack(String path) async {
           'quilt',
         ].firstWhere((kind) => id.startsWith('$kind-'), orElse: () => '');
         if (kind.isEmpty) throw FormatException('不支持整合包加载器：$id');
-        dependencies[kind == 'fabric' ? 'fabric-loader' : kind] = id.substring(
+        dependencies[switch (kind) {
+          'fabric' => 'fabric-loader',
+          'quilt' => 'quilt-loader',
+          _ => kind,
+        }] = id.substring(
           kind.length + 1,
         );
       }
@@ -201,7 +205,8 @@ Future<PackPlan> inspectModpack(String path) async {
       throw const FormatException('整合包未指定 Minecraft 版本。');
     }
     if (dependencies.keys.any(
-      (key) => !['forge', 'neoforge', 'fabric-loader'].contains(key),
+      (key) =>
+          !['forge', 'neoforge', 'fabric-loader', 'quilt-loader'].contains(key),
     )) {
       throw FormatException('暂不支持整合包所需组件：${dependencies.keys.join(', ')}');
     }
@@ -211,6 +216,7 @@ Future<PackPlan> inspectModpack(String path) async {
         : switch (dependencies.keys.single) {
             'forge' => ModLoader.forge,
             'neoforge' => ModLoader.neoforge,
+            'quilt-loader' => ModLoader.quilt,
             _ => ModLoader.fabric,
           };
     final overrides = <String, String>{};

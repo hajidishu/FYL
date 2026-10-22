@@ -152,13 +152,19 @@ LocalMod readLocalMod(String path) {
         loader = '';
     String? iconPath;
     final fabric = text('fabric.mod.json');
-    if (fabric != null) {
-      final j = _modJson(fabric) as Json;
+    final quilt = text('quilt.mod.json');
+    if (fabric != null || quilt != null) {
+      final descriptor = _modJson(quilt ?? fabric!) as Json;
+      final info = quilt == null
+          ? descriptor
+          : descriptor['quilt_loader'] as Json;
+      final metadata = quilt == null ? info : info['metadata'] as Json? ?? {};
+      final j = {...info, ...metadata};
       id = '${j['id'] ?? ''}';
       name = '${j['name'] ?? id}';
       version = '${j['version'] ?? ''}';
       description = '${j['description'] ?? ''}';
-      loader = 'Fabric';
+      loader = quilt == null ? 'Fabric' : 'Quilt';
       final icon = j['icon'];
       if (icon is String) iconPath = icon;
       if (icon is Map && icon.isNotEmpty) {

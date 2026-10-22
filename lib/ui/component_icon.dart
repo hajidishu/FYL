@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-enum GameComponent { minecraft, forge, neoforge, fabric, optifine, optifabric }
+enum GameComponent {
+  minecraft,
+  forge,
+  neoforge,
+  fabric,
+  quilt,
+  optifine,
+  optifabric,
+}
 
 GameComponent componentFor(String components) {
   final value = components.toLowerCase();
@@ -9,6 +17,7 @@ GameComponent componentFor(String components) {
     GameComponent.neoforge,
     GameComponent.forge,
     GameComponent.fabric,
+    GameComponent.quilt,
     GameComponent.optifine,
     GameComponent.optifabric,
   ]) {
@@ -27,7 +36,8 @@ class ComponentIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (component == GameComponent.neoforge ||
-        component == GameComponent.fabric) {
+        component == GameComponent.fabric ||
+        component == GameComponent.quilt) {
       return SvgPicture.asset(
         'assets/components/${component.name}.svg',
         width: size,

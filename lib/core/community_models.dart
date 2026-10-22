@@ -162,7 +162,7 @@ class ContentVersionPage {
 
 String? instanceModLoader(GameInstance instance) {
   final value = instance.components.toLowerCase();
-  for (final loader in ['neoforge', 'forge', 'fabric']) {
+  for (final loader in ['neoforge', 'forge', 'fabric', 'quilt']) {
     if (RegExp('(^|[^a-z])$loader([^a-z]|\$)').hasMatch(value)) return loader;
   }
   return null;

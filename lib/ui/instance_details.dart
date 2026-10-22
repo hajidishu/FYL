@@ -698,6 +698,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                     'forge',
                     'neoforge',
                     'fabric',
+                    'quilt',
                     'optifine',
                     'optifabric',
                   ].contains(icon)
@@ -709,6 +710,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                 'forge': 'Forge（铁砧）',
                 'neoforge': 'NeoForge（狐狸）',
                 'fabric': 'Fabric',
+                'quilt': 'Quilt',
                 'optifine': 'OptiFine',
                 'optifabric': 'OptiFabric',
                 if (![
@@ -717,6 +719,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                   'forge',
                   'neoforge',
                   'fabric',
+                  'quilt',
                   'optifine',
                   'optifabric',
                 ].contains(icon))

@@ -120,6 +120,8 @@ class OfficialNetwork {
       's3.amazonaws.com',
       'meta.fabricmc.net',
       'maven.fabricmc.net',
+      'meta.quiltmc.org',
+      'maven.quiltmc.org',
       'maven.minecraftforge.net',
       'files.minecraftforge.net',
       'maven.neoforged.net',
