@@ -7,6 +7,7 @@ import '../core/controller.dart';
 import '../core/java_discovery.dart';
 import '../core/models.dart';
 import '../core/download_source.dart';
+import '../core/build_info.dart';
 import 'pages.dart';
 import 'java_installation_tile.dart';
 import 'theme.dart';
@@ -474,12 +475,12 @@ class SettingsPageState extends State<SettingsPage> {
     ),
     const SizedBox(height: 18),
     const Text(
-      'free_your_launcher',
+      'FYL',
       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     ),
     const SizedBox(height: 6),
     const Text(
-      '0.1.0 · Minecraft Java Edition 启动器',
+      '${launcherVersion == 'development' ? '开发版' : 'v$launcherVersion'} · Minecraft Java Edition 启动器',
       style: TextStyle(fontSize: 11, height: 1.8),
     ),
   ]);
