@@ -272,29 +272,39 @@ class ModUpdater {
     final curse = identified.values
         .where((m) => m.current.source == ContentSource.curseforge)
         .toList();
-    final versions = <String, Future<ContentVersionPage>>{};
+    final versions = <String, Map<int, Future<ContentVersionPage>>>{};
     for (var i = 0; i < curse.length; i++) {
       token.check();
       final mod = curse[i];
       onProgress?.call('检查 CurseForge 更新', i, curse.length);
       try {
         final project = _project(mod.current, mod.mod.name);
-        final page = await versions.putIfAbsent(
-          project.id,
-          () => catalog.versions(
-            project,
-            token,
-            minecraft: instance.version,
-            loader: loader,
-          ),
-        );
-        final latest = page.versions
-            .where(
-              (v) =>
-                  _channels(mod.current.releaseType).contains(v.releaseType) &&
-                  _newer(mod.current, v, instance.version, loader),
-            )
-            .firstOrNull;
+        ContentVersion? latest;
+        var pageNumber = 0;
+        while (latest == null) {
+          token.check();
+          final page = await (versions[project.id] ??= {}).putIfAbsent(
+            pageNumber,
+            () => catalog.versions(
+              project,
+              token,
+              minecraft: instance.version,
+              loader: loader,
+              page: pageNumber,
+            ),
+          );
+          latest = page.versions
+              .where(
+                (v) =>
+                    _channels(
+                      mod.current.releaseType,
+                    ).contains(v.releaseType) &&
+                    _newer(mod.current, v, instance.version, loader),
+              )
+              .firstOrNull;
+          if (latest != null || !page.hasMore) break;
+          pageNumber++;
+        }
         if (latest != null) updates[mod.mod.path] = ModUpdate(mod, latest);
       } on Cancelled {
         rethrow;

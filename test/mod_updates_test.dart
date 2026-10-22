@@ -23,7 +23,10 @@ class UpdateFixture {
       badDownload = false,
       dependencies = false,
       wrongLoader = false;
-  bool oldUpdate = false, failLookup = false, restricted = false;
+  bool oldUpdate = false,
+      failLookup = false,
+      restricted = false,
+      cursePagination = false;
 
   List<int> jar(String id, int version) => ZipEncoder().encode(
     Archive()..add(
@@ -177,10 +180,27 @@ class UpdateFixture {
           if (path.endsWith('/files')) {
             expect(request.uri.queryParameters['gameVersion'], '1.21.1');
             expect(request.uri.queryParameters['modLoaderType'], '4');
-            response = {
-              'data': [cf(id, 2), cf(id, 1)],
-              'pagination': {'totalCount': 2},
-            };
+            if (cursePagination && id == 'alpha') {
+              final page = int.parse(request.uri.queryParameters['index']!);
+              response = {
+                'data': page == 0
+                    ? [
+                        for (var i = 0; i < 50; i++)
+                          cf(id, 2)
+                            ..['id'] = 300 + i
+                            ..['displayName'] = 'alpha beta $i'
+                            ..['fileDate'] = '2025-01-01T00:00:00Z'
+                            ..['releaseType'] = 3,
+                      ]
+                    : [cf(id, 2)],
+                'pagination': {'totalCount': 51},
+              };
+            } else {
+              response = {
+                'data': [cf(id, 2), cf(id, 1)],
+                'pagination': {'totalCount': 2},
+              };
+            }
           } else {
             response = {
               'data': {
@@ -454,4 +474,23 @@ void main() {
     );
     expect(await alpha.readAsBytes(), f.bytes['alpha-1']);
   });
+  test(
+    'CurseForge update checking paginates past newer versions outside the installed channel',
+    () async {
+      final f = UpdateFixture();
+      await f.open(useCurse: true);
+      addTearDown(f.close);
+      f.cursePagination = true;
+      await f.install('alpha');
+
+      final check = await f.check();
+
+      expect(check.updates, hasLength(1));
+      expect(check.updates.values.single.latest.id, '102');
+      expect(
+        f.requests.where((path) => path == '/cf/mods/11/files'),
+        hasLength(2),
+      );
+    },
+  );
 }
