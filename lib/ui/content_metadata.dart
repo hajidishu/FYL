@@ -153,7 +153,7 @@ class SupportedContentVersions extends StatelessWidget {
         style: TextStyle(
           color: LauncherColors.of(context).secondaryText,
           fontSize: 12,
-          height: compact ? 1.25 : 1.5,
+          height: 1.45,
         ),
       ),
     );
@@ -204,13 +204,6 @@ class ProjectMetadata extends StatelessWidget {
               ),
               compact: true,
             ),
-            if (project.author.isNotEmpty)
-              _MetadataItem(
-                icon: FIcons.user,
-                text: project.author,
-                localize: false,
-                compact: true,
-              ),
           ];
           final narrow =
               constraints.maxWidth <
@@ -218,11 +211,11 @@ class ProjectMetadata extends StatelessWidget {
           final row = Row(
             children: [
               if (!narrow) ...[
-                Expanded(flex: 5, child: supported),
-                const SizedBox(width: 12),
+                Expanded(flex: 6, child: supported),
+                const SizedBox(width: 16),
               ],
               for (var i = 0; i < stats.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Flexible(flex: 2, child: stats[i]),
               ],
             ],
@@ -230,7 +223,7 @@ class ProjectMetadata extends StatelessWidget {
           return narrow
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [supported, const SizedBox(height: 2), row],
+                  children: [supported, const SizedBox(height: 5), row],
                 )
               : row;
         },
@@ -310,11 +303,7 @@ class _MetadataItem extends StatelessWidget {
               localize ? AppLocalizations.of(context).text(text) : text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                height: compact ? 1.25 : 1.5,
-              ),
+              style: TextStyle(color: color, fontSize: 12, height: 1.45),
             ),
           ),
         ],

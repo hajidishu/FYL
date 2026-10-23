@@ -363,7 +363,7 @@ class _CommunityPageState extends State<CommunityPage> {
         else
           SliverList.separated(
             itemCount: projects.length + (hasMore ? 1 : 0),
-            separatorBuilder: (_, _) => const SizedBox(height: 4),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               if (index == projects.length) {
                 return AppButton(
@@ -385,14 +385,14 @@ class _CommunityPageState extends State<CommunityPage> {
                 borderRadius: BorderRadius.circular(14),
                 child: Surface(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
+                    horizontal: 15,
+                    vertical: 10,
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      ProjectIcon(project: project, size: 48),
-                      const SizedBox(width: 12),
+                      ProjectIcon(project: project, size: 52),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,7 +406,7 @@ class _CommunityPageState extends State<CommunityPage> {
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontSize: 15,
-                                      height: 1.2,
+                                      height: 1.4,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -415,9 +415,9 @@ class _CommunityPageState extends State<CommunityPage> {
                                 SourceBadge(project.source, compact: true),
                               ],
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 5),
                             ProjectSummary(project),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 6),
                             ProjectMetadata(
                               project: project,
                               releases: releases,
@@ -477,7 +477,7 @@ class SourceBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: EdgeInsets.symmetric(
       horizontal: compact ? 6 : 7,
-      vertical: compact ? 1 : 3,
+      vertical: compact ? 2 : 3,
     ),
     decoration: BoxDecoration(
       color:
@@ -492,7 +492,7 @@ class SourceBadge extends StatelessWidget {
       style: TextStyle(
         color: LauncherColors.of(context).foreground,
         fontSize: 12,
-        height: compact ? 1.2 : 1.5,
+        height: 1.4,
       ),
     ),
   );

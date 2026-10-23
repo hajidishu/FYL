@@ -13,23 +13,33 @@ class ProjectSummary extends StatelessWidget {
     final categories = project.categories
         .map((category) => category.trim())
         .where((category) => category.isNotEmpty)
+        .where(
+          (category) => !const {
+            'fabric',
+            'forge',
+            'neoforge',
+            'quilt',
+            'iris',
+            'optifine',
+            'minecraft',
+            'mod',
+            'modpack',
+          }.contains(category.toLowerCase()),
+        )
         .toSet()
         .toList();
     return LayoutBuilder(
       builder: (context, constraints) {
         final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
-        final count = constraints.maxWidth >= 640 * scale
-            ? 3
-            : constraints.maxWidth >= 420 * scale
-            ? 2
-            : 1;
+        final count = constraints.maxWidth >= 640 * scale ? 2 : 1;
         final visible = categories.take(count).toList();
         return Row(
           children: [
-            if (categories.isNotEmpty) ...[
+            if (categories.isNotEmpty &&
+                constraints.maxWidth >= 240 * scale) ...[
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: constraints.maxWidth * .46,
+                  maxWidth: constraints.maxWidth * .32,
                 ),
                 child: Tooltip(
                   message: categories.join(' · '),
@@ -52,20 +62,20 @@ class ProjectSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 9),
             ],
             Expanded(
               child: Tooltip(
                 message: project.summary,
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: Text(
-                  project.summary,
+                  project.summary.replaceAll(RegExp(r'\s+'), ' '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: c.secondaryText,
-                    fontSize: 14,
-                    height: 1.2,
+                    fontSize: 13,
+                    height: 1.45,
                     letterSpacing: 0,
                   ),
                 ),

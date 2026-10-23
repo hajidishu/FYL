@@ -549,7 +549,7 @@ class _InstanceModsState extends State<InstanceMods> {
                       child: Surface(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
-                          vertical: 6,
+                          vertical: 10,
                         ),
                         child: Row(
                           children: [
@@ -602,7 +602,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontSize: 14,
-                                            height: 1.25,
+                                            height: 1.4,
                                             fontWeight: FontWeight.w600,
                                             color: mod.enabled
                                                 ? c.foreground
@@ -623,7 +623,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                       ],
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 5),
                                   Tooltip(
                                     message: mod.warning == null
                                         ? mod.description
@@ -646,11 +646,12 @@ class _InstanceModsState extends State<InstanceMods> {
                                       style: TextStyle(
                                         color: c.secondaryText,
                                         fontSize: 14,
-                                        height: 1.25,
+                                        height: 1.4,
                                         letterSpacing: 0,
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(height: 4),
                                   Tooltip(
                                     message:
                                         versionChange(mod) ??
@@ -663,7 +664,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                       style: TextStyle(
                                         color: c.muted,
                                         fontSize: 12,
-                                        height: 1.25,
+                                        height: 1.4,
                                       ),
                                     ),
                                   ),
