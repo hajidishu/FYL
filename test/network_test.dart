@@ -5,8 +5,41 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:free_your_launcher/core/build_info.dart';
 import 'package:free_your_launcher/core/models.dart';
+import 'package:free_your_launcher/core/download_source.dart';
 import 'package:free_your_launcher/core/network.dart';
 import 'package:path/path.dart' as p;
+
+// Validate the original public URL through OfficialNetwork, but send the test
+// transport to loopback so these regressions never contact GitHub.
+class _GitHubTestClient implements HttpClient {
+  final HttpClient transport;
+  final int port;
+  final List<Uri> requested;
+  _GitHubTestClient(this.transport, this.port, this.requested);
+  @override
+  set connectionTimeout(Duration? value) => transport.connectionTimeout = value;
+  @override
+  set maxConnectionsPerHost(int? value) =>
+      transport.maxConnectionsPerHost = value;
+  @override
+  set userAgent(String? value) => transport.userAgent = value;
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) {
+    requested.add(url);
+    return transport.getUrl(
+      Uri.http(
+        '127.0.0.1:$port',
+        '/${url.host}${url.path}',
+        url.hasQuery ? url.queryParameters : null,
+      ),
+    );
+  }
+
+  @override
+  void close({bool force = false}) => transport.close(force: force);
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   late HttpServer server;
@@ -27,6 +60,123 @@ void main() {
     await server.close(force: true);
     await temporary.delete(recursive: true);
   });
+
+  test(
+    'launcher GitHub API and asset redirects keep HTTPS and host restrictions',
+    () async {
+      final payload = utf8.encode('verified FYL release fixture');
+      const asset =
+          'https://github.com/hajidishu/FYL/releases/download/v0.2.0/FYL-0.2.0-windows-x64.zip';
+      const cdn =
+          'https://release-assets.githubusercontent.com/fixture/FYL.zip?download=1';
+      server.listen((request) async {
+        if (request.uri.path.startsWith('/api.github.com/')) {
+          expect(
+            request.headers.value('Accept'),
+            'application/vnd.github+json',
+          );
+          expect(
+            request.headers.value('Authorization'),
+            'Bearer fixture-github-token',
+          );
+          if (request.uri.path.endsWith('/redirect')) {
+            request.response.statusCode = HttpStatus.found;
+            request.response.headers.set(HttpHeaders.locationHeader, asset);
+          } else {
+            request.response.headers.contentType = ContentType.json;
+            request.response.write('[{"tag_name":"v0.2.0"}]');
+          }
+        } else {
+          expect(request.headers.value('Authorization'), isNull);
+          expect(request.headers.value('Accept'), isNull);
+          if (request.uri.path.startsWith('/github.com/')) {
+            request.response.statusCode = HttpStatus.found;
+            request.response.headers.set(HttpHeaders.locationHeader, cdn);
+          } else {
+            expect(
+              request.uri.path,
+              '/release-assets.githubusercontent.com/fixture/FYL.zip',
+            );
+            request.response.add(payload);
+          }
+        }
+        await request.response.close();
+      });
+      for (final source in DownloadSource.values) {
+        final transport = HttpClient();
+        final requested = <Uri>[];
+        await HttpOverrides.runZoned(
+          () async {
+            final api = OfficialNetwork(
+              network.settings.copy()
+                ..downloadRetries = 0
+                ..downloadSource = source,
+              community: true,
+              hostHeaders: {
+                'api.github.com': {
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': 'Bearer fixture-github-token',
+                },
+              },
+            );
+            try {
+              expect(
+                await api.jsonValue(
+                  'https://api.github.com/repos/hajidishu/FYL/releases',
+                ),
+                [
+                  {'tag_name': 'v0.2.0'},
+                ],
+              );
+              // API-only headers must not accompany a cross-host redirect.
+              expect(
+                await api.text('https://api.github.com/redirect'),
+                utf8.decode(payload),
+              );
+              final destination = p.join(
+                temporary.path,
+                '${source.name}-update.zip',
+              );
+              await api.download(
+                DownloadFile(
+                  asset,
+                  destination,
+                  size: payload.length,
+                  hashes: {'sha256': sha256.convert(payload).toString()},
+                  requireIntegrity: true,
+                ),
+                CancellationToken(),
+              );
+              expect(await File(destination).readAsBytes(), payload);
+              expect(requested.map((uri) => uri.host).toSet(), {
+                'api.github.com',
+                'github.com',
+                'release-assets.githubusercontent.com',
+              });
+              final allowedCount = requested.length;
+              for (final url in [
+                'http://api.github.com/repos/hajidishu/FYL/releases',
+                'https://api.github.com.example.invalid/releases',
+                'https://fixture:credential@api.github.com/releases',
+              ]) {
+                await expectLater(api.text(url), throwsFormatException);
+              }
+              expect(requested.length, allowedCount);
+            } finally {
+              api.close();
+            }
+          },
+          createHttpClient: (_) =>
+              _GitHubTestClient(transport, server.port, requested),
+        );
+      }
+      network.settings.downloadRetries = 0;
+      await expectLater(
+        network.text('https://api.github.com/repos/hajidishu/FYL/releases'),
+        throwsFormatException,
+      );
+    },
+  );
   test(
     'download verifies, reuses good cache and repairs corrupt cache',
     () async {

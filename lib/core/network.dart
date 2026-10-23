@@ -140,6 +140,7 @@ class OfficialNetwork {
       return uri;
     }
     const communityHosts = [
+      'api.github.com',
       'api.curseforge.com',
       'api.modrinth.com',
       'cdn.modrinth.com',
