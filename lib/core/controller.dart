@@ -867,19 +867,24 @@ class LauncherController extends ChangeNotifier {
     tasks.insert(0, task);
     final token = CancellationToken();
     _installToken = token;
-    final network = OfficialNetwork(task.settings);
     notifyListeners();
     try {
-      final instance = await MinecraftInstaller(
+      final instance = await runInstallerWorker(
         platform,
-        network,
+        task,
+        null,
+        token,
         optifineBridge:
             task.options.optifine != null && task.options.loader == null
             ? (await rootBundle.load(
                 'assets/java/FylOptiFineBridge.class',
               )).buffer.asUint8List()
             : null,
-      ).install(task, token, _throttledNotify);
+        onProgress: (progress) {
+          progress.apply(task);
+          _throttledNotify();
+        },
+      );
       instances.insert(0, instance);
       selectedId = instance.id;
       try {
@@ -900,7 +905,6 @@ class LauncherController extends ChangeNotifier {
       task.error = '$e';
       task.stage = '安装失败';
     } finally {
-      network.close();
       _installToken = null;
       notifyListeners();
     }

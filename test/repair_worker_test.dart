@@ -19,7 +19,17 @@ void busyWorker(InstallWorkerRequest request) {
   while (clock.elapsedMilliseconds < 450) {
     // Simulate archive decompression that would otherwise block Flutter frames.
   }
-  request.events.send(request.instance);
+  request.events.send(
+    request.instance ??
+        GameInstance(
+          id: 'fresh',
+          name: request.task.instanceName,
+          version: request.task.version.id,
+          root: request.task.settings.gameRoot,
+          isolated: true,
+          javaMajor: 21,
+        ),
+  );
 }
 
 void cancellableWorker(InstallWorkerRequest request) async {
@@ -108,6 +118,30 @@ void main() {
     expect(result.id, instance.id);
     expect(task.stage, 'CPU work');
     expect(ticks, greaterThan(3));
+  });
+
+  test('new installations also leave the main event loop responsive', () async {
+    var ticks = 0;
+    final timer = Timer.periodic(
+      const Duration(milliseconds: 10),
+      (_) => ticks++,
+    );
+    try {
+      final result = await runInstallerWorker(
+        platform,
+        task,
+        null,
+        CancellationToken(),
+        entryPoint: busyWorker,
+        onProgress: (progress) => progress.apply(task),
+      );
+      expect(result.id, 'fresh');
+      expect(result.name, task.instanceName);
+      expect(task.stage, 'CPU work');
+      expect(ticks, greaterThan(3));
+    } finally {
+      timer.cancel();
+    }
   });
 
   test('cancellation reaches the worker and waits for its cleanup', () async {

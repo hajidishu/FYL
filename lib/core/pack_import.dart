@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'community_models.dart';
@@ -68,7 +70,10 @@ String _packPath(String value) {
   return path;
 }
 
-Future<PackPlan> inspectModpack(String path) async {
+Future<PackPlan> inspectModpack(String path) =>
+    Isolate.run(() => _inspectModpack(path));
+
+Future<PackPlan> _inspectModpack(String path) async {
   final sourceFile = File(path);
   if (await sourceFile.length() > 512 * 1024 * 1024) {
     throw const FormatException('整合包压缩文件超过 512 MB。');
@@ -273,6 +278,60 @@ Future<PackPlan> inspectModpack(String path) async {
 }
 
 Future<void> extractPackOverrides(
+  PackPlan plan,
+  String destination,
+  CancellationToken token, {
+  String? iconDestination,
+}) async {
+  token.check();
+  final events = ReceivePort();
+  SendPort? control;
+  void cancel() => control?.send(null);
+  final subscription = events.listen((message) {
+    control = message as SendPort;
+    if (token.cancelled) cancel();
+  });
+  token.add(cancel);
+  try {
+    await _startPackExtraction(
+      plan,
+      destination,
+      iconDestination,
+      events.sendPort,
+    );
+    token.check();
+  } finally {
+    token.remove(cancel);
+    await subscription.cancel();
+    events.close();
+  }
+}
+
+// Keep the isolate closure separate from the UI-side cancellation/receive ports.
+Future<void> _startPackExtraction(
+  PackPlan plan,
+  String destination,
+  String? iconDestination,
+  SendPort events,
+) => Isolate.run(() async {
+  final control = ReceivePort();
+  final token = CancellationToken();
+  final subscription = control.listen((_) => token.cancel());
+  events.send(control.sendPort);
+  try {
+    await _extractPackOverrides(
+      plan,
+      destination,
+      token,
+      iconDestination: iconDestination,
+    );
+  } finally {
+    await subscription.cancel();
+    control.close();
+  }
+});
+
+Future<void> _extractPackOverrides(
   PackPlan plan,
   String destination,
   CancellationToken token, {

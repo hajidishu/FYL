@@ -9,7 +9,7 @@ class InstallWorkerRequest {
   final SendPort events;
   final HostPlatform platform;
   final InstallTask task;
-  final GameInstance instance;
+  final GameInstance? instance;
   final List<int>? optifineBridge;
   const InstallWorkerRequest(
     this.events,
@@ -50,7 +50,7 @@ class InstallerFailure {
 Future<GameInstance> runInstallerWorker(
   HostPlatform platform,
   InstallTask task,
-  GameInstance instance,
+  GameInstance? instance,
   CancellationToken token, {
   List<int>? optifineBridge,
   required void Function(InstallerProgress) onProgress,
@@ -76,7 +76,7 @@ Future<GameInstance> runInstallerWorker(
       onError: events.sendPort,
       onExit: events.sendPort,
       errorsAreFatal: true,
-      debugName: 'FYL game repair',
+      debugName: 'FYL game installer',
     );
     Object? progressError;
     StackTrace? progressStack;
@@ -84,7 +84,7 @@ Future<GameInstance> runInstallerWorker(
       if (message == null) {
         exited.complete();
         if (!result.isCompleted) {
-          result.completeError(StateError('修复任务意外结束，请重试。'));
+          result.completeError(StateError('安装任务意外结束，请重试。'));
         }
       } else if (message is SendPort) {
         control = message;

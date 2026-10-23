@@ -14,6 +14,7 @@ import 'instance_tools.dart' show isGameDataPath;
 import 'file_transaction.dart';
 import 'resource_packs.dart';
 import 'game_options.dart';
+import 'install_worker.dart';
 
 typedef ContentCatalogFactory = CommunityCatalog Function(LauncherSettings);
 typedef PackBaseInstaller =
@@ -627,18 +628,22 @@ class ContentInstaller {
 
     var instance = session.baseInstance;
     if (instance == null) {
-      final network = OfficialNetwork(session.settings);
       try {
         instance = installBase == null
-            ? await MinecraftInstaller(
+            ? await runInstallerWorker(
                 platform,
-                network,
-              ).install(install, task.token, update)
+                install,
+                null,
+                task.token,
+                onProgress: (progress) {
+                  progress.apply(install);
+                  update();
+                },
+              )
             : await installBase!(install, task.token, update);
         session.baseInstance = instance;
       } finally {
         update();
-        network.close();
       }
     }
     try {
