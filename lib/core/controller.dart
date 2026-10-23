@@ -31,6 +31,7 @@ import 'launch_tips.dart';
 import 'system_memory.dart';
 import 'data_directory.dart';
 import 'pack_updates.dart';
+import 'pack_origin.dart';
 import 'launcher_updates.dart';
 
 class RunningGame {
@@ -547,6 +548,30 @@ class LauncherController extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  Future<Json> linkPackProject(
+    String instanceId,
+    ContentProject project, {
+    ContentVersion? installed,
+  }) async {
+    final instance = editableInstance(instanceId);
+    instanceOperation = '关联整合包来源';
+    notifyListeners();
+    try {
+      final target = p.join(instance.launcherDirectory, 'modpack.json');
+      await ensurePackParents(instance.root, target);
+      final updated = linkedPackRecord(
+        await readPackRecord(instance),
+        project,
+        installed: installed,
+      );
+      await writeJson(File(target), updated);
+      return updated;
+    } finally {
+      instanceOperation = null;
+      notifyListeners();
+    }
   }
 
   Future<GameInstance> applyPackUpdate(

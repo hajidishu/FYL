@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/core/network.dart';
 import 'package:free_your_launcher/core/pack_updates.dart';
+import 'package:free_your_launcher/core/pack_origin.dart';
+import 'package:free_your_launcher/core/community_models.dart';
 
 void main() {
   late Directory root;
@@ -162,6 +164,28 @@ void main() {
       expect(preview.deleted, 1);
       expect(preview.conflicts, isEmpty);
       expect(preview.unknownBaseline, false);
+      final linked = linkedPackRecord(
+        metadata,
+        const ContentProject(
+          source: ContentSource.curseforge,
+          kind: ContentKind.modpack,
+          id: '123',
+          slug: 'linked-pack',
+          name: 'Linked Pack',
+          summary: '',
+          author: '',
+          website: '',
+        ),
+      );
+      await file(original, '.fyl/modpack.json', jsonEncode(linked));
+      final relinked = await previewPackUpdate(
+        original,
+        staged,
+        supportDirectory: support,
+      );
+      expect(relinked.deleted, 1);
+      expect(relinked.conflicts, isEmpty);
+      expect(relinked.unknownBaseline, false);
       await file(original, 'mods/old.jar', 'user modified the jar');
       expect(
         (await previewPackUpdate(

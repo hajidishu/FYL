@@ -119,10 +119,12 @@ Future<PackUpdatePreview> previewPackUpdate(
   // Pre-updater installations already retain their original downloaded files
   // and extracted overrides. Rebuild the baseline from those immutable author
   // copies instead of assuming the user's current mods are the originals.
+  final cacheSource = oldRecord['originSource'] ?? oldRecord['source'];
+  final cacheRelease = oldRecord['originReleaseId'] ?? oldRecord['releaseId'];
   if (supportDirectory != null &&
-      oldRecord['releaseId'] is String &&
-      const {'modrinth', 'curseforge'}.contains(oldRecord['source'])) {
-    final source = oldRecord['source'], release = oldRecord['releaseId'];
+      cacheRelease is String &&
+      const {'modrinth', 'curseforge'}.contains(cacheSource)) {
+    final source = cacheSource, release = cacheRelease;
     String cached(String kind) => p.join(
       supportDirectory,
       'cache',

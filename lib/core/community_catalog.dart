@@ -150,9 +150,52 @@ class CommunityCatalog {
       source == ContentSource.modrinth ? '/project/$id' : '/mods/$id',
       token,
     );
+    if (kind == ContentKind.modpack) {
+      final data = source == ContentSource.modrinth
+          ? json as Json
+          : json['data'] as Json;
+      if (source == ContentSource.modrinth &&
+              data['project_type'] != null &&
+              data['project_type'] != 'modpack' ||
+          source == ContentSource.curseforge &&
+              data['classId'] != null &&
+              data['classId'] != 4471) {
+        throw const FormatException('所选项目不是整合包。');
+      }
+    }
     return source == ContentSource.modrinth
         ? _modrinthProject(json as Json, kind)
         : _curseProject(json['data'] as Json, kind);
+  }
+
+  Future<ContentProject> projectBySlug(
+    ContentSource source,
+    String slug,
+    ContentKind kind,
+    CancellationToken token,
+  ) async {
+    if (source == ContentSource.modrinth) {
+      return project(source, slug, kind, token);
+    }
+    final result =
+        await _get(source, '/mods/search', token, {
+              'gameId': '432',
+              'classId': '${kind.curseClassId}',
+              'slug': slug,
+              'pageSize': '1',
+            })
+            as Json;
+    final matches = (result['data'] as List)
+        .cast<Json>()
+        .where(
+          (row) =>
+              (row['slug'] as String?)?.toLowerCase() == slug.toLowerCase(),
+        )
+        .toList();
+    if (matches.length != 1) {
+      throw const FormatException('无法匹配该整合包项目，请检查链接或改用项目 ID。');
+    }
+    return project(source, '${matches.single['id']}', kind, token);
   }
 
   Future<String> description(
