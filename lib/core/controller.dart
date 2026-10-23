@@ -31,6 +31,7 @@ import 'launch_tips.dart';
 import 'system_memory.dart';
 import 'data_directory.dart';
 import 'pack_updates.dart';
+import 'launcher_updates.dart';
 
 class RunningGame {
   bool finished = false;
@@ -61,6 +62,12 @@ class LauncherController extends ChangeNotifier {
   Future<String?>? launchTip;
   ContentCatalogFactory get communityCatalogFactory =>
       _communityCatalogFactory ?? CommunityCatalog.new;
+  late final launcherUpdater = LauncherUpdater(
+    supportDirectory: supportDirectory,
+    platform: platform,
+    settings: () => settings,
+    onChanged: _throttledNotify,
+  );
   static const _curseforgeKey = 'settings.curseforge-api-key';
   late final content = ContentInstaller(
     platform: platform,
@@ -175,6 +182,7 @@ class LauncherController extends ChangeNotifier {
 
   bool get installing =>
       _packRecoveryRequired ||
+      launcherUpdater.busy ||
       instanceOperation != null ||
       tasks.any((t) => t.status == TaskStatus.running) ||
       content.tasks.any((t) => t.state == ContentTaskState.running);
@@ -277,6 +285,21 @@ class LauncherController extends ChangeNotifier {
       instanceOperation = '恢复整合包升级';
       _packRecoveryRequired = true;
       errorMessage = '无法恢复整合包升级，请保留数据并重新启动：$error';
+    }
+    final updateResult = File(
+      p.join(supportDirectory, 'launcher-update-result.json'),
+    );
+    if (await updateResult.exists()) {
+      try {
+        final result = jsonDecode(await updateResult.readAsString()) as Json;
+        if (result['error'] is String) {
+          launcherUpdater.error = result['error'] as String;
+          notice = '启动器更新未完成：${result['error']}';
+        }
+        await updateResult.delete();
+      } catch (_) {
+        /* A failed update notice must not prevent startup. */
+      }
     }
     notifyListeners();
   }
@@ -533,6 +556,17 @@ class LauncherController extends ChangeNotifier {
     String? copyName,
   }) async {
     final original = editableInstance(preview.original.id);
+    if (!task.canRetry) throw StateError('此升级预览已使用，请关闭后重新准备。');
+    if (keepOriginal) {
+      final name = copyName?.trim() ?? preview.staged.name;
+      final invalid = validateVersionName(name);
+      if (invalid != null) throw ArgumentError(invalid);
+      if (instances.any(
+        (instance) => instance.name.toLowerCase() == name.toLowerCase(),
+      )) {
+        throw StateError('版本名称已存在，请使用其他名称。');
+      }
+    }
     if (jsonEncode(original.toJson()) !=
         jsonEncode(preview.original.toJson())) {
       throw StateError('版本设置已变化，请重新预览升级。');
@@ -1242,7 +1276,21 @@ class LauncherController extends ChangeNotifier {
     return true;
   }
 
+  Future<void> prepareLauncherUpdate() async {
+    if (installing || running) throw StateError('请先结束下载任务并关闭正在运行的游戏，再更新启动器。');
+    instanceOperation = '更新启动器';
+    notifyListeners();
+    try {
+      await flush();
+      await launcherUpdater.startHelper();
+    } finally {
+      instanceOperation = null;
+      notifyListeners();
+    }
+  }
+
   Future<void> stopActiveTasks() async {
+    launcherUpdater.cancel();
     if (_packRecoveryRequired && _instanceToken == null) return;
     cancelInstall();
     for (final task in content.tasks) {
@@ -1624,6 +1672,7 @@ class LauncherController extends ChangeNotifier {
 
   @override
   void dispose() {
+    launcherUpdater.dispose();
     _disposed = true;
     _windowWaiter?.stop();
     _notifyTimer?.cancel();

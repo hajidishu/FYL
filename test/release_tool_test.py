@@ -111,6 +111,11 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(contents.read("FYL/data/flutter_assets/example"), b"resource")
             self.assertEqual(contents.read("FYL/LICENSE-FYL.txt"), b"license fixture")
             self.assertIn(("a" * 40).encode(), contents.read("FYL/SOURCE.txt"))
+            manifest = json.loads(contents.read("FYL/fyl-package.json"))
+            self.assertEqual(manifest["version"], "0.1.0")
+            self.assertEqual(manifest["entrypoint"], "free_your_launcher.exe")
+            self.assertEqual(manifest["files"]["data/flutter_assets/example"]["size"], 8)
+            self.assertNotIn("fyl-package.json", manifest["files"])
         self.assertEqual(archive.with_name(archive.name + ".sha256").read_text().split()[0], release.digest(archive))
 
     def test_linux_archive_preserves_executable_permissions(self):
@@ -129,6 +134,7 @@ class ReleaseTests(unittest.TestCase):
                      "custom-profile/launcher.json", "custom-profile/credentials/account.dpapi",
                      "custom-profile.fyl-migration-1234567890/partial", "fyl-storage.json.bak"):
             self.write(base + path, "private fixture")
+        self.write(base + ".fyl-update-backup-test/free_your_launcher.exe", "old private executable")
         self.write(base + "fyl-storage.json", json.dumps({"dataDirectory": "custom-profile"}))
         self.write(base + "data/flutter_assets/public", "resource")
         archive = release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40)
@@ -136,6 +142,7 @@ class ReleaseTests(unittest.TestCase):
             names = contents.namelist()
             self.assertIn("FYL/data/flutter_assets/public", names)
             self.assertFalse(any("FYL-data" in name or "custom-profile" in name or "fyl-storage" in name for name in names))
+            self.assertFalse(any(".fyl-update-" in name for name in names))
 
     def test_bundle_must_not_link_to_files_outside_it(self):
         self.binary("linux")

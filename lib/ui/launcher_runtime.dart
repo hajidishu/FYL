@@ -14,6 +14,7 @@ import '../core/account_store.dart';
 import '../core/controller.dart';
 import '../core/data_directory.dart';
 import '../core/models.dart';
+import '../core/launcher_update_install.dart';
 import '../main.dart' show LauncherApp;
 import 'byte_size.dart';
 import 'theme.dart';
@@ -165,6 +166,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
       }
       final warning = await widget.directories.completeMigration();
       if (warning != null) next.notice = warning;
+      if (widget.nativeWindow) await confirmLauncherUpdateStartup(target);
       if (!mounted) {
         next.dispose();
         await nextLease.close();

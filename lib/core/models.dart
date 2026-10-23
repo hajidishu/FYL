@@ -48,6 +48,8 @@ class LauncherSettings {
   int? accentColor;
   String? backgroundPath;
   double? backgroundOpacity;
+  bool checkLauncherUpdates;
+  String launcherUpdateChannel;
 
   LauncherSettings({
     required this.gameRoot,
@@ -80,6 +82,8 @@ class LauncherSettings {
     this.accentColor,
     this.backgroundPath,
     this.backgroundOpacity = .35,
+    this.checkLauncherUpdates = true,
+    this.launcherUpdateChannel = 'stable',
     this.microsoftClientId = defaultMicrosoftClientId,
     this.curseforgeApiKey = const String.fromEnvironment(
       'FYL_CURSEFORGE_API_KEY',
@@ -131,6 +135,10 @@ class LauncherSettings {
     accentColor: json['accentColor'] is int ? json['accentColor'] as int : null,
     backgroundPath: json['backgroundPath'] as String?,
     backgroundOpacity: (json['backgroundOpacity'] as num?)?.toDouble() ?? .35,
+    checkLauncherUpdates: json['checkLauncherUpdates'] as bool? ?? true,
+    launcherUpdateChannel: json['launcherUpdateChannel'] == 'preview'
+        ? 'preview'
+        : 'stable',
     downloadSource:
         DownloadSource.values
             .where((source) => source.name == json['downloadSource'])
@@ -172,6 +180,8 @@ class LauncherSettings {
     'accentColor': accentColor,
     'backgroundPath': backgroundPath,
     'backgroundOpacity': backgroundOpacity,
+    'checkLauncherUpdates': checkLauncherUpdates,
+    'launcherUpdateChannel': launcherUpdateChannel,
     'microsoftClientId': microsoftClientId,
   };
 

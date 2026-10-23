@@ -33,6 +33,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
   bool closing = false;
   bool showingFailure = false;
   bool failureScheduled = false;
+  String? dismissedUpdate;
   final settingsKey = GlobalKey<SettingsPageState>();
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
     if (widget.nativeWindow) {
       windowManager.addListener(this);
       unawaited(windowManager.setPreventClose(true));
+      unawaited(widget.controller.launcherUpdater.check(automatic: true));
     }
   }
 
@@ -298,6 +300,52 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                               if (controller.errorMessage != null ||
                                   controller.notice != null)
                                 _message(),
+                              if (controller.launcherUpdater.available !=
+                                      null &&
+                                  dismissedUpdate !=
+                                      controller
+                                          .launcherUpdater
+                                          .available!
+                                          .version)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    28,
+                                    12,
+                                    28,
+                                    0,
+                                  ),
+                                  child: Surface(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: LText(
+                                            '发现新版本 ${controller.launcherUpdater.available!.version}',
+                                          ),
+                                        ),
+                                        AppButton(
+                                          '查看更新',
+                                          small: true,
+                                          onPressed: () => navigate(3),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          icon: const Icon(FIcons.x, size: 16),
+                                          tooltip: tr('关闭'),
+                                          onPressed: () => setState(
+                                            () => dismissedUpdate = controller
+                                                .launcherUpdater
+                                                .available!
+                                                .version,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               Expanded(
                                 child: switch (page) {
                                   0 => HomePage(

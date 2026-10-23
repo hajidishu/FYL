@@ -21,6 +21,7 @@ import 'instance_java_dialog.dart';
 import '../core/community_models.dart';
 import 'community_page.dart';
 import 'content_tasks.dart';
+import 'launcher_update_panel.dart';
 import 'instance_details.dart';
 import 'instance_icon.dart';
 import 'version_log_page.dart';
@@ -795,7 +796,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 (7, '光影包', FIcons.sun),
                 (
                   1,
-                  '下载任务 (${widget.controller.tasks.length + widget.controller.content.tasks.length})',
+                  '下载任务 (${widget.controller.tasks.length + widget.controller.content.tasks.length + (widget.controller.launcherUpdater.hasTask ? 1 : 0)})',
                   FIcons.download,
                 ),
               ])
@@ -865,7 +866,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
   Widget _tasks() {
     final controller = widget.controller;
     final c = LauncherColors.of(context);
-    if (controller.tasks.isEmpty && controller.content.tasks.isEmpty) {
+    if (controller.tasks.isEmpty &&
+        controller.content.tasks.isEmpty &&
+        !controller.launcherUpdater.hasTask) {
       return SingleChildScrollView(
         child: EmptyState(
           icon: FIcons.download,
@@ -877,6 +880,13 @@ class _DownloadsPageState extends State<DownloadsPage> {
     }
     return ListView(
       children: [
+        if (controller.launcherUpdater.hasTask) ...[
+          LauncherUpdateTaskCard(
+            controller: controller,
+            showSettings: () => widget.navigate(3),
+          ),
+          const SizedBox(height: 14),
+        ],
         for (final task in controller.content.tasks) ...[
           ContentTaskCard(
             key: ValueKey('content-task-${task.id}'),

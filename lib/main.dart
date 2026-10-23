@@ -9,12 +9,14 @@ import 'package:window_manager/window_manager.dart';
 import 'core/controller.dart';
 import 'core/models.dart';
 import 'core/data_directory.dart';
+import 'core/launcher_update_install.dart';
 import 'ui/launcher_runtime.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
 import 'l10n/app_localizations.dart';
 
 Future<void> main(List<String> arguments) async {
+  await handleLauncherUpdateMode(arguments);
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
   String? dataDirectory = Platform.environment['FYL_DATA_DIR'];

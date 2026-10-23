@@ -137,6 +137,8 @@ def package(root, target, version, repository, sha):
     }[target]
     arch = architecture(target, executable)
     private_names = {"FYL-data", "fyl-storage.json", "fyl-storage.json.bak", "fyl-storage.json.tmp"}
+    def private_entry(name):
+        return name in private_names or ".fyl-migration-" in name or name.startswith(".fyl-update-")
     storage = bundle / "fyl-storage.json"
     if storage.is_file():
         selected = json.loads(storage.read_text(encoding="utf-8"))["dataDirectory"]
@@ -147,7 +149,7 @@ def package(root, target, version, repository, sha):
                 raise ValueError("Custom data directory overlaps launcher runtime files")
             private_names.add(relative.parts[0])
     for entry in bundle.iterdir():
-        if entry.name in private_names or ".fyl-migration-" in entry.name:
+        if private_entry(entry.name):
             continue
         candidates = [entry, *entry.rglob("*")] if entry.is_dir() and not entry.is_symlink() else [entry]
         for candidate in candidates:
@@ -166,7 +168,7 @@ def package(root, target, version, repository, sha):
     else:
         def ignore_private(directory, names):
             if Path(directory) == bundle:
-                return {name for name in names if name in private_names or ".fyl-migration-" in name}
+                return {name for name in names if private_entry(name)}
             return set()
         shutil.copytree(bundle, staging, symlinks=True, ignore=ignore_private)
     shutil.copyfile(root / "LICENSE", staging / "LICENSE-FYL.txt")
@@ -174,6 +176,25 @@ def package(root, target, version, repository, sha):
     (staging / "SOURCE.txt").write_text(
         f"Source: https://github.com/{repository}/tree/{sha}\n", encoding="utf-8"
     )
+    files, links = {}, {}
+    for entry in sorted(staging.rglob("*")):
+        relative = entry.relative_to(staging).as_posix()
+        if relative == "fyl-package.json":
+            continue
+        if entry.is_symlink():
+            destination = os.readlink(entry)
+            if Path(destination).is_absolute() or not entry.resolve(strict=True).is_relative_to(staging.resolve()):
+                raise ValueError("Package contains an external symlink")
+            links[relative] = destination
+        elif entry.is_file():
+            files[relative] = {"size": entry.stat().st_size, "sha256": digest(entry)}
+    entrypoint = executable.relative_to(bundle).as_posix()
+    if target == "macos":
+        entrypoint = f"{bundle.name}/{entrypoint}"
+    (staging / "fyl-package.json").write_text(json.dumps({
+        "schemaVersion": 1, "version": version, "target": target, "arch": arch,
+        "entrypoint": entrypoint, "sourceCommit": sha, "files": files, "links": links,
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if target == "macos":
         subprocess.run([
             "ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",

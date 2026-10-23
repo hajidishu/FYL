@@ -16,6 +16,7 @@ import 'theme.dart';
 import 'accent_picker.dart';
 import 'launcher_background.dart';
 import 'memory_preview.dart';
+import 'launcher_update_panel.dart';
 
 class SettingsPage extends StatefulWidget {
   final LauncherController controller;
@@ -784,6 +785,30 @@ class SettingsPageState extends State<SettingsPage> {
     const LText(
       '${launcherVersion == 'development' ? '开发版' : 'v$launcherVersion'} · Minecraft Java Edition 启动器',
       style: TextStyle(fontSize: 11, height: 1.8),
+    ),
+    const SizedBox(height: 16),
+    _switch(
+      '启动时检查更新',
+      '在后台检查 FYL 新版本。',
+      draft.checkLauncherUpdates,
+      (value) => draft.checkLauncherUpdates = value,
+    ),
+    const SizedBox(height: 10),
+    const LText('更新渠道'),
+    const SizedBox(height: 8),
+    SelectBox<String>(
+      value: draft.launcherUpdateChannel,
+      items: const {'stable': '正式版', 'preview': '正式版与测试版'},
+      onChanged: (value) {
+        draft.launcherUpdateChannel = value;
+        changed();
+      },
+    ),
+    const SizedBox(height: 16),
+    LauncherUpdatePanel(
+      controller: widget.controller,
+      channel: draft.launcherUpdateChannel,
+      canRestart: !dirty && !saving,
     ),
   ]);
 
