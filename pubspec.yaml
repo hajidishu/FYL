@@ -80,6 +80,7 @@ flutter:
     - assets/skins/steve.png
     - assets/components/
     - assets/java/
+    - assets/launch_tips.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -9,10 +9,12 @@ class LaunchLoadingCard extends StatelessWidget {
   final String instanceName;
   final LaunchProgress progress;
   final VoidCallback onStopWaiting;
+  final Future<String?>? tip;
   const LaunchLoadingCard({
     required this.instanceName,
     required this.progress,
     required this.onStopWaiting,
+    this.tip,
     super.key,
   });
 
@@ -54,6 +56,49 @@ class LaunchLoadingCard extends StatelessWidget {
                 backgroundColor: c.raised,
               ),
             ),
+            if (tip != null)
+              FutureBuilder<String?>(
+                future: tip,
+                builder: (context, snapshot) {
+                  final text = snapshot.data;
+                  if (text == null || text.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          '小贴士',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: c.accent,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Tooltip(
+                          message: text,
+                          child: Text(
+                            text,
+                            key: const ValueKey('launch-tip'),
+                            textAlign: TextAlign.center,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              color: c.secondaryText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             if (progress.phase == LaunchPhase.window)
               Padding(
                 padding: const EdgeInsets.only(top: 6),

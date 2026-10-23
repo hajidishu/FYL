@@ -27,6 +27,7 @@ import 'pack_import.dart' show ensurePackParents;
 import 'game_window.dart';
 import 'launch_progress.dart';
 import 'launch_worker.dart';
+import 'launch_tips.dart';
 
 class RunningGame {
   bool finished = false;
@@ -49,6 +50,8 @@ class LauncherController extends ChangeNotifier {
   final MicrosoftAuth Function() authFactory;
   final SecureAccountTokenStore appSecrets;
   final ContentCatalogFactory? _communityCatalogFactory;
+  final LaunchTips launchTips;
+  Future<String?>? launchTip;
   ContentCatalogFactory get communityCatalogFactory =>
       _communityCatalogFactory ?? CommunityCatalog.new;
   static const _curseforgeKey = 'settings.curseforge-api-key';
@@ -136,7 +139,9 @@ class LauncherController extends ChangeNotifier {
     MicrosoftAuth Function()? authFactory,
     SecureAccountTokenStore? appSecrets,
     ContentCatalogFactory? communityCatalogFactory,
-  }) : _communityCatalogFactory = communityCatalogFactory,
+    LaunchTips? launchTips,
+  }) : launchTips = launchTips ?? LaunchTips(),
+       _communityCatalogFactory = communityCatalogFactory,
        appSecrets =
            appSecrets ??
            SecureAccountTokenStore(supportDirectory: supportDirectory),
@@ -1054,6 +1059,7 @@ class LauncherController extends ChangeNotifier {
     preparingLaunch = true;
     launchingInstanceName = instance.name;
     launchProgress = const LaunchProgress(LaunchPhase.account);
+    launchTip = launchTips.choose().catchError((_) => null);
     _logGame = null;
     lastExitCode = null;
     lastLogPath = null;

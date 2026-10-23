@@ -221,12 +221,17 @@ void main() {
       await waitFor(() => controller.runningGames.isNotEmpty);
       expect(controller.preparingLaunch, isTrue);
       expect(controller.launchProgress?.phase, LaunchPhase.window);
+      final tip = controller.launchTip;
+      expect(tip, isNotNull);
+      controller.notifyListeners();
+      expect(controller.launchTip, same(tip));
       expect(await controller.launch(), isFalse);
       gate.complete(true);
       expect(await operation, isTrue);
       expect(controller.preparingLaunch, isFalse);
       expect(controller.launchProgress, isNull);
       expect(controller.runningGames, hasLength(1));
+      expect(controller.launchTip, same(tip));
     },
   );
 

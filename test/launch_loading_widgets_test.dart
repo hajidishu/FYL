@@ -35,6 +35,9 @@ void main() {
                               'A very long Minecraft modpack version name',
                           progress: const LaunchProgress(LaunchPhase.window),
                           onStopWaiting: () => stopped = true,
+                          tip: Future.value(
+                            'An editable launch tip that remains readable when the window is narrow and the user enlarges the interface text.',
+                          ),
                         ),
                       ),
                     ),
@@ -47,6 +50,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1200));
         expect(find.text('等待游戏窗口'), findsOneWidget);
         expect(find.byType(ChunkGenerationAnimation), findsOneWidget);
+        expect(find.byKey(const ValueKey('launch-tip')), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('stop-waiting-for-window')));
         await tester.pump(const Duration(milliseconds: 200));
         expect(stopped, isTrue);

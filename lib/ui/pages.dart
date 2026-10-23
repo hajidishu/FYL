@@ -229,6 +229,7 @@ class _HomePageState extends State<HomePage> {
             controller.launchProgress ??
             const LaunchProgress(LaunchPhase.account),
         onStopWaiting: controller.stopWaitingForGameWindow,
+        tip: controller.launchTip,
       );
     }
     return Surface(
