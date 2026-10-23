@@ -1,6 +1,58 @@
 import '../l10n/app_localizations.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
+
+String get launcherFontFamily => switch (defaultTargetPlatform) {
+  TargetPlatform.windows => 'Microsoft YaHei UI',
+  TargetPlatform.macOS || TargetPlatform.iOS => 'PingFang SC',
+  _ => 'Noto Sans CJK SC',
+};
+
+const launcherFontFallback = [
+  'Microsoft YaHei',
+  'PingFang SC',
+  'PingFang TC',
+  'Noto Sans CJK SC',
+  'Noto Sans CJK TC',
+  'Noto Sans',
+  'Segoe UI',
+  'sans-serif',
+];
+
+const launcherTextHeight = TextHeightBehavior(
+  applyHeightToFirstAscent: false,
+  applyHeightToLastDescent: false,
+);
+
+FTypography _launcherTypography(FColors colors) {
+  final base = FTypography.inherit(
+    colors: colors,
+    fontFamily: launcherFontFamily,
+    touch: false,
+  );
+  TextStyle fit(TextStyle style) => style.copyWith(
+    fontFamilyFallback: launcherFontFallback,
+    height: (style.fontSize ?? 13) <= 16 ? 1.5 : 1.35,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
+  return base.copyWith(
+    xs3: fit(base.xs3),
+    xs2: fit(base.xs2),
+    xs: fit(base.xs),
+    sm: fit(base.sm),
+    md: fit(base.md),
+    lg: fit(base.lg),
+    xl: fit(base.xl),
+    xl2: fit(base.xl2),
+    xl3: fit(base.xl3),
+    xl4: fit(base.xl4),
+    xl5: fit(base.xl5),
+    xl6: fit(base.xl6),
+    xl7: fit(base.xl7),
+    xl8: fit(base.xl8),
+  );
+}
 
 class LauncherAccent extends ThemeExtension<LauncherAccent> {
   final int? color;
@@ -50,9 +102,8 @@ class LauncherColors {
       ? const Color(0xFF101215)
       : Colors.white;
 
-  FThemeData get forui => FThemeData(
-    touch: false,
-    colors: (dark ? FColors.neutralDark : FColors.neutralLight).copyWith(
+  FThemeData get forui {
+    final colors = (dark ? FColors.neutralDark : FColors.neutralLight).copyWith(
       background: background,
       foreground: foreground,
       card: surface,
@@ -63,21 +114,40 @@ class LauncherColors {
       muted: raised,
       mutedForeground: muted,
       border: border,
-    ),
-  );
+    );
+    return FThemeData(
+      touch: false,
+      colors: colors,
+      typography: _launcherTypography(colors),
+    );
+  }
 
   ThemeData get material => ThemeData(
     brightness: dark ? Brightness.dark : Brightness.light,
     extensions: [LauncherAccent(accentColor)],
     scaffoldBackgroundColor: background,
-    fontFamily: 'Microsoft YaHei',
-    fontFamilyFallback: const ['PingFang SC', 'Noto Sans CJK SC', 'sans-serif'],
+    fontFamily: launcherFontFamily,
+    fontFamilyFallback: launcherFontFallback,
     colorScheme: ColorScheme.fromSeed(
       seedColor: accent,
       brightness: dark ? Brightness.dark : Brightness.light,
     ).copyWith(primary: accent, onPrimary: onAccent, secondary: accent),
     textTheme: TextTheme(
       bodyMedium: TextStyle(fontSize: 13, height: 1.5, color: foreground),
+      bodyLarge: TextStyle(fontSize: 14, height: 1.5, color: foreground),
+      bodySmall: TextStyle(fontSize: 12, height: 1.5, color: secondaryText),
+      labelLarge: TextStyle(
+        fontSize: 13,
+        height: 1.5,
+        fontWeight: FontWeight.w400,
+        color: foreground,
+      ),
+      labelMedium: TextStyle(
+        fontSize: 12,
+        height: 1.5,
+        fontWeight: FontWeight.w400,
+        color: foreground,
+      ),
     ),
     dividerColor: border,
     dialogTheme: DialogThemeData(
@@ -153,7 +223,7 @@ class Tag extends StatelessWidget {
         overflow: compact ? TextOverflow.ellipsis : null,
         style: TextStyle(
           fontSize: 12,
-          height: compact ? 1.2 : null,
+          height: 1.4,
           letterSpacing: 0,
           fontWeight: FontWeight.w500,
           color: accent ? c.accent : c.muted,
@@ -178,13 +248,24 @@ class AppButton extends StatelessWidget {
     super.key,
   });
   @override
-  Widget build(BuildContext context) => FButton(
-    onPress: onPressed,
-    variant: secondary ? FButtonVariant.outline : FButtonVariant.primary,
-    size: small ? FButtonSizeVariant.sm : FButtonSizeVariant.lg,
-    mainAxisSize: MainAxisSize.min,
-    prefix: icon == null ? null : Icon(icon, size: 16),
-    child: LText(label, style: const TextStyle(fontSize: 13)),
+  Widget build(BuildContext context) => DefaultTextStyle.merge(
+    textHeightBehavior: launcherTextHeight,
+    child: FButton(
+      onPress: onPressed,
+      variant: secondary ? FButtonVariant.outline : FButtonVariant.primary,
+      size: small ? FButtonSizeVariant.sm : FButtonSizeVariant.lg,
+      mainAxisSize: MainAxisSize.min,
+      prefix: icon == null ? null : Icon(icon, size: 16),
+      child: LText(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          height: 1.5,
+          fontWeight: FontWeight.w400,
+          leadingDistribution: TextLeadingDistribution.even,
+        ),
+      ),
+    ),
   );
 }
 
