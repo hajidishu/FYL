@@ -5,6 +5,18 @@ at runtime. No PCL artwork or code is included.
 minecraft.png: grass block, transparent 512 x 512 model render.
 https://blockrender.dev/render/block/grass_block.png?size=512
 
+command_block.png: command block for preview versions, transparent 512 x 512
+model render.
+https://blockrender.dev/render/block/command_block.png?size=512
+
+cobblestone.png: cobblestone for historical versions, transparent 512 x 512
+model render.
+https://blockrender.dev/render/block/cobblestone.png?size=512
+
+gold_block.png: gold block for April Fools versions, transparent 512 x 512
+model render.
+https://blockrender.dev/render/block/gold_block.png?size=512
+
 forge.png: anvil, transparent 512 x 512 model render.
 https://blockrender.dev/render/block/anvil.png?size=512
 

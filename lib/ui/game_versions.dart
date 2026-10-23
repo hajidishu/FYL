@@ -3,7 +3,7 @@ import 'package:forui/forui.dart';
 import '../core/controller.dart';
 import '../core/models.dart';
 import '../core/version_groups.dart';
-import 'component_icon.dart';
+import 'version_group_icon.dart';
 import 'theme.dart';
 
 class GameVersionList extends StatefulWidget {
@@ -168,9 +168,11 @@ class _GameVersionListState extends State<GameVersionList> {
                     if (!opened.remove(group)) opened.add(group);
                   }),
             child: Surface(
-              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
               child: Row(
                 children: [
+                  VersionGroupIcon(group, size: 24),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       '${group.label} (${items.length})',
@@ -216,7 +218,7 @@ class _GameVersionListState extends State<GameVersionList> {
               color: c.raised,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const ComponentIcon(GameComponent.minecraft, size: 40),
+            child: VersionGroupIcon(version.group),
           ),
           const SizedBox(width: 15),
           Expanded(
