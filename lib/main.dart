@@ -33,6 +33,7 @@ Future<void> main(List<String> arguments) async {
   runApp(
     LauncherRuntime(
       directories: DataDirectoryManager(
+        startupDirectory: Platform.environment['FYL_RESTART_DATA_DIR'],
         directoryOverride: dataDirectory?.trim().isEmpty == true
             ? null
             : dataDirectory,

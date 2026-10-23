@@ -67,6 +67,7 @@ class LauncherController extends ChangeNotifier {
     platform: platform,
     settings: () => settings,
     onChanged: _throttledNotify,
+    explicitDataDirectory: dataDirectories?.directoryOverride,
   );
   static const _curseforgeKey = 'settings.curseforge-api-key';
   late final content = ContentInstaller(

@@ -57,7 +57,7 @@ Ausgabeverzeichnisse:
 
 ## Datenspeicherung
 
-Daten werden standardmäßig im Ordner `FYL-data/` neben dem Launcher gespeichert. Unter Einstellungen → Datenspeicherung kannst du das Verzeichnis ändern und wählen, ob bestehende Daten übertragen werden sollen. FYL bietet die Übertragung erkannter Daten älterer Versionen aus AppData an. Extern konfigurierte Spielverzeichnisse bleiben unverändert.
+Nach einem Update verwendet FYL das bestehende Datenverzeichnis weiter, einschließlich des bisherigen AppData-Verzeichnisses. Eine Übertragung ist nicht erforderlich. Neue Installationen verwenden standardmäßig `FYL-data/` neben dem Launcher. Unter Einstellungen → Datenspeicherung kannst du den Pfad ändern und ausdrücklich wählen, ob Daten übertragen werden sollen. Externe Spielverzeichnisse bleiben unverändert.
 
 Alternativ kannst du das Startargument `--data-dir "Pfad"` oder die Umgebungsvariable `FYL_DATA_DIR` verwenden. `fyl-storage.json` neben dem Launcher speichert das gewählte Verzeichnis; bei Startargumenten oder Umgebungsvariablen muss diese Datei nicht geschrieben werden.
 

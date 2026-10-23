@@ -20,14 +20,16 @@ void main() {
     temporary = await Directory.systemTemp.createTemp('fyl-storage-ui-');
     manager = DataDirectoryManager(
       installationDirectory: p.join(temporary.path, 'program'),
+      legacyDirectory: () => null,
     );
   });
   tearDown(() async => temporary.delete(recursive: true));
 
   for (final size in [const Size(800, 600), const Size(1180, 780)]) {
-    testWidgets(
-      'data settings fit $size and save the selected migration option',
-      (tester) async {
+    for (final migrate in [false, true]) {
+      testWidgets('data settings fit $size and honor migration = $migrate', (
+        tester,
+      ) async {
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
@@ -69,7 +71,13 @@ void main() {
         await tester.ensureVisible(
           find.byKey(const ValueKey('migrate-launcher-data')),
         );
-        await tester.tap(find.byKey(const ValueKey('migrate-launcher-data')));
+        final checkbox = tester.widget<CheckboxListTile>(
+          find.byKey(const ValueKey('migrate-launcher-data')),
+        );
+        expect(checkbox.value, isFalse);
+        if (migrate) {
+          await tester.tap(find.byKey(const ValueKey('migrate-launcher-data')));
+        }
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           await tester.tap(find.text('保存修改'));
@@ -77,7 +85,10 @@ void main() {
         });
         await tester.pumpAndSettle();
         expect(find.text('切换数据目录'), findsOneWidget);
-        expect(find.textContaining('当前数据不会迁移'), findsOneWidget);
+        expect(
+          find.textContaining(migrate ? '将数据迁移到' : '当前数据不会迁移'),
+          findsOneWidget,
+        );
         await tester.runAsync(() async {
           await tester.tap(find.text('应用并重新加载'));
         });
@@ -90,11 +101,11 @@ void main() {
         }
         await tester.pumpAndSettle();
         expect(chosen, target);
-        expect(migration, isFalse);
+        expect(migration, migrate);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
-      },
-    );
+      });
+    }
   }
 
   testWidgets(
@@ -107,7 +118,6 @@ void main() {
             directories: manager,
             platform: const HostPlatform('windows', 'x86_64'),
             nativeWindow: false,
-            legacyDirectory: () => null,
             onReady: (controller) {
               loaded.add(controller);
             },
@@ -176,64 +186,69 @@ void main() {
     },
   );
 
-  for (final migrate in [true, false]) {
-    testWidgets('legacy startup honors automatic migration = $migrate', (
-      tester,
-    ) async {
-      final oldPath = p.join(temporary.path, 'legacy-appdata');
-      await tester.runAsync(() async {
-        final old = LauncherController(
-          supportDirectory: oldPath,
-          platform: const HostPlatform('windows', 'x86_64'),
-        );
-        await old.addOfflineAccount('Legacy_User');
-        old.dispose();
-      });
-      LauncherController? active;
-      await tester.pumpWidget(
-        LauncherRuntime(
-          directories: manager,
-          platform: const HostPlatform('windows', 'x86_64'),
-          nativeWindow: false,
+  for (final backupOnly in [true, false]) {
+    testWidgets(
+      'legacy data opens in place without a migration prompt (backup = $backupOnly)',
+      (tester) async {
+        final oldPath = p.join(temporary.path, 'legacy-appdata');
+        await tester.runAsync(() async {
+          final old = LauncherController(
+            supportDirectory: oldPath,
+            platform: const HostPlatform('windows', 'x86_64'),
+          );
+          await old.addOfflineAccount('Legacy_User');
+          old.dispose();
+          if (backupOnly) {
+            await File(
+              p.join(oldPath, 'launcher.json'),
+            ).rename(p.join(oldPath, 'launcher.json.bak'));
+          }
+        });
+        manager = DataDirectoryManager(
+          installationDirectory: manager.installationDirectory,
           legacyDirectory: () => oldPath,
-          onReady: (controller) => active = controller,
-        ),
-      );
-      final promptDeadline = DateTime.now().add(const Duration(seconds: 5));
-      while (find.text('迁移旧版数据').evaluate().isEmpty &&
-          DateTime.now().isBefore(promptDeadline)) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)),
         );
-        await tester.pump();
-      }
-      expect(find.text('迁移旧版数据'), findsOneWidget);
-      if (!migrate) {
-        await tester.tap(find.byType(CheckboxListTile));
-        await tester.pump();
-      }
-      await tester.ensureVisible(find.text('继续'));
-      await tester.tap(find.text('继续'));
-      await tester.pump(const Duration(milliseconds: 200));
-      final deadline = DateTime.now().add(const Duration(seconds: 10));
-      while (active == null && DateTime.now().isBefore(deadline)) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        LauncherController? active;
+        await tester.pumpWidget(
+          LauncherRuntime(
+            directories: manager,
+            platform: const HostPlatform('windows', 'x86_64'),
+            nativeWindow: false,
+            onReady: (controller) => active = controller,
+          ),
         );
-        await tester.pump();
-      }
-      expect(active, isNotNull);
-      expect(active!.accounts.length, migrate ? 1 : 0);
-      if (migrate) expect(active!.activeAccount!.username, 'Legacy_User');
-      expect(
-        await tester.runAsync(() => Directory(oldPath).exists()),
-        !migrate,
-      );
-      await tester.runAsync(() async {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await Future<void>.delayed(const Duration(milliseconds: 30));
-      });
-      expect(tester.takeException(), isNull);
-    });
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (active == null && DateTime.now().isBefore(deadline)) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump();
+        }
+        expect(active, isNotNull);
+        expect(active!.supportDirectory, oldPath);
+        expect(active!.activeAccount!.username, 'Legacy_User');
+        expect(find.text('迁移旧版数据'), findsNothing);
+        expect(find.byType(LauncherApp), findsOneWidget);
+        expect(
+          await tester.runAsync(() => manager.configuration.exists()),
+          isFalse,
+        );
+        expect(
+          await tester.runAsync(
+            () => Directory(manager.defaultDirectory).exists(),
+          ),
+          isFalse,
+        );
+        expect(
+          await tester.runAsync(() => Directory(oldPath).exists()),
+          isTrue,
+        );
+        await tester.runAsync(() async {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await Future<void>.delayed(const Duration(milliseconds: 30));
+        });
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }

@@ -57,7 +57,7 @@ Emplacement des fichiers compilés :
 
 ## Stockage des données
 
-Les données sont stockées par défaut dans `FYL-data/`, à côté du lanceur. Le dossier peut être changé dans Paramètres → Stockage des données, avec ou sans transfert des données existantes. FYL propose de transférer les anciennes données AppData lorsqu’il les détecte. Les dossiers de jeu configurés à l’extérieur restent en place.
+Après une mise à jour, FYL conserve le dossier de données existant, y compris l’ancien emplacement AppData, sans imposer de transfert. Une nouvelle installation utilise par défaut `FYL-data/`, à côté du lanceur. Le chemin peut être modifié dans Paramètres → Stockage des données, en choisissant explicitement de transférer ou non les données. Les dossiers de jeu externes restent en place.
 
 Vous pouvez aussi utiliser l’argument `--data-dir "chemin"` ou la variable d’environnement `FYL_DATA_DIR`. Le fichier `fyl-storage.json`, à côté du lanceur, mémorise le dossier choisi ; les arguments et variables d’environnement ne nécessitent pas d’écrire ce fichier.
 

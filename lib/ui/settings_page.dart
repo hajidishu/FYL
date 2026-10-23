@@ -38,7 +38,7 @@ class SettingsPageState extends State<SettingsPage> {
   int group = 0;
   bool dirty = false;
   bool saving = false;
-  bool migrateData = true;
+  bool migrateData = false;
   String? error;
   late final JavaDiscovery javaDiscovery;
   List<JavaInstallation> installations = [];

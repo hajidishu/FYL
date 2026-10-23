@@ -125,9 +125,15 @@ class DataDirectoryLease {
 class DataDirectoryManager {
   final String installationDirectory;
   final String? directoryOverride;
-  DataDirectoryManager({String? installationDirectory, this.directoryOverride})
-    : installationDirectory =
-          installationDirectory ?? launcherInstallationDirectory();
+  final String? startupDirectory;
+  final String? Function() legacyDirectory;
+  DataDirectoryManager({
+    String? installationDirectory,
+    this.directoryOverride,
+    this.startupDirectory,
+    this.legacyDirectory = legacyDataDirectory,
+  }) : installationDirectory =
+           installationDirectory ?? launcherInstallationDirectory();
   String get defaultDirectory => p.join(installationDirectory, 'FYL-data');
   File get configuration =>
       File(p.join(installationDirectory, 'fyl-storage.json'));
@@ -156,7 +162,36 @@ class DataDirectoryManager {
     if (await configuration.exists()) {
       throw const FormatException('数据目录配置无法读取，请检查 fyl-storage.json。');
     }
+    // The updater carries the active profile across a restart without making it
+    // a user-supplied override (which would disable changing it in Settings).
+    if (startupDirectory?.trim().isNotEmpty == true &&
+        await Directory(_absolute(startupDirectory!)).exists()) {
+      return DataLocation(_absolute(startupDirectory!));
+    }
+    // A portable profile already beside the launcher remains authoritative.
+    // Otherwise an existing pre-portable profile is opened in place, with no
+    // first-run migration prompt and no writes to the installation directory.
+    if (await _hasProfile(defaultDirectory)) {
+      return DataLocation(defaultDirectory);
+    }
+    final legacy = legacyDirectory();
+    if (legacy != null && await _hasProfile(_absolute(legacy))) {
+      return DataLocation(_absolute(legacy));
+    }
     return DataLocation(defaultDirectory);
+  }
+
+  Future<bool> _hasProfile(String directory) async {
+    for (final name in ['launcher.json', 'launcher.json.bak']) {
+      if (await FileSystemEntity.type(
+            p.join(directory, name),
+            followLinks: false,
+          ) ==
+          FileSystemEntityType.file) {
+        return true;
+      }
+    }
+    return false;
   }
 
   String _absolute(String path) => p.normalize(
@@ -307,9 +342,9 @@ class DataDirectoryManager {
   Future<String?> completeMigration() async {
     if (directoryOverride != null) return null;
     final location = await read();
+    if (location.migrateFrom == null) return null;
     await _write(DataLocation(location.directory));
     await configuration.copy('${configuration.path}.bak');
-    if (location.migrateFrom == null) return null;
     try {
       await _runDataCleanup(
         location.migrateFrom!,

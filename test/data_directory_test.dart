@@ -20,6 +20,7 @@ void main() {
     temporary = await Directory.systemTemp.createTemp('fyl-data-directory-');
     manager = DataDirectoryManager(
       installationDirectory: p.join(temporary.path, 'launcher'),
+      legacyDirectory: () => null,
     );
     source = p.join(temporary.path, 'old-data');
     target = manager.defaultDirectory;
@@ -114,11 +115,14 @@ void main() {
   );
 
   test(
-    'fresh install defaults to its own folder and stores only a relative bootstrap path',
+    'fresh install uses portable defaults without writing the installation bootstrap',
     () async {
       expect((await manager.read()).directory, target);
       await manager.activate();
       await manager.completeMigration();
+      expect(await manager.configuration.exists(), isFalse);
+      // Only an explicit directory selection persists the bootstrap path.
+      await manager.select(target);
       final bootstrap =
           jsonDecode(await manager.configuration.readAsString()) as Json;
       expect(bootstrap['dataDirectory'], 'FYL-data');
@@ -178,6 +182,83 @@ void main() {
               )
               as Json;
       expect(backup.containsKey('migrateFrom'), isFalse);
+    },
+  );
+
+  test(
+    'legacy profiles are opened in place without creating an installation bootstrap',
+    () async {
+      await createSource();
+      final previous = await File(
+        p.join(source, 'launcher.json'),
+      ).readAsBytes();
+      final upgraded = DataDirectoryManager(
+        installationDirectory: manager.installationDirectory,
+        legacyDirectory: () => source,
+      );
+      final location = await upgraded.read();
+      expect(location.directory, source);
+      expect(location.migrateFrom, isNull);
+      expect(await upgraded.activate(), source);
+      expect(await upgraded.completeMigration(), isNull);
+      expect(await upgraded.configuration.exists(), isFalse);
+      expect(await Directory(upgraded.installationDirectory).exists(), isFalse);
+      expect(await Directory(upgraded.defaultDirectory).exists(), isFalse);
+      expect(
+        await File(p.join(source, 'launcher.json')).readAsBytes(),
+        previous,
+      );
+      expect((await upgraded.read()).directory, source);
+    },
+  );
+
+  test(
+    'existing portable profiles take precedence over discovered legacy data',
+    () async {
+      await createSource();
+      final portable = File(p.join(target, 'launcher.json'));
+      await portable.parent.create(recursive: true);
+      await portable.writeAsString(
+        '{"settings":{},"accounts":[],"instances":[]}',
+      );
+      final upgraded = DataDirectoryManager(
+        installationDirectory: manager.installationDirectory,
+        legacyDirectory: () => source,
+      );
+      expect((await upgraded.read()).directory, target);
+      expect((await upgraded.read()).migrateFrom, isNull);
+      expect(await upgraded.configuration.exists(), isFalse);
+    },
+  );
+
+  test('an explicit custom path is not replaced by legacy discovery', () async {
+    await createSource();
+    final custom = p.join(temporary.path, 'explicit-profile');
+    final upgraded = DataDirectoryManager(
+      installationDirectory: manager.installationDirectory,
+      legacyDirectory: () => source,
+    );
+    await upgraded.select(custom);
+    expect(await upgraded.activate(), custom);
+    await upgraded.completeMigration();
+    expect((await upgraded.read()).directory, custom);
+    expect(await Directory(source).exists(), isTrue);
+  });
+
+  test(
+    'update handoffs preserve the active profile without forcing a startup override',
+    () async {
+      await createSource();
+      final restarted = DataDirectoryManager(
+        installationDirectory: manager.installationDirectory,
+        startupDirectory: source,
+        legacyDirectory: () => null,
+      );
+      expect((await restarted.read()).directory, source);
+      expect(restarted.directoryOverride, isNull);
+      final custom = p.join(temporary.path, 'after-update');
+      await restarted.select(custom);
+      expect((await restarted.read()).directory, custom);
     },
   );
 
@@ -373,6 +454,7 @@ void main() {
       final override = DataDirectoryManager(
         installationDirectory: manager.installationDirectory,
         directoryOverride: source,
+        legacyDirectory: () => null,
       );
       expect(await override.activate(), source);
       await override.completeMigration();

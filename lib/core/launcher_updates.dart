@@ -147,6 +147,7 @@ LauncherRelease? selectLauncherRelease(
 
 class LauncherUpdater {
   final String supportDirectory, currentVersion;
+  final String? explicitDataDirectory;
   final HostPlatform platform;
   final LauncherSettings Function() settings;
   final void Function() onChanged;
@@ -169,6 +170,7 @@ class LauncherUpdater {
     required this.settings,
     required this.onChanged,
     this.currentVersion = launcherVersion,
+    this.explicitDataDirectory,
   });
   bool get development => LauncherVersion.parse(currentVersion) == null;
   bool get busy => downloading || applying;
@@ -380,6 +382,8 @@ class LauncherUpdater {
         'installation': installation,
         'payload': _payload,
         'dataDirectory': supportDirectory,
+        if (explicitDataDirectory != null)
+          'directoryOverride': explicitDataDirectory,
         'parentPid': pid,
         'version': downloadedRelease!.version,
         'nonce': nonce,

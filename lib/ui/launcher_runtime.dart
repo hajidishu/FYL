@@ -23,13 +23,11 @@ class LauncherRuntime extends StatefulWidget {
   final DataDirectoryManager directories;
   final HostPlatform platform;
   final bool nativeWindow;
-  final String? Function() legacyDirectory;
   final void Function(LauncherController)? onReady;
   const LauncherRuntime({
     required this.directories,
     required this.platform,
     this.nativeWindow = true,
-    this.legacyDirectory = legacyDataDirectory,
     this.onReady,
     super.key,
   });
@@ -41,8 +39,8 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
   LauncherController? controller;
   DataDirectoryLease? lease;
   final path = TextEditingController();
-  String? legacySource, error;
-  bool busy = true, migrate = true;
+  String? error;
+  bool busy = true;
   DataMigrationProgress? progress;
   String language = 'zh-Hans';
   String? chosenLanguage;
@@ -81,23 +79,6 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
       final location = await widget.directories.read();
       path.text = location.directory;
       await readLanguage(location.directory);
-      final legacy = widget.legacyDirectory();
-      if (widget.directories.directoryOverride == null &&
-          !await widget.directories.configuration.exists() &&
-          !await File(p.join(location.directory, 'launcher.json')).exists() &&
-          legacy != null &&
-          !p.equals(legacy, location.directory) &&
-          (await File(p.join(legacy, 'launcher.json')).exists() ||
-              await File(p.join(legacy, 'launcher.json.bak')).exists())) {
-        await readLanguage(legacy);
-        if (mounted) {
-          setState(() {
-            legacySource = legacy;
-            busy = false;
-          });
-        }
-        return;
-      }
       await load();
     } catch (e) {
       if (mounted) {
@@ -149,11 +130,26 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
           if (value != null) await destination.writeValue(id, value);
         }
       }
+      final legacy = widget.directories.legacyDirectory();
+      // Staying in the original macOS/Linux directory also keeps its original
+      // OS-vault namespace. Windows continues reading the same DPAPI files.
+      final legacyStore =
+          !Platform.isWindows &&
+              legacy != null &&
+              p.equals(p.normalize(p.absolute(legacy)), target) &&
+              !await File(p.join(target, 'credentials', 'profile-id')).exists()
+          ? SecureAccountTokenStore(
+              supportDirectory: target,
+              legacyNamespace: true,
+            )
+          : null;
       next = LauncherController(
         supportDirectory: target,
         platform: widget.platform,
         dataDirectories: widget.directories,
         onDataDirectoryChange: changeDirectory,
+        tokenStore: legacyStore,
+        appSecrets: legacyStore,
       );
       await next.initialize();
       if (next.errorMessage != null) {
@@ -179,7 +175,6 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
         busy = false;
         progress = null;
         error = null;
-        legacySource = null;
         chosenLanguage = null;
         language = active.settings.language;
       });
@@ -242,11 +237,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
     });
     try {
       if (widget.directories.directoryOverride == null) {
-        await widget.directories.select(
-          path.text.trim(),
-          source: legacySource,
-          migrate: legacySource != null && migrate,
-        );
+        await widget.directories.select(path.text.trim());
       }
       await load();
     } catch (e) {
@@ -346,8 +337,6 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                                 ? progress == null
                                       ? '正在打开数据目录'
                                       : '正在迁移数据'
-                                : legacySource != null
-                                ? '迁移旧版数据'
                                 : '选择数据目录',
                             style: const TextStyle(
                               fontSize: 22,
@@ -380,10 +369,6 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                               }),
                             ),
                             const SizedBox(height: 14),
-                            if (legacySource != null) ...[
-                              LText('发现旧版数据：$legacySource'),
-                              const SizedBox(height: 12),
-                            ],
                             AppInput(
                               controller: path,
                               label: '启动器数据目录',
@@ -426,17 +411,6 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                                 ),
                               ],
                             ),
-                            if (legacySource != null)
-                              CheckboxListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: const LText('自动迁移数据'),
-                                subtitle: const LText(
-                                  '迁移前请关闭其他 FYL 窗口及游戏。校验完成后清理旧目录。',
-                                ),
-                                value: migrate,
-                                onChanged: (value) =>
-                                    setState(() => migrate = value!),
-                              ),
                             if (error != null)
                               Padding(
                                 padding: const EdgeInsets.symmetric(

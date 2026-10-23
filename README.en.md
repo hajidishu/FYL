@@ -57,7 +57,7 @@ Build output:
 
 ## Data storage
 
-Data is stored in `FYL-data/` next to the launcher by default. Change it under Settings → Data storage and choose whether to migrate existing data. FYL offers to migrate data from the previous AppData location when detected. Game directories configured outside the data folder stay in place.
+Upgrades keep using your existing data directory, including the previous AppData location, without requiring migration. Fresh installations default to `FYL-data/` next to the launcher. Change the path under Settings → Data storage and explicitly choose whether to migrate data. External game directories stay in place.
 
 You can also use the `--data-dir "path"` startup argument or the `FYL_DATA_DIR` environment variable. `fyl-storage.json` next to the launcher records the selected location; command-line and environment overrides do not require this file to be written.
 

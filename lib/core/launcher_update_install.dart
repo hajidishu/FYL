@@ -393,16 +393,18 @@ Future<void> _rollback(Json journal, Json plan) async {
 
 Future<int> _restart(Json plan, Json manifest, {String? readyPlan}) async {
   final installation = plan['installation'] as String;
+  final override = plan['directoryOverride'] as String?;
   final process = await Process.start(
     safeJoin(installation, manifest['entrypoint'] as String),
-    ['--data-dir', plan['dataDirectory'] as String],
+    override == null ? [] : ['--data-dir', override],
     workingDirectory: installation,
     mode: ProcessStartMode.detached,
     environment: {
       'FYL_APPLY_UPDATE': '',
       'FYL_RECOVER_UPDATE': '',
       'FYL_UPDATE_READY_PLAN': readyPlan ?? '',
-      'FYL_DATA_DIR': plan['dataDirectory'] as String,
+      'FYL_DATA_DIR': override ?? '',
+      'FYL_RESTART_DATA_DIR': plan['dataDirectory'] as String,
     },
   );
   return process.pid;
