@@ -14,6 +14,7 @@ import 'java_installation_tile.dart';
 import 'theme.dart';
 import 'accent_picker.dart';
 import 'launcher_background.dart';
+import 'memory_preview.dart';
 
 class SettingsPage extends StatefulWidget {
   final LauncherController controller;
@@ -67,6 +68,7 @@ class SettingsPageState extends State<SettingsPage> {
       'javaPath',
       'minMemory',
       'maxMemory',
+      'autoMemoryLimit',
       'width',
       'height',
       'jvmArguments',
@@ -82,6 +84,7 @@ class SettingsPageState extends State<SettingsPage> {
     fields['curseforgeApiKey'] = TextEditingController(
       text: draft.curseforgeApiKey,
     );
+    if (draft.minMemory == 0) fields['minMemory']!.clear();
   }
 
   @override
@@ -247,8 +250,11 @@ class SettingsPageState extends State<SettingsPage> {
     next.gameArguments = fields['gameArguments']!.text.trim();
     next.preLaunchCommand = fields['preLaunchCommand']!.text.trim();
     int number(String key) => int.tryParse(fields[key]!.text.trim()) ?? -1;
-    next.minMemory = number('minMemory');
+    next.minMemory = fields['minMemory']!.text.trim().isEmpty
+        ? 0
+        : number('minMemory');
     next.maxMemory = number('maxMemory');
+    next.autoMemoryLimit = number('autoMemoryLimit');
     next.width = number('width');
     next.height = number('height');
     next.parallelDownloads = number('parallelDownloads');
@@ -426,6 +432,7 @@ class SettingsPageState extends State<SettingsPage> {
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 20),
     child: AppInput(
+      key: ValueKey('settings-field-$key'),
       controller: fields[key],
       label: label,
       description: description,
@@ -700,13 +707,37 @@ class SettingsPageState extends State<SettingsPage> {
       ),
     ),
     const SizedBox(height: 26),
-    Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: _field('minMemory', '初始内存（MB）')),
-        const SizedBox(width: 18),
-        Expanded(child: _field('maxMemory', '最大内存（MB）')),
-      ],
+    SelectBox<bool>(
+      key: const ValueKey('default-memory-mode'),
+      value: draft.automaticMemory,
+      items: const {true: '自动分配内存', false: '手动配置内存'},
+      onChanged: (value) {
+        draft.automaticMemory = value;
+        changed();
+      },
+    ),
+    const SizedBox(height: 14),
+    if (draft.automaticMemory)
+      _field('autoMemoryLimit', '自动分配上限（MB）')
+    else
+      _field('maxMemory', '最大内存（MB）'),
+    MemoryPreview(
+      settings: draft.copy()
+        ..jvmArguments = fields['jvmArguments']!.text.trim()
+        ..minMemory = fields['minMemory']!.text.trim().isEmpty
+            ? 0
+            : int.tryParse(fields['minMemory']!.text) ?? -1
+        ..maxMemory = int.tryParse(fields['maxMemory']!.text) ?? -1
+        ..autoMemoryLimit = int.tryParse(fields['autoMemoryLimit']!.text) ?? -1,
+      platform: widget.controller.platform,
+    ),
+    const Text('高级内存设置', style: TextStyle(fontWeight: FontWeight.w600)),
+    const SizedBox(height: 12),
+    _field(
+      'minMemory',
+      '初始内存（MB）',
+      hint: '由 Java 决定',
+      description: '留空时由 Java 决定初始内存。',
     ),
     _field(
       'jvmArguments',

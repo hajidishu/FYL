@@ -305,7 +305,7 @@ Future<GameFailure> captureGameFailure({
       '退出时间: ${endedAt.toIso8601String()}\n'
       '退出码: $exitCode\n'
       'Java: $java\n'
-      '内存: $minMemory–$maxMemory MB\n'
+      '内存: 初始 ${minMemory == 0 ? '由 Java 决定' : '$minMemory MB'}，最大 $maxMemory MB\n'
       '${includeGameLogs ? '' : '同目录存在其他启动会话，仅收录本客户端日志，避免混入其他客户端的输出。\n'}'
       '\nMod (${names.length}):\n${names.join('\n')}\n',
       secrets,

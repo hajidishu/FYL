@@ -16,6 +16,7 @@ import 'instance_icon.dart';
 import 'instance_java_dialog.dart';
 import 'instance_mods.dart';
 import 'theme.dart';
+import 'memory_preview.dart';
 
 class InstanceDetailsPage extends StatefulWidget {
   final LauncherController controller;
@@ -49,6 +50,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       favorite = false,
       skipJava = false,
       gameOptions = true;
+  bool automaticMemory = true;
   int minimize = -1, verify = -1;
   String icon = 'auto';
   String? error, message;
@@ -61,7 +63,9 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     final i = instance;
     final s = i.launchSettings;
     final effective = i.effectiveSettings(widget.controller.settings);
-    ownMemory = s.minMemory != null || s.maxMemory != null;
+    ownMemory =
+        s.automaticMemory != null || s.minMemory != null || s.maxMemory != null;
+    automaticMemory = effective.automaticMemory;
     ownWindow = s.width != null || s.height != null || s.fullscreen != null;
     ownJvm = s.jvmArguments != null;
     ownGame = s.gameArguments != null;
@@ -84,8 +88,9 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       'name': i.name,
       'description': i.description,
       'category': i.category,
-      'minMemory': '${effective.minMemory}',
+      'minMemory': effective.minMemory == 0 ? '' : '${effective.minMemory}',
       'maxMemory': '${effective.maxMemory}',
+      'autoMemoryLimit': '${effective.autoMemoryLimit}',
       'width': '${effective.width}',
       'height': '${effective.height}',
       'jvmArguments': effective.jvmArguments,
@@ -117,8 +122,9 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
   String inheritedValue(String key) {
     final defaults = widget.controller.settings;
     return switch (key) {
-      'minMemory' => '${defaults.minMemory}',
+      'minMemory' => defaults.minMemory == 0 ? '' : '${defaults.minMemory}',
       'maxMemory' => '${defaults.maxMemory}',
+      'autoMemoryLimit' => '${defaults.autoMemoryLimit}',
       'width' => '${defaults.width}',
       'height' => '${defaults.height}',
       'jvmArguments' => defaults.jvmArguments,
@@ -140,8 +146,28 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     }
   }
 
+  LauncherSettings memoryDraft() {
+    final draft = widget.controller.settings.copy();
+    if (ownJvm) draft.jvmArguments = fields['jvmArguments']!.text.trim();
+    if (ownMemory) {
+      draft.automaticMemory = automaticMemory;
+      draft.minMemory = fields['minMemory']!.text.trim().isEmpty
+          ? 0
+          : int.tryParse(fields['minMemory']!.text) ?? -1;
+      draft.maxMemory = int.tryParse(fields['maxMemory']!.text) ?? -1;
+      draft.autoMemoryLimit =
+          int.tryParse(fields['autoMemoryLimit']!.text) ?? -1;
+    }
+    return draft;
+  }
+
   void resetLaunchOverrides() {
-    setOverride(false, ownMemory, const ['minMemory', 'maxMemory']);
+    setOverride(false, ownMemory, const [
+      'minMemory',
+      'maxMemory',
+      'autoMemoryLimit',
+    ]);
+    automaticMemory = widget.controller.settings.automaticMemory;
     setOverride(false, ownWindow, const ['width', 'height']);
     setOverride(false, ownJvm, const ['jvmArguments']);
     setOverride(false, ownGame, const ['gameArguments']);
@@ -222,7 +248,13 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         icon: icon,
         favorite: favorite,
         launchSettings: InstanceLaunchSettings(
-          minMemory: ownMemory ? number('minMemory') : null,
+          automaticMemory: ownMemory ? automaticMemory : null,
+          autoMemoryLimit: ownMemory ? number('autoMemoryLimit') : null,
+          minMemory: ownMemory
+              ? fields['minMemory']!.text.trim().isEmpty
+                    ? 0
+                    : number('minMemory')
+              : null,
           maxMemory: ownMemory ? number('maxMemory') : null,
           width: ownWindow ? number('width') : null,
           height: ownWindow ? number('height') : null,
@@ -870,13 +902,39 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     LayoutBuilder(
       builder: (context, constraints) {
         final memory = section('内存', [
-          check('单独设置内存', ownMemory, (v) {
-            setOverride(v, ownMemory, const ['minMemory', 'maxMemory']);
-            ownMemory = v;
-          }, key: const ValueKey('instance-override-memory')),
-          pair(
-            field('minMemory', '初始内存（MB）', enabled: ownMemory),
+          SelectBox<int>(
+            key: const ValueKey('instance-memory-mode'),
+            compact: true,
+            value: ownMemory
+                ? automaticMemory
+                      ? 0
+                      : 1
+                : -1,
+            items: const {-1: '跟随默认设置', 0: '自动分配', 1: '手动配置'},
+            onChanged: busy
+                ? null
+                : (value) {
+                    setOverride(value != -1, ownMemory, const [
+                      'minMemory',
+                      'maxMemory',
+                      'autoMemoryLimit',
+                    ]);
+                    ownMemory = value != -1;
+                    automaticMemory = value == -1
+                        ? widget.controller.settings.automaticMemory
+                        : value == 0;
+                    changed();
+                  },
+          ),
+          const SizedBox(height: 10),
+          if (automaticMemory)
+            field('autoMemoryLimit', '自动分配上限（MB）', enabled: ownMemory)
+          else
             field('maxMemory', '最大内存（MB）', enabled: ownMemory),
+          MemoryPreview(
+            settings: memoryDraft(),
+            platform: widget.controller.platform,
+            instance: instance,
           ),
         ]);
         final window = section('游戏窗口', [
@@ -912,6 +970,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       },
     ),
     section('高级启动选项', [
+      field('minMemory', '初始内存（MB，留空由 Java 决定）', enabled: ownMemory),
       check('单独设置 JVM 参数', ownJvm, (v) {
         setOverride(v, ownJvm, const ['jvmArguments']);
         ownJvm = v;

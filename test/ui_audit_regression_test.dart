@@ -119,7 +119,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('instance-tab-1')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('instance-override-memory')));
+      controller.settings.automaticMemory = false;
+      await tester.tap(find.byKey(const ValueKey('instance-memory-mode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('跟随默认设置').last);
       await tester.pumpAndSettle();
       expect(
         tester.widget<EditableText>(edit('maxMemory')).controller.text,
@@ -134,7 +137,9 @@ void main() {
         '-Xmx4G',
       );
 
-      await tester.tap(find.byKey(const ValueKey('instance-override-memory')));
+      await tester.tap(find.byKey(const ValueKey('instance-memory-mode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('手动配置').last);
       await tester.pumpAndSettle();
       expect(
         tester.widget<EditableText>(edit('maxMemory')).controller.text,

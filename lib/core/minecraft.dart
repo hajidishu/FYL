@@ -12,6 +12,8 @@ import 'network.dart';
 import 'accounts.dart';
 import 'mod_installer.dart';
 import 'game_options.dart';
+import 'memory_allocation.dart';
+import 'system_memory.dart';
 
 const versionManifestUrl =
     'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
@@ -478,7 +480,13 @@ class LaunchCommand {
   final String executable;
   final List<String> arguments;
   final String workingDirectory;
-  const LaunchCommand(this.executable, this.arguments, this.workingDirectory);
+  final MemoryAllocation? memory;
+  const LaunchCommand(
+    this.executable,
+    this.arguments,
+    this.workingDirectory, {
+    this.memory,
+  });
 }
 
 LaunchCommand buildLaunchCommand(
@@ -488,6 +496,7 @@ LaunchCommand buildLaunchCommand(
   HostPlatform platform,
   String java, {
   GameSession? session,
+  MemoryAllocation? memory,
 }) {
   settings = instance.effectiveSettings(settings);
   session ??= GameSession.offline(settings.username.trim());
@@ -545,11 +554,15 @@ LaunchCommand buildLaunchCommand(
   final game =
       arguments?['game'] as List<dynamic>? ??
       splitCommandLine(metadata['minecraftArguments'] as String? ?? '');
+  final customJvm = splitCommandLine(settings.jvmArguments);
   final result = <String>[
-    '-Xms${settings.minMemory}M',
-    '-Xmx${settings.maxMemory}M',
+    if (!customJvm.any((argument) => argument.startsWith('-Xms')) &&
+        (memory?.initialMiB ?? settings.minMemory) > 0)
+      '-Xms${memory?.initialMiB ?? settings.minMemory}M',
+    if (!customJvm.any((argument) => argument.startsWith('-Xmx')))
+      '-Xmx${memory?.maximumMiB ?? settings.maxMemory}M',
     ...resolveArguments(jvm, platform, variables, features: features),
-    ...splitCommandLine(settings.jvmArguments),
+    ...customJvm,
   ];
   final logging = (metadata['logging'] as Json?)?['client'] as Json?;
   if (logging != null) {
@@ -577,12 +590,13 @@ LaunchCommand buildLaunchCommand(
     ]);
   }
   result.addAll(splitCommandLine(settings.gameArguments));
-  return LaunchCommand(java, result, instance.gameDirectory);
+  return LaunchCommand(java, result, instance.gameDirectory, memory: memory);
 }
 
 class MinecraftRunner {
   final HostPlatform platform;
-  MinecraftRunner(this.platform);
+  final MemoryProbe memoryProbe;
+  MinecraftRunner(this.platform, {this.memoryProbe = readSystemMemory});
 
   Future<String> javaFor(
     GameInstance instance,
@@ -738,6 +752,12 @@ class MinecraftRunner {
       platform,
       java,
       session: session,
+      memory: await resolveMemoryAllocation(
+        settings,
+        platform,
+        instance: instance,
+        probe: memoryProbe,
+      ),
     );
   }
 }

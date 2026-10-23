@@ -82,9 +82,13 @@ void main() {
         expect(find.byType(InstanceDetailsPage), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('instance-tab-1')));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('单独设置内存'));
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('instance-memory-mode')),
+        );
         await tester.pumpAndSettle();
-        await tester.tap(find.text('单独设置内存'));
+        await tester.tap(find.byKey(const ValueKey('instance-memory-mode')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('手动配置').last);
         await tester.pumpAndSettle();
         await tester.ensureVisible(edit('maxMemory'));
         await tester.pumpAndSettle();

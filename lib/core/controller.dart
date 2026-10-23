@@ -1033,6 +1033,7 @@ class LauncherController extends ChangeNotifier {
       final snapshot = instance.effectiveSettings(settings);
       final session = await prepareSession();
       final command = await prepareLaunch(instance, snapshot, session);
+      if (command.memory != null) logs.add(command.memory!.logMessage);
       if (_disposed) throw const Cancelled();
       if (snapshot.preLaunchCommand.trim().isNotEmpty) {
         final hook = await runPreLaunchCommand(
@@ -1158,8 +1159,8 @@ class LauncherController extends ChangeNotifier {
                   log: versionLog,
                   platform: platform,
                   java: command.executable,
-                  minMemory: snapshot.minMemory,
-                  maxMemory: snapshot.maxMemory,
+                  minMemory: command.memory?.initialMiB ?? snapshot.minMemory,
+                  maxMemory: command.memory?.maximumMiB ?? snapshot.maxMemory,
                   exitCode: exitCode,
                   pid: pid,
                   includeGameLogs: latest && !shared,

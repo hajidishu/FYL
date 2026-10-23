@@ -20,6 +20,8 @@ class LauncherSettings {
   String username;
   bool isolateVersions;
   bool automaticJava;
+  bool automaticMemory;
+  int autoMemoryLimit;
   String javaPath;
   int minMemory;
   int maxMemory;
@@ -51,8 +53,10 @@ class LauncherSettings {
     this.username = '',
     this.isolateVersions = true,
     this.automaticJava = true,
+    this.automaticMemory = true,
+    this.autoMemoryLimit = 16384,
     this.javaPath = '',
-    this.minMemory = 512,
+    this.minMemory = 0,
     this.maxMemory = 2048,
     this.width = 1280,
     this.height = 720,
@@ -88,8 +92,12 @@ class LauncherSettings {
     username: json['username'] as String? ?? '',
     isolateVersions: json['isolateVersions'] as bool? ?? true,
     automaticJava: json['automaticJava'] as bool? ?? true,
+    automaticMemory:
+        json['automaticMemory'] as bool? ??
+        !(json.containsKey('minMemory') || json.containsKey('maxMemory')),
+    autoMemoryLimit: json['autoMemoryLimit'] as int? ?? 16384,
     javaPath: json['javaPath'] as String? ?? '',
-    minMemory: json['minMemory'] as int? ?? 512,
+    minMemory: json['minMemory'] as int? ?? 0,
     maxMemory: json['maxMemory'] as int? ?? 2048,
     width: json['width'] as int? ?? 1280,
     height: json['height'] as int? ?? 720,
@@ -125,6 +133,8 @@ class LauncherSettings {
     'username': username,
     'isolateVersions': isolateVersions,
     'automaticJava': automaticJava,
+    'automaticMemory': automaticMemory,
+    'autoMemoryLimit': autoMemoryLimit,
     'javaPath': javaPath,
     'minMemory': minMemory,
     'maxMemory': maxMemory,
@@ -169,8 +179,12 @@ class LauncherSettings {
       return '日志保留份数应为 1–50。';
     }
     if (!p.isAbsolute(gameRoot.trim())) return '游戏根目录需要使用绝对路径。';
-    if (minMemory < 256 || maxMemory < minMemory || maxMemory > 131072) {
-      return '内存需要在 256–131072 MB 之间，最大内存不能小于初始内存。';
+    if (minMemory != 0 && (minMemory < 256 || minMemory > 131072) ||
+        !automaticMemory && (maxMemory < 256 || maxMemory > 131072) ||
+        automaticMemory &&
+            (autoMemoryLimit < 256 || autoMemoryLimit > 131072) ||
+        minMemory > (automaticMemory ? autoMemoryLimit : maxMemory)) {
+      return '内存需要在 256–131072 MB 之间，初始内存可留空，且不能超过最大内存或自动分配上限。';
     }
     if (width < 640 || width > 16384 || height < 360 || height > 16384) {
       return '窗口宽度范围为 640–16384，高度范围为 360–16384。';
@@ -211,11 +225,15 @@ String? validateVersionName(String name) {
 }
 
 class InstanceLaunchSettings {
+  final bool? automaticMemory;
+  final int? autoMemoryLimit;
   final int? minMemory, maxMemory, width, height;
   final bool? fullscreen, minimizeOnLaunch, verifyDownloads;
   final String? jvmArguments, gameArguments, preLaunchCommand;
   final bool skipJavaVersionCheck;
   const InstanceLaunchSettings({
+    this.automaticMemory,
+    this.autoMemoryLimit,
     this.minMemory,
     this.maxMemory,
     this.width,
@@ -229,6 +247,8 @@ class InstanceLaunchSettings {
     this.skipJavaVersionCheck = false,
   });
   factory InstanceLaunchSettings.fromJson(Json j) => InstanceLaunchSettings(
+    automaticMemory: j['automaticMemory'] as bool?,
+    autoMemoryLimit: j['autoMemoryLimit'] as int?,
     minMemory: j['minMemory'] as int?,
     maxMemory: j['maxMemory'] as int?,
     width: j['width'] as int?,
@@ -242,6 +262,8 @@ class InstanceLaunchSettings {
     skipJavaVersionCheck: j['skipJavaVersionCheck'] == true,
   );
   Json toJson() => {
+    'automaticMemory': automaticMemory,
+    'autoMemoryLimit': autoMemoryLimit,
     'minMemory': minMemory,
     'maxMemory': maxMemory,
     'width': width,
@@ -255,6 +277,12 @@ class InstanceLaunchSettings {
     'skipJavaVersionCheck': skipJavaVersionCheck,
   };
   LauncherSettings apply(LauncherSettings defaults) => defaults.copy()
+    ..automaticMemory =
+        automaticMemory ??
+        ((minMemory != null || maxMemory != null)
+            ? false
+            : defaults.automaticMemory)
+    ..autoMemoryLimit = autoMemoryLimit ?? defaults.autoMemoryLimit
     ..minMemory = minMemory ?? defaults.minMemory
     ..maxMemory = maxMemory ?? defaults.maxMemory
     ..width = width ?? defaults.width

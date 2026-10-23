@@ -385,6 +385,7 @@ void main() {
     final restored = LauncherSettings.fromJson(settings.toJson(), 'unused');
     expect(restored.toJson(), settings.toJson());
     expect(restored.validate(), isNull);
+    restored.automaticMemory = false;
     restored.maxMemory = 128;
     expect(restored.validate(), isNotNull);
     expect(() => splitCommandLine('"unclosed'), throwsFormatException);
