@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/models.dart';
+import 'package:free_your_launcher/core/system_memory.dart';
 import 'package:free_your_launcher/main.dart';
 import 'package:free_your_launcher/ui/theme.dart';
 
@@ -15,6 +16,7 @@ void main() {
     controller = LauncherController(
       supportDirectory: temporary.path,
       platform: const HostPlatform('windows', 'x86_64'),
+      memoryProbe: () async => const SystemMemory(16384, 8192),
     );
     controller.instances.add(
       GameInstance(
@@ -68,6 +70,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('默认 Java 与内存'));
         await tester.pumpAndSettle();
+        expect(find.text('预计最大内存 3072 MB · 当前可用 8192 MB'), findsOneWidget);
         await choose(tester, 'default-memory-mode', false);
         await tester.ensureVisible(input('settings-field-maxMemory'));
         await tester.enterText(input('settings-field-maxMemory'), '6144');

@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 
 import '../core/memory_allocation.dart';
 import '../core/models.dart';
+import '../core/system_memory.dart';
 import 'theme.dart';
 
 class MemoryPreview extends StatefulWidget {
   final LauncherSettings settings;
   final HostPlatform platform;
   final GameInstance? instance;
+  final MemoryProbe probe;
   const MemoryPreview({
     required this.settings,
     required this.platform,
     this.instance,
+    this.probe = readSystemMemory,
     super.key,
   });
 
@@ -63,6 +66,7 @@ class _MemoryPreviewState extends State<MemoryPreview> {
         settings,
         widget.platform,
         instance: widget.instance,
+        probe: widget.probe,
       );
       text =
           '${plan.automatic ? '预计' : ''}最大内存 ${plan.maximumMiB} MB'

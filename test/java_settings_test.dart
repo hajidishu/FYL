@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/java_discovery.dart';
 import 'package:free_your_launcher/core/models.dart';
+import 'package:free_your_launcher/core/system_memory.dart';
 import 'package:free_your_launcher/ui/settings_page.dart';
 import 'package:free_your_launcher/ui/theme.dart';
 
@@ -36,6 +37,7 @@ void main() {
       final controller = LauncherController(
         supportDirectory: Directory.systemTemp.path,
         platform: const HostPlatform('windows', 'x86_64'),
+        memoryProbe: () async => const SystemMemory(16384, 8192),
       );
       final javas = List.generate(
         12,
@@ -120,6 +122,7 @@ void main() {
         final controller = LauncherController(
           supportDirectory: Directory.systemTemp.path,
           platform: const HostPlatform('windows', 'x86_64'),
+          memoryProbe: () async => const SystemMemory(16384, 8192),
         );
         final java = JavaInstallation(
           executable: r'C:\Program Files\Microsoft\jdk-21\bin\java.exe',

@@ -28,6 +28,7 @@ import 'game_window.dart';
 import 'launch_progress.dart';
 import 'launch_worker.dart';
 import 'launch_tips.dart';
+import 'system_memory.dart';
 
 class RunningGame {
   bool finished = false;
@@ -51,6 +52,7 @@ class LauncherController extends ChangeNotifier {
   final SecureAccountTokenStore appSecrets;
   final ContentCatalogFactory? _communityCatalogFactory;
   final LaunchTips launchTips;
+  final MemoryProbe memoryProbe;
   Future<String?>? launchTip;
   ContentCatalogFactory get communityCatalogFactory =>
       _communityCatalogFactory ?? CommunityCatalog.new;
@@ -140,6 +142,7 @@ class LauncherController extends ChangeNotifier {
     SecureAccountTokenStore? appSecrets,
     ContentCatalogFactory? communityCatalogFactory,
     LaunchTips? launchTips,
+    this.memoryProbe = readSystemMemory,
   }) : launchTips = launchTips ?? LaunchTips(),
        _communityCatalogFactory = communityCatalogFactory,
        appSecrets =

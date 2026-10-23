@@ -935,6 +935,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             settings: memoryDraft(),
             platform: widget.controller.platform,
             instance: instance,
+            probe: widget.controller.memoryProbe,
           ),
         ]);
         final window = section('游戏窗口', [

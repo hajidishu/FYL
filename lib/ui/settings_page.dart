@@ -730,6 +730,7 @@ class SettingsPageState extends State<SettingsPage> {
         ..maxMemory = int.tryParse(fields['maxMemory']!.text) ?? -1
         ..autoMemoryLimit = int.tryParse(fields['autoMemoryLimit']!.text) ?? -1,
       platform: widget.controller.platform,
+      probe: widget.controller.memoryProbe,
     ),
     const Text('高级内存设置', style: TextStyle(fontWeight: FontWeight.w600)),
     const SizedBox(height: 12),

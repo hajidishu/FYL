@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/models.dart';
+import 'package:free_your_launcher/core/system_memory.dart';
 import 'package:free_your_launcher/main.dart';
 import 'package:free_your_launcher/ui/instance_details.dart';
 import 'package:path/path.dart' as p;
@@ -17,6 +18,7 @@ void main() {
     controller = LauncherController(
       supportDirectory: temporary.path,
       platform: const HostPlatform('windows', 'x86_64'),
+      memoryProbe: () async => const SystemMemory(16384, 8192),
     );
     await controller.initialize();
     for (final id in ['first', 'second']) {

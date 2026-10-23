@@ -9,6 +9,7 @@ import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/install_worker.dart';
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/core/network.dart';
+import 'package:free_your_launcher/core/system_memory.dart';
 import 'package:free_your_launcher/ui/instance_details.dart';
 import 'package:free_your_launcher/ui/theme.dart';
 
@@ -56,7 +57,8 @@ void transferWorker(InstallWorkerRequest request) {
 
 class RepairController extends LauncherController {
   final finish = Completer<void>();
-  RepairController({required super.supportDirectory, required super.platform});
+  RepairController({required super.supportDirectory, required super.platform})
+    : super(memoryProbe: () async => const SystemMemory(16384, 8192));
   @override
   Future<void> repairInstance(String id) async {
     instanceOperation = '修复版本';
