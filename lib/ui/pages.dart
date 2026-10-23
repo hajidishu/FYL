@@ -780,7 +780,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(30, 30, 30, 0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const PageHeader(title: '下载管理', subtitle: '安装游戏与社区资源，查看下载进度。'),
           Wrap(
@@ -811,6 +811,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
           ),
           const SizedBox(height: 22),
           Expanded(
+            key: const ValueKey('downloads-content'),
             child: tab >= 3
                 ? CommunityPage(
                     key: ValueKey('community-$tab'),
@@ -869,16 +870,25 @@ class _DownloadsPageState extends State<DownloadsPage> {
     if (controller.tasks.isEmpty &&
         controller.content.tasks.isEmpty &&
         !controller.launcherUpdater.hasTask) {
-      return SingleChildScrollView(
-        child: EmptyState(
-          icon: FIcons.download,
-          title: '暂无下载任务',
-          description: '选择一个版本开始安装。',
-          action: AppButton('浏览版本', onPressed: () => setState(() => tab = 0)),
+      return Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: EmptyState(
+              icon: FIcons.download,
+              title: '暂无下载任务',
+              description: '选择一个版本开始安装。',
+              action: AppButton(
+                '浏览版本',
+                onPressed: () => setState(() => tab = 0),
+              ),
+            ),
+          ),
         ),
       );
     }
     return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
       children: [
         if (controller.launcherUpdater.hasTask) ...[
           LauncherUpdateTaskCard(

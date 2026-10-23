@@ -5,6 +5,8 @@ import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/main.dart';
 import 'package:free_your_launcher/ui/settings_page.dart';
+import 'package:free_your_launcher/ui/pages.dart';
+import 'package:free_your_launcher/ui/theme.dart';
 
 void main() {
   late LauncherController controller;
@@ -140,4 +142,36 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final size in [const Size(800, 600), const Size(1180, 780)]) {
+    testWidgets(
+      'empty download tasks are centered in the content area at $size',
+      (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          LauncherApp(controller: controller, nativeWindow: false),
+        );
+        await tester.tap(find.byKey(const ValueKey('navigation-2')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('下载任务 (0)'));
+        await tester.pumpAndSettle();
+        final page = tester.getRect(find.byType(DownloadsPage));
+        final body = tester.getRect(
+          find.byKey(const ValueKey('downloads-content')),
+        );
+        final placeholder = tester.getRect(find.byType(EmptyState));
+        expect(placeholder.center.dx, closeTo(page.center.dx, 1));
+        expect(placeholder.center.dy, closeTo(body.center.dy, 1));
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('浏览版本'));
+        await tester.pumpAndSettle();
+        expect(find.text('暂无下载任务'), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
 }
