@@ -141,6 +141,8 @@ class Tag extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: compact ? 1 : null,
+        overflow: compact ? TextOverflow.ellipsis : null,
         style: TextStyle(
           fontSize: 12,
           height: compact ? 1.2 : null,

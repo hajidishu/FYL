@@ -16,6 +16,7 @@ import '../core/pack_import.dart';
 import '../core/install_options.dart';
 import '../core/resource_packs.dart';
 import 'theme.dart';
+import 'project_summary.dart';
 import 'content_metadata.dart';
 
 typedef ModSavePicker = Future<String?> Function(String directory, String name);
@@ -411,21 +412,7 @@ class _CommunityPageState extends State<CommunityPage> {
                               ],
                             ),
                             const SizedBox(height: 2),
-                            Tooltip(
-                              message: project.summary,
-                              constraints: const BoxConstraints(maxWidth: 480),
-                              child: Text(
-                                project.summary,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: c.secondaryText,
-                                  fontSize: 14,
-                                  height: 1.2,
-                                  letterSpacing: 0,
-                                ),
-                              ),
-                            ),
+                            ProjectSummary(project),
                             const SizedBox(height: 2),
                             ProjectMetadata(
                               project: project,

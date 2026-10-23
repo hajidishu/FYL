@@ -34,6 +34,12 @@ class CompactCatalog extends CommunityCatalog {
         slug: '$i',
         name: 'Project $i',
         summary: summary,
+        categories: const [
+          'adventure',
+          'lightweight',
+          'multiplayer',
+          'technology',
+        ],
         author: 'Example author',
         website: 'https://modrinth.com',
         gameVersions: const ['1.21.1', '1.20.1', '1.19.4'],
