@@ -26,9 +26,9 @@
 
 ## 簡介
 
-FYL（free_your_launcher）是一款以 Flutter + Forui 開發的跨平台 Minecraft 啟動器，支援安裝來自 Modrinth 和 CurseForge 的模組與整合包。
+FYL（free_your_launcher）是一款以 Flutter + Forui 開發的跨平台 Minecraft 啟動器，支援安裝來自 Modrinth 和 CurseForge 的模組與整合包。作為一款讓你完全掌握的 Minecraft 啟動器，FYL 不包含任何遙測或付費贊助功能，原始碼完全開源。如果你願意支持我們的開發，也歡迎透過 USDT（TRON 或 EVM 相容鏈）捐款。
 
-FYL 旨在成為一款讓你完全掌握的 Minecraft 啟動器。FYL 不包含任何遙測或付費贊助功能，原始碼完全開源，也不會有開發者[刻意封鎖特定地區使用者的遊戲下載功能](https://github.com/HMCL-dev/HMCL/commit/583e004d718102ae4489aa3f64bcde0c0161d000)的情況。
+之所以開發 FYL，是因為近期中國大陸的 Minecraft 啟動器普遍出現了[刻意關閉中國大陸使用者遊戲下載功能](https://github.com/HMCL-dev/HMCL/commit/583e004d718102ae4489aa3f64bcde0c0161d000)的情況。當然，我知道這並非 HMCL 開發者所願意的。我不會要求 HMCL 或其他啟動器的開發者恢復遊戲下載功能，而是選擇開發 FYL，希望建立一款自由的啟動器，至少不讓下載遊戲的自由受到干涉。
 
 > FYL 仍處於早期開發階段，可能存在許多錯誤。如果你遇到問題，請點選儲存庫頁面上方的「Issues」分頁。
 
@@ -51,6 +51,8 @@ flutter pub get
 - macOS：`build/macos/Build/Products/Release/`
 - Linux：`build/linux/x64/release/bundle/`
 
-## 授權條款
+## 授權條款與致謝
 
 FYL 的原始碼採用 [GPL-3](http://www.gnu.org/licenses/gpl-3.0) 授權條款發布。
+
+我也曾是 [HMCL](https://github.com/HMCL-dev/HMCL/) 和 [PCL2](https://github.com/Meloong-Git/PCL/) 的使用者，FYL 的許多功能都參考了它們的設計。

@@ -26,9 +26,9 @@
 
 ## Introduction
 
-FYL (free_your_launcher) is a cross-platform Minecraft launcher built with Flutter + Forui. It supports installing mods and modpacks from Modrinth and CurseForge.
+FYL (free_your_launcher) is a cross-platform Minecraft launcher built with Flutter + Forui. It supports installing mods and modpacks from Modrinth and CurseForge. Designed to put you fully in control, FYL contains no telemetry or paid sponsorship features, and its source code is fully open. If you would like to support development, donations in USDT on TRON or an EVM-compatible chain are welcome.
 
-FYL is designed to be a Minecraft launcher that you fully control. It contains no telemetry or paid sponsorship features, and its source code is fully open. FYL's developers will not [deliberately block game downloads for users in specific regions](https://github.com/HMCL-dev/HMCL/commit/583e004d718102ae4489aa3f64bcde0c0161d000).
+I started FYL because Minecraft launchers from mainland China have recently been [deliberately disabling game downloads for users in mainland China](https://github.com/HMCL-dev/HMCL/commit/583e004d718102ae4489aa3f64bcde0c0161d000). I understand that this is not what the HMCL developers wanted. I will not demand that HMCL or other launcher developers restore game downloads. Instead, I chose to build FYL to preserve users' freedom, including the freedom to download the game.
 
 > FYL is still in early development and may contain many bugs. If you encounter a problem, open the Issues tab at the top of the repository page.
 
@@ -51,6 +51,8 @@ Build output:
 - macOS: `build/macos/Build/Products/Release/`
 - Linux: `build/linux/x64/release/bundle/`
 
-## License
+## License and acknowledgements
 
 FYL's source code is released under the [GPL-3](http://www.gnu.org/licenses/gpl-3.0) license.
+
+I have also used [HMCL](https://github.com/HMCL-dev/HMCL/) and [PCL2](https://github.com/Meloong-Git/PCL/). Many FYL features take inspiration from their designs.

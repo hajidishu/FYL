@@ -14,14 +14,14 @@ git push origin main
 git push origin v0.1.0-beta.1
 ```
 
-带预发布后缀的版本标记为 Pre-release；`v0.1.0` 这样的版本发布为正式版。正式版只在版本号高于当前 Latest 时更新 Latest。
+带预发布后缀，或 `.github/release.json` 中 `prerelease` 为 `true` 的版本标记为 Pre-release。发布正式版时使用不带预发布后缀的版本号，并将该选项设为 `false`。正式版只在版本号高于当前 Latest 时更新 Latest。
 
 ## 自动化流程
 
 1. 校验版本与标签，执行发布工具测试。
 2. 三个平台分别执行格式检查、静态分析、Flutter 测试、编译和打包。
 3. 根据实际程序架构命名压缩包：Windows ZIP、macOS ZIP、Linux TAR.GZ。macOS 若同时包含 x64 和 ARM64，标记为 `universal`。
-4. 三个平台全部成功后，再次核对产物与 SHA-256，生成 `SHA256SUMS`。
+4. 三个平台全部成功后，再次核对产物与 SHA-256。Release 仅上传三个平台的压缩包，不额外发布 `SHA256SUMS`；校验值使用 GitHub 下载页提供的 SHA-256。
 5. 创建 Release 草稿、上传完整产物，再自动发布。
 
 压缩包包含程序运行所需目录、许可证、资源来源说明和对应源码提交链接。Linux 压缩包保留执行权限；macOS 打包保留应用目录、符号链接和文件属性。

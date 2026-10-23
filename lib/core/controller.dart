@@ -1265,7 +1265,9 @@ class LauncherController extends ChangeNotifier {
       launchingInstanceName = null;
       if (ready) {
         notice = '游戏窗口已打开';
-      } else if (!processExited && runningGames.contains(game) && !game.finished) {
+      } else if (!processExited &&
+          runningGames.contains(game) &&
+          !game.finished) {
         notice = '已停止等待游戏窗口，游戏进程继续运行。';
       }
       notifyListeners();
