@@ -84,56 +84,68 @@ class _GameVersionListState extends State<GameVersionList> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 10),
-                                child: Text(
-                                  '最新版本',
-                                  style: TextStyle(fontWeight: FontWeight.w600),
+                          child: Surface(
+                            key: const ValueKey('latest-version-panel'),
+                            padding: const EdgeInsets.fromLTRB(0, 12, 0, 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.fromLTRB(14, 0, 14, 6),
+                                  child: Text(
+                                    '最新版本',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              if (release != null && preview != null)
-                                LayoutBuilder(
-                                  builder: (_, constraints) =>
-                                      constraints.maxWidth >= 760
-                                      ? IntrinsicHeight(
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
+                                if (release != null && preview != null)
+                                  LayoutBuilder(
+                                    builder: (_, constraints) =>
+                                        constraints.maxWidth >= 760
+                                        ? IntrinsicHeight(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                Expanded(
+                                                  child: _versionRow(
+                                                    release,
+                                                    release,
+                                                    preview,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: _versionRow(
+                                                    preview,
+                                                    release,
+                                                    preview,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        : Column(
                                             children: [
-                                              Expanded(
-                                                child: _card(
-                                                  release,
-                                                  release,
-                                                  preview,
-                                                ),
+                                              _versionRow(
+                                                release,
+                                                release,
+                                                preview,
                                               ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _card(
-                                                  preview,
-                                                  release,
-                                                  preview,
-                                                ),
+                                              _versionRow(
+                                                preview,
+                                                release,
+                                                preview,
                                               ),
                                             ],
                                           ),
-                                        )
-                                      : Column(
-                                          children: [
-                                            _card(release, release, preview),
-                                            const SizedBox(height: 4),
-                                            _card(preview, release, preview),
-                                          ],
-                                        ),
-                                )
-                              else if (release != null)
-                                _card(release, release, preview)
-                              else if (preview != null)
-                                _card(preview, release, preview),
-                            ],
+                                  )
+                                else if (release != null)
+                                  _versionRow(release, release, preview)
+                                else if (preview != null)
+                                  _versionRow(preview, release, preview),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -155,51 +167,80 @@ class _GameVersionListState extends State<GameVersionList> {
     final items = versions.where((v) => v.group == group).toList();
     if (query.trim().isNotEmpty && items.isEmpty) return [];
     final expanded = query.trim().isNotEmpty || opened.contains(group);
+    final c = LauncherColors.of(context);
     return [
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 9),
-          child: InkWell(
-            key: ValueKey('version-group-${group.name}'),
+      SliverPadding(
+        padding: const EdgeInsets.only(bottom: 10),
+        sliver: DecoratedSliver(
+          key: ValueKey('version-panel-${group.name}'),
+          decoration: BoxDecoration(
+            color: c.surface,
+            border: Border.all(color: c.border.withValues(alpha: .65)),
             borderRadius: BorderRadius.circular(14),
-            onTap: items.isEmpty
-                ? null
-                : () => setState(() {
-                    if (!opened.remove(group)) opened.add(group);
-                  }),
-            child: Surface(
-              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
-              child: Row(
-                children: [
-                  VersionGroupIcon(group, size: 24),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '${group.label} (${items.length})',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          sliver: SliverPadding(
+            padding: const EdgeInsets.all(1),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      key: ValueKey('version-group-${group.name}'),
+                      borderRadius: BorderRadius.vertical(
+                        top: const Radius.circular(13),
+                        bottom: Radius.circular(expanded ? 0 : 13),
+                      ),
+                      onTap: items.isEmpty
+                          ? null
+                          : () => setState(() {
+                              if (!opened.remove(group)) opened.add(group);
+                            }),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            VersionGroupIcon(group, size: 24),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${group.label} (${items.length})',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              expanded ? FIcons.chevronUp : FIcons.chevronDown,
+                              size: 16,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  Icon(
-                    expanded ? FIcons.chevronUp : FIcons.chevronDown,
-                    size: 16,
+                ),
+                if (expanded)
+                  SliverPadding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    sliver: SliverList.builder(
+                      itemCount: items.length,
+                      itemBuilder: (_, i) =>
+                          _versionRow(items[i], release, preview),
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
       ),
-      if (expanded)
-        SliverList.separated(
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 4),
-          itemBuilder: (_, i) => _card(items[i], release, preview),
-        ),
-      if (expanded) const SliverToBoxAdapter(child: SizedBox(height: 12)),
     ];
   }
 
-  Widget _card(
+  Widget _versionRow(
     MinecraftVersion version,
     MinecraftVersion? release,
     MinecraftVersion? preview,
@@ -208,7 +249,7 @@ class _GameVersionListState extends State<GameVersionList> {
     final installed = widget.controller.instances.any(
       (i) => i.version == version.id,
     );
-    return Surface(
+    return Padding(
       key: ValueKey('game-version-card-${version.id}'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
