@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -39,7 +40,7 @@ class LaunchLoadingCard extends StatelessWidget {
             const SizedBox(height: 14),
             Semantics(
               liveRegion: true,
-              child: Text(
+              child: LText(
                 progress.label,
                 key: const ValueKey('launch-stage'),
                 textAlign: TextAlign.center,
@@ -69,7 +70,7 @@ class LaunchLoadingCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
+                        LText(
                           '小贴士',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -79,9 +80,9 @@ class LaunchLoadingCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Tooltip(
+                        LTooltip(
                           message: text,
-                          child: Text(
+                          child: LText(
                             text,
                             key: const ValueKey('launch-tip'),
                             textAlign: TextAlign.center,
@@ -105,7 +106,7 @@ class LaunchLoadingCard extends StatelessWidget {
                 child: TextButton(
                   key: const ValueKey('stop-waiting-for-window'),
                   onPressed: onStopWaiting,
-                  child: const Text('停止等待'),
+                  child: const LText('停止等待'),
                 ),
               ),
           ],

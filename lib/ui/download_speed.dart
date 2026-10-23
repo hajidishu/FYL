@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/download_rate.dart';
@@ -31,7 +32,7 @@ class _DownloadSpeedState extends State<DownloadSpeed> {
   }
 
   @override
-  Widget build(BuildContext context) => Text(
+  Widget build(BuildContext context) => LText(
     '速度 ${formatDownloadSpeed(widget.rate.bytesPerSecond)}',
     style: TextStyle(color: LauncherColors.of(context).muted, fontSize: 12),
   );

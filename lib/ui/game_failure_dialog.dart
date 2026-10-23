@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -13,7 +14,7 @@ Future<String?> diagnosticSavePicker(String name, String extension) async =>
       suggestedName: name,
       acceptedTypeGroups: [
         XTypeGroup(
-          label: extension == 'zip' ? 'FYL 错误报告' : '游戏日志',
+          label: tr(extension == 'zip' ? 'FYL 错误报告' : '游戏日志'),
           extensions: [extension],
         ),
       ],
@@ -81,7 +82,7 @@ class _GameFailureDialogState extends State<GameFailureDialog> {
       canPop: !working,
       child: AlertDialog(
         scrollable: true,
-        title: Text(
+        title: LText(
           '${widget.failure.instanceName}非正常退出',
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
@@ -91,7 +92,7 @@ class _GameFailureDialogState extends State<GameFailureDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
+              LText(
                 '下方可导出错误报告和游戏日志，如果你需要向他人求助请发送错误报告而不是此页面的截图',
                 style: TextStyle(
                   fontSize: 14,
@@ -100,7 +101,7 @@ class _GameFailureDialogState extends State<GameFailureDialog> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
+              LText(
                 '退出码：${widget.failure.exitCode}',
                 style: TextStyle(fontSize: 13, color: c.muted),
               ),
@@ -132,7 +133,7 @@ class _GameFailureDialogState extends State<GameFailureDialog> {
               if (message != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
-                  child: SelectableText(
+                  child: LSelectableText(
                     message!,
                     style: TextStyle(
                       fontSize: 12,

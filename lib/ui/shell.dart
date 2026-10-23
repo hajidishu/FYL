@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -94,8 +95,8 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
       await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(title, style: const TextStyle(fontSize: 18)),
-          content: Text(message),
+          title: LText(title, style: const TextStyle(fontSize: 18)),
+          content: LText(message),
           actions: [
             AppButton(
               '返回',
@@ -257,7 +258,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                                   ),
                                   child: Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Text(
+                                    child: LText(
                                       '导航',
                                       style: TextStyle(
                                         color: c.muted,
@@ -275,7 +276,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                               const SizedBox(height: 7),
                               _navigation(3, '设置', FIcons.settings, compact),
                               const Spacer(),
-                              Text(
+                              LText(
                                 launcherVersion == 'development'
                                     ? '开发版'
                                     : 'v$launcherVersion',
@@ -346,7 +347,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text(
+                                      child: LText(
                                         controller.activityText,
                                         style: TextStyle(
                                           color: c.muted,
@@ -388,7 +389,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
   Widget _windowButton(IconData icon, String tooltip, VoidCallback onPressed) =>
       IconButton(
         onPressed: onPressed,
-        tooltip: tooltip,
+        tooltip: AppLocalizations.of(context).textOrNull(tooltip),
         visualDensity: VisualDensity.compact,
         icon: Icon(icon, size: 13, color: LauncherColors.of(context).muted),
       );
@@ -411,12 +412,16 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
           Icon(icon, size: 17, color: selected ? c.accent : c.muted),
           if (!compact) ...[
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: selected ? c.accent : c.muted,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            Flexible(
+              child: LText(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: selected ? c.accent : c.muted,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ),
             if (index == 2 && widget.controller.installing) ...[
@@ -437,11 +442,11 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
     return Semantics(
       key: ValueKey('navigation-$index'),
       selected: selected,
-      label: label,
+      label: AppLocalizations.of(context).text(label),
       button: true,
       excludeSemantics: true,
       onTap: () => navigate(index),
-      child: Tooltip(
+      child: LTooltip(
         message: compact ? label : '',
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
@@ -474,7 +479,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
+            child: LText(
               controller.errorMessage ?? controller.notice!,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -485,7 +490,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
             ),
           ),
           IconButton(
-            tooltip: '关闭提示',
+            tooltip: AppLocalizations.of(context).textOrNull('关闭提示'),
             onPressed: controller.dismissMessage,
             icon: Icon(FIcons.x, size: 14, color: c.muted),
           ),

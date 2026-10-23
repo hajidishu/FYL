@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -191,12 +192,12 @@ class SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 12),
         if (scanningJava)
-          Text(
+          LText(
             '正在搜索常见位置，已检查 ${javaScanProgress.checked} 个候选，发现 ${javaScanProgress.found} 个 Java…',
             style: TextStyle(color: c.muted, fontSize: 11),
           ),
         if (javaScanError != null)
-          Text(
+          LText(
             javaScanError!,
             style: TextStyle(
               color: c.dark ? const Color(0xFFEF9990) : Colors.red.shade800,
@@ -204,12 +205,12 @@ class SettingsPageState extends State<SettingsPage> {
             ),
           ),
         if (javaScanned && !scanningJava) ...[
-          Text(
+          LText(
             '${scanCancelled ? '查找已停止，' : ''}找到 ${installations.length} 个可运行的 Java',
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 8),
-          Text(
+          LText(
             installations.isEmpty
                 ? '未找到 Java。可以手动选择 java / java.exe，或使用自动准备官方 Java。'
                 : '选择默认使用的 Java。',
@@ -268,8 +269,8 @@ class SettingsPageState extends State<SettingsPage> {
       final accepted = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('切换数据目录'),
-          content: Text(
+          title: const LText('切换数据目录'),
+          content: LText(
             migrateData
                 ? '将数据迁移到：\n$directory\n\n完成后重新加载启动器并清理旧目录。外部游戏目录保持原位。'
                 : '将使用以下目录中的数据：\n$directory\n\n当前数据不会迁移，原目录保留。',
@@ -372,7 +373,7 @@ class SettingsPageState extends State<SettingsPage> {
           if (error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
+              child: LText(
                 error!,
                 style: TextStyle(
                   color: c.dark ? const Color(0xFFEF9990) : Colors.red.shade800,
@@ -415,12 +416,12 @@ class SettingsPageState extends State<SettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          LText(
             title,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 7),
-          Text(
+          LText(
             subtitle,
             style: TextStyle(color: c.muted, fontSize: 11, height: 1.7),
           ),
@@ -447,7 +448,7 @@ class SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                LText(
                   title,
                   style: const TextStyle(
                     fontSize: 13,
@@ -455,7 +456,7 @@ class SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
+                LText(
                   description,
                   style: TextStyle(fontSize: 11, color: c.muted, height: 1.7),
                 ),
@@ -465,7 +466,7 @@ class SettingsPageState extends State<SettingsPage> {
           const SizedBox(width: 24),
           FSwitch(
             value: value,
-            semanticsLabel: title,
+            semanticsLabel: AppLocalizations.of(context).text(title),
             onChange: (value) {
               onChanged(value);
               changed();
@@ -510,7 +511,7 @@ class SettingsPageState extends State<SettingsPage> {
     final enabled =
         directories != null && directories.directoryOverride == null && !saving;
     return _section('启动器数据目录', '保存启动器设置、账号、缓存和默认游戏目录。', [
-      const Text('当前目录', style: TextStyle(fontWeight: FontWeight.w600)),
+      const LText('当前目录', style: TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       SelectableText(widget.controller.supportDirectory),
       const SizedBox(height: 18),
@@ -537,7 +538,7 @@ class SettingsPageState extends State<SettingsPage> {
                 : () async {
                     final path = await getDirectoryPath(
                       initialDirectory: widget.controller.supportDirectory,
-                      confirmButtonText: '选择数据目录',
+                      confirmButtonText: tr('选择数据目录'),
                     );
                     if (path != null && mounted) {
                       fields['dataDirectory']!.text = path;
@@ -574,8 +575,8 @@ class SettingsPageState extends State<SettingsPage> {
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         key: const ValueKey('migrate-launcher-data'),
-        title: const Text('自动迁移数据', style: TextStyle(fontSize: 13)),
-        subtitle: const Text(
+        title: const LText('自动迁移数据', style: TextStyle(fontSize: 13)),
+        subtitle: const LText(
           '包含当前数据目录中的游戏、设置和账号；校验完成后清理旧目录。',
           style: TextStyle(fontSize: 12),
         ),
@@ -591,7 +592,7 @@ class SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _appearance() => _section('界面外观', '调整主题和界面色调。', [
-    const Text(
+    const LText(
       '界面主题',
       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
     ),
@@ -605,7 +606,7 @@ class SettingsPageState extends State<SettingsPage> {
       },
     ),
     const SizedBox(height: 25),
-    const Text(
+    const LText(
       '界面色调',
       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
     ),
@@ -623,7 +624,7 @@ class SettingsPageState extends State<SettingsPage> {
             shape: BoxShape.circle,
           ),
         ),
-        Text(
+        LText(
           draft.accentColor == null
               ? '默认绿色'
               : '#${draft.accentColor!.toRadixString(16).padLeft(6, '0').toUpperCase()}',
@@ -661,7 +662,7 @@ class SettingsPageState extends State<SettingsPage> {
       ],
     ),
     const SizedBox(height: 24),
-    const Text(
+    const LText(
       '启动器背景',
       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
     ),
@@ -680,9 +681,9 @@ class SettingsPageState extends State<SettingsPage> {
               ? null
               : () async {
                   final image = await openFile(
-                    acceptedTypeGroups: const [
+                    acceptedTypeGroups: [
                       XTypeGroup(
-                        label: '图片',
+                        label: tr('图片'),
                         extensions: ['png', 'jpg', 'jpeg', 'webp'],
                       ),
                     ],
@@ -723,11 +724,11 @@ class SettingsPageState extends State<SettingsPage> {
           File(draft.backgroundPath!),
           height: 130,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const Text('背景图片无法读取，请重新选择。'),
+          errorBuilder: (_, _, _) => const LText('背景图片无法读取，请重新选择。'),
         ),
       ),
       const SizedBox(height: 10),
-      Text('背景可见度 ${((draft.backgroundOpacity ?? .35) * 100).round()}%'),
+      LText('背景可见度 ${((draft.backgroundOpacity ?? .35) * 100).round()}%'),
       Slider(
         key: const ValueKey('background-opacity'),
         value: (draft.backgroundOpacity ?? .35).clamp(0, 1),
@@ -740,6 +741,21 @@ class SettingsPageState extends State<SettingsPage> {
   ]);
 
   Widget _general() => _section('启动行为', '设置启动器行为和登录选项。', [
+    const LText(
+      '语言 / Language',
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    ),
+    const SizedBox(height: 9),
+    SelectBox<String>(
+      key: const ValueKey('launcher-language'),
+      value: draft.language,
+      items: launcherLanguages,
+      onChanged: (value) {
+        draft.language = value;
+        changed();
+      },
+    ),
+    const SizedBox(height: 24),
     _switch(
       '启动游戏后最小化',
       '游戏进程成功启动后，将启动器最小化到任务栏。',
@@ -749,7 +765,7 @@ class SettingsPageState extends State<SettingsPage> {
     const Divider(),
     ExpansionTile(
       tilePadding: EdgeInsets.zero,
-      title: const Text('高级登录设置', style: TextStyle(fontSize: 12)),
+      title: const LText('高级登录设置', style: TextStyle(fontSize: 12)),
       children: [
         _field(
           'microsoftClientId',
@@ -765,7 +781,7 @@ class SettingsPageState extends State<SettingsPage> {
       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     ),
     const SizedBox(height: 6),
-    const Text(
+    const LText(
       '${launcherVersion == 'development' ? '开发版' : 'v$launcherVersion'} · Minecraft Java Edition 启动器',
       style: TextStyle(fontSize: 11, height: 1.8),
     ),
@@ -785,7 +801,7 @@ class SettingsPageState extends State<SettingsPage> {
         secondary: true,
         small: true,
         onPressed: () async {
-          final path = await getDirectoryPath(confirmButtonText: '选择游戏根目录');
+          final path = await getDirectoryPath(confirmButtonText: tr('选择游戏根目录'));
           if (path != null && mounted) {
             fields['gameRoot']!.text = path;
             changed();
@@ -837,7 +853,7 @@ class SettingsPageState extends State<SettingsPage> {
         onPressed: draft.automaticJava
             ? null
             : () async {
-                final file = await openFile(confirmButtonText: '选择 Java');
+                final file = await openFile(confirmButtonText: tr('选择 Java'));
                 if (file != null && mounted) {
                   fields['javaPath']!.text = file.path;
                   changed();
@@ -871,7 +887,7 @@ class SettingsPageState extends State<SettingsPage> {
       platform: widget.controller.platform,
       probe: widget.controller.memoryProbe,
     ),
-    const Text('高级内存设置', style: TextStyle(fontWeight: FontWeight.w600)),
+    const LText('高级内存设置', style: TextStyle(fontWeight: FontWeight.w600)),
     const SizedBox(height: 12),
     _field(
       'minMemory',
@@ -893,7 +909,7 @@ class SettingsPageState extends State<SettingsPage> {
       lines: 2,
       description: '在游戏目录执行，最长运行 2 分钟；命令失败时停止启动。',
     ),
-    const Text(
+    const LText(
       '如果尚未准备 Java，可在版本设置中使用“补全与修复文件”下载运行时。',
       style: TextStyle(fontSize: 11, height: 1.7),
     ),
@@ -932,7 +948,7 @@ class SettingsPageState extends State<SettingsPage> {
   ]);
 
   Widget _downloads() => _section('下载与版本列表', '管理版本筛选与下载。', [
-    const Text('游戏下载源', style: TextStyle(fontSize: 13)),
+    const LText('游戏下载源', style: TextStyle(fontSize: 13)),
     const SizedBox(height: 8),
     SelectBox<DownloadSource>(
       value: draft.downloadSource,
@@ -943,14 +959,17 @@ class SettingsPageState extends State<SettingsPage> {
       },
     ),
     const SizedBox(height: 8),
-    Text(
+    LText(
       draft.downloadSource.attribution,
       style: TextStyle(
         fontSize: 12,
         color: LauncherColors.of(context).secondaryText,
       ),
     ),
-    const Text('用于 Minecraft、Java 运行库和游戏组件下载。', style: TextStyle(fontSize: 12)),
+    const LText(
+      '用于 Minecraft、Java 运行库和游戏组件下载。',
+      style: TextStyle(fontSize: 12),
+    ),
     const SizedBox(height: 25),
     _switch(
       '默认展开预览版',

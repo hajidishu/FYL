@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 import '../core/controller.dart';
@@ -73,7 +74,7 @@ class _GameVersionListState extends State<GameVersionList> {
               ? const Center(child: CircularProgressIndicator())
               : filtered.isEmpty
               ? Center(
-                  child: Text(
+                  child: LText(
                     all.isEmpty ? '暂时没有版本列表，请点击刷新。' : '没有找到匹配的版本',
                     style: TextStyle(color: c.muted),
                   ),
@@ -92,7 +93,7 @@ class _GameVersionListState extends State<GameVersionList> {
                               children: [
                                 const Padding(
                                   padding: EdgeInsets.fromLTRB(14, 0, 14, 6),
-                                  child: Text(
+                                  child: LText(
                                     '最新版本',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
@@ -207,7 +208,7 @@ class _GameVersionListState extends State<GameVersionList> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '${group.label} (${items.length})',
+                                '${tr(group.label)} (${items.length})',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -272,7 +273,7 @@ class _GameVersionListState extends State<GameVersionList> {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(
+                    LText(
                       version.id,
                       style: const TextStyle(
                         fontSize: 14,
@@ -289,7 +290,7 @@ class _GameVersionListState extends State<GameVersionList> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${version.group.label} · ${version.released.toLocal().toIso8601String().substring(0, 10)}',
+                  '${tr(version.group.label)} · ${version.released.toLocal().toIso8601String().substring(0, 10)}',
                   style: TextStyle(color: c.muted, fontSize: 12, height: 1.25),
                 ),
               ],

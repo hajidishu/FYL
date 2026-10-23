@@ -1,9 +1,11 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:forui/forui.dart';
 import 'package:path/path.dart' as p;
 import 'package:window_manager/window_manager.dart';
@@ -41,6 +43,27 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
   String? legacySource, error;
   bool busy = true, migrate = true;
   DataMigrationProgress? progress;
+  String language = 'zh-Hans';
+  String? chosenLanguage;
+
+  Future<void> readLanguage(String directory) async {
+    for (final name in ['launcher.json', 'launcher.json.bak']) {
+      try {
+        final saved =
+            jsonDecode(await File(p.join(directory, name)).readAsString())
+                as Json;
+        final value = (saved['settings'] as Map?)?['language'];
+        if (value is String &&
+            launcherLanguages.containsKey(value) &&
+            mounted) {
+          setState(() => language = value);
+        }
+        return;
+      } catch (_) {
+        /* The controller handles configuration recovery. */
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -56,6 +79,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
     try {
       final location = await widget.directories.read();
       path.text = location.directory;
+      await readLanguage(location.directory);
       final legacy = widget.legacyDirectory();
       if (widget.directories.directoryOverride == null &&
           !await widget.directories.configuration.exists() &&
@@ -64,6 +88,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
           !p.equals(legacy, location.directory) &&
           (await File(p.join(legacy, 'launcher.json')).exists() ||
               await File(p.join(legacy, 'launcher.json.bak')).exists())) {
+        await readLanguage(legacy);
         if (mounted) {
           setState(() {
             legacySource = legacy;
@@ -133,6 +158,11 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
       if (next.errorMessage != null) {
         throw StateError(next.errorMessage!);
       }
+      if (chosenLanguage != null) {
+        await next.saveSettings(
+          next.settings.copy()..language = chosenLanguage!,
+        );
+      }
       final warning = await widget.directories.completeMigration();
       if (warning != null) next.notice = warning;
       if (!mounted) {
@@ -148,6 +178,8 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
         progress = null;
         error = null;
         legacySource = null;
+        chosenLanguage = null;
+        language = active.settings.language;
       });
       if (widget.onReady != null) {
         widget.onReady!(active);
@@ -163,6 +195,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
 
   Future<void> changeDirectory(String directory, bool migrateData) async {
     final previous = controller!;
+    language = previous.settings.language;
     // Validate and persist the recovery plan before touching either directory.
     await widget.directories.select(
       directory,
@@ -250,8 +283,18 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
       );
     }
     const colors = LauncherColors(true);
+    AppLocalizations.current = AppLocalizations.forLanguage(language);
     return MaterialApp(
       theme: colors.material,
+      locale: launcherLocale(language),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        FLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       builder: (context, child) => FTheme(data: colors.forui, child: child!),
       home: Scaffold(
         body: Column(
@@ -275,7 +318,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                       ),
                     ),
                     IconButton(
-                      tooltip: '关闭',
+                      tooltip: trNullable('关闭'),
                       onPressed: busy || !widget.nativeWindow
                           ? null
                           : () => windowManager.destroy(),
@@ -296,7 +339,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
+                          LText(
                             busy
                                 ? progress == null
                                       ? '正在打开数据目录'
@@ -319,14 +362,24 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                                         .clamp(0.0, 1.0),
                             ),
                             const SizedBox(height: 12),
-                            Text(
+                            LText(
                               progress == null
                                   ? path.text
                                   : '${progress!.files}/${progress!.totalFiles} 个文件 · ${formatByteSize(progress!.bytes)} / ${formatByteSize(progress!.totalBytes)}',
                             ),
                           ] else ...[
+                            SelectBox<String>(
+                              value: language,
+                              items: launcherLanguages,
+                              localizeItems: false,
+                              onChanged: (value) => setState(() {
+                                language = value;
+                                chosenLanguage = value;
+                              }),
+                            ),
+                            const SizedBox(height: 14),
                             if (legacySource != null) ...[
-                              Text('发现旧版数据：$legacySource'),
+                              LText('发现旧版数据：$legacySource'),
                               const SizedBox(height: 12),
                             ],
                             AppInput(
@@ -349,7 +402,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                                       ? null
                                       : () async {
                                           final value = await getDirectoryPath(
-                                            confirmButtonText: '选择数据目录',
+                                            confirmButtonText: tr('选择数据目录'),
                                           );
                                           if (value != null && mounted) {
                                             setState(() => path.text = value);
@@ -374,8 +427,8 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                             if (legacySource != null)
                               CheckboxListTile(
                                 contentPadding: EdgeInsets.zero,
-                                title: const Text('自动迁移数据'),
-                                subtitle: const Text(
+                                title: const LText('自动迁移数据'),
+                                subtitle: const LText(
                                   '迁移前请关闭其他 FYL 窗口及游戏。校验完成后清理旧目录。',
                                 ),
                                 value: migrate,
@@ -387,7 +440,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
                                 ),
-                                child: SelectableText(
+                                child: LSelectableText(
                                   error!,
                                   style: const TextStyle(
                                     color: Colors.redAccent,
@@ -395,7 +448,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
                                 ),
                               ),
                             if (widget.directories.directoryOverride != null)
-                              const Text(
+                              const LText(
                                 '请修改 --data-dir 或 FYL_DATA_DIR 后重试。',
                                 style: TextStyle(fontSize: 12),
                               ),

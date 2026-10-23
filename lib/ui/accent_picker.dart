@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'theme.dart';
 
@@ -26,7 +27,7 @@ class _AccentPickerState extends State<AccentPicker> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('选择色调'),
+    title: const LText('选择色调'),
     content: SizedBox(
       width: 420,
       child: SingleChildScrollView(
@@ -96,7 +97,7 @@ class _AccentPickerState extends State<AccentPicker> {
               }),
             ),
             const SizedBox(height: 10),
-            const Text('色相'),
+            const LText('色相'),
             Slider(
               key: const ValueKey('accent-hue'),
               value: color.hue,
@@ -104,12 +105,12 @@ class _AccentPickerState extends State<AccentPicker> {
               max: 360,
               onChanged: (value) => choose(color.withHue(value)),
             ),
-            const Text('饱和度'),
+            const LText('饱和度'),
             Slider(
               value: color.saturation,
               onChanged: (value) => choose(color.withSaturation(value)),
             ),
-            const Text('明度'),
+            const LText('明度'),
             Slider(
               value: color.lightness,
               onChanged: (value) => choose(color.withLightness(value)),

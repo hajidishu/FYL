@@ -39,6 +39,7 @@ class LauncherSettings {
   bool showHistorical;
   bool minimizeOnLaunch;
   String theme;
+  String language;
   String microsoftClientId;
   String curseforgeApiKey;
   int retainedGameLogs;
@@ -72,6 +73,7 @@ class LauncherSettings {
     this.showHistorical = false,
     this.minimizeOnLaunch = false,
     this.theme = 'dark',
+    this.language = 'zh-Hans',
     this.retainedGameLogs = 1,
     this.downloadSource = DownloadSource.official,
     this.autoChinese = true,
@@ -113,6 +115,17 @@ class LauncherSettings {
     showHistorical: json['showHistorical'] as bool? ?? false,
     minimizeOnLaunch: json['minimizeOnLaunch'] as bool? ?? false,
     theme: json['theme'] as String? ?? 'dark',
+    language:
+        const [
+          'zh-Hans',
+          'zh-Hant',
+          'en',
+          'ru',
+          'fr',
+          'de',
+        ].contains(json['language'])
+        ? json['language'] as String
+        : 'zh-Hans',
     retainedGameLogs: json['retainedGameLogs'] as int? ?? 1,
     autoChinese: json['autoChinese'] as bool? ?? true,
     accentColor: json['accentColor'] is int ? json['accentColor'] as int : null,
@@ -152,6 +165,7 @@ class LauncherSettings {
     'showHistorical': showHistorical,
     'minimizeOnLaunch': minimizeOnLaunch,
     'theme': theme,
+    'language': language,
     'retainedGameLogs': retainedGameLogs,
     'downloadSource': downloadSource.name,
     'autoChinese': autoChinese,

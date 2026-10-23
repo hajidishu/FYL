@@ -13,7 +13,9 @@
     <a href="README.md">简体中文</a> ·
     <strong>繁體中文</strong> ·
     <a href="README.en.md">English</a> ·
-    <a href="README.ru.md">Русский</a>
+    <a href="README.ru.md">Русский</a> ·
+    <a href="README.fr.md">Français</a> ·
+    <a href="README.de.md">Deutsch</a>
   </p>
 
   <p>
@@ -31,6 +33,8 @@ FYL（free_your_launcher）是一款以 Flutter + Forui 開發的跨平台 Minec
 之所以開發 FYL，是因為近期中國大陸的 Minecraft 啟動器普遍出現了[刻意關閉中國大陸使用者遊戲下載功能](https://github.com/HMCL-dev/HMCL/commit/583e004d718102ae4489aa3f64bcde0c0161d000)的情況。當然，我知道這並非 HMCL 開發者所願意的。我不會要求 HMCL 或其他啟動器的開發者恢復遊戲下載功能，而是選擇開發 FYL，希望建立一款自由的啟動器，至少不讓下載遊戲的自由受到干涉。
 
 > FYL 仍處於早期開發階段，可能存在許多錯誤。如果你遇到問題，請點選儲存庫頁面上方的「Issues」分頁。
+
+可在「設定 → 通用」中選擇簡體中文、繁體中文、英文、俄文、法文或德文。
 
 ## 編譯與執行
 

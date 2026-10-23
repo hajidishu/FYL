@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -63,7 +64,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
                   task.state != ContentTaskState.waiting)
                 IconButton(
                   key: ValueKey('dismiss-content-task-${task.id}'),
-                  tooltip: '移除任务记录',
+                  tooltip: AppLocalizations.of(context).textOrNull('移除任务记录'),
                   icon: const Icon(FIcons.x, size: 16),
                   onPressed: () => widget.controller.dismissContentTask(task),
                 ),
@@ -71,7 +72,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${task.source.label} · ${task.kind.label}',
+            '${task.source.label} · ${tr(task.kind.label)}',
             style: TextStyle(color: c.muted, fontSize: 11),
           ),
           if (task.state == ContentTaskState.running) ...[
@@ -88,7 +89,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(
+                LText(
                   '${task.done} / ${task.total} · 已传输 ${formatByteSize(task.bytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
                   style: TextStyle(color: c.muted, fontSize: 11),
                 ),
@@ -96,7 +97,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
               ],
             ),
             if (task.detail.isNotEmpty)
-              Text(
+              LText(
                 task.detail,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -105,7 +106,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
           ],
           if (task.state == ContentTaskState.waiting) ...[
             const SizedBox(height: 14),
-            const Text('以下文件需要从项目页面下载后补齐。', style: TextStyle(fontSize: 12)),
+            const LText('以下文件需要从项目页面下载后补齐。', style: TextStyle(fontSize: 12)),
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 220),
@@ -132,7 +133,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
                                       Uri.parse(missing.website),
                                       mode: LaunchMode.externalApplication,
                                     ),
-                              child: const Text('下载页面'),
+                              child: const LText('下载页面'),
                             ),
                           ],
                         ),
@@ -144,7 +145,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
           ],
           if (task.error != null || error != null) ...[
             const SizedBox(height: 12),
-            SelectableText(
+            LSelectableText(
               error ?? task.error!,
               style: TextStyle(color: c.muted, fontSize: 12),
             ),
@@ -179,9 +180,9 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
                       ? null
                       : () => run(() async {
                           final files = await openFiles(
-                            acceptedTypeGroups: const [
+                            acceptedTypeGroups: [
                               XTypeGroup(
-                                label: 'Mod 文件',
+                                label: tr('Mod 文件'),
                                 extensions: ['jar', 'zip'],
                               ),
                             ],

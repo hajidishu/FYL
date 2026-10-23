@@ -33,6 +33,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s test -p release_tool_test.py -v
+      - run: python tool/generate_localizations.py --check
       - name: Validate version
         id: version
         run: python tool/release.py metadata

@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -96,7 +97,7 @@ class _MemoryPreviewState extends State<MemoryPreview> {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
-    child: Text(
+    child: LText(
       message ?? '正在估算内存…',
       style: TextStyle(fontSize: 12, color: LauncherColors.of(context).muted),
     ),

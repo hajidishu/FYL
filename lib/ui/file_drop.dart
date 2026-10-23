@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -159,7 +160,7 @@ class FileDropRegionState extends State<FileDropRegion> {
                     children: [
                       Icon(FIcons.packagePlus, size: 42, color: c.accent),
                       const SizedBox(height: 16),
-                      const Text(
+                      const LText(
                         '松开以安装 Mod 或整合包',
                         style: TextStyle(
                           fontSize: 20,
@@ -215,20 +216,21 @@ class _ModImportDialogState extends State<ModImportDialog> {
           : null;
       return AlertDialog(
         scrollable: true,
-        title: const Text('安装 Mod'),
+        title: const LText('安装 Mod'),
         content: SizedBox(
           width: 460,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
+              LText(
                 '选择目标版本 · ${widget.files.length} 个文件',
                 style: const TextStyle(fontSize: 13),
               ),
               const SizedBox(height: 10),
               if (controller.instances.isNotEmpty)
                 SelectBox<String>(
+                  localizeItems: false,
                   value: selected ?? controller.instances.first.id,
                   items: {
                     for (final instance in controller.instances)
@@ -256,13 +258,13 @@ class _ModImportDialogState extends State<ModImportDialog> {
                 onChanged: (value) => setState(() => replace = value ?? false),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
-                title: const Text(
+                title: const LText(
                   '覆盖同名 Mod 文件',
                   style: TextStyle(fontSize: 13),
                 ),
               ),
               if (error != null)
-                Text(
+                LText(
                   error,
                   style: TextStyle(
                     fontSize: 13,

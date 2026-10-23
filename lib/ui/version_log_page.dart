@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
@@ -82,14 +83,14 @@ class _VersionLogPageState extends State<VersionLogPage> {
             Row(
               children: [
                 IconButton(
-                  tooltip: '返回版本列表',
+                  tooltip: AppLocalizations.of(context).textOrNull('返回版本列表'),
                   onPressed: widget.onBack,
                   icon: const Icon(FIcons.arrowLeft, size: 20),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    '${instance?.name ?? '版本'} · 运行日志',
+                  child: LText(
+                    '${instance?.name ?? tr('版本')} · 运行日志',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -102,7 +103,7 @@ class _VersionLogPageState extends State<VersionLogPage> {
             ),
             const SizedBox(height: 16),
             if (log != null) ...[
-              Text(
+              LText(
                 controller.isVersionLogLive(log)
                     ? '正在记录游戏输出'
                     : log.exitCode == null
@@ -148,7 +149,7 @@ class _VersionLogPageState extends State<VersionLogPage> {
             if (exportError != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
+                child: LText(
                   exportError!,
                   style: const TextStyle(color: Colors.red, fontSize: 13),
                 ),
@@ -159,7 +160,7 @@ class _VersionLogPageState extends State<VersionLogPage> {
                 child: loading
                     ? const Center(child: CircularProgressIndicator())
                     : error != null || log == null
-                    ? Center(child: Text(error ?? '此版本还没有启动日志。'))
+                    ? Center(child: LText(error ?? '此版本还没有启动日志。'))
                     : SelectionArea(
                         child: ListView.builder(
                           reverse: true,

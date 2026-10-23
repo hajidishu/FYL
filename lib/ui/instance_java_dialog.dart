@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -110,7 +111,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
         .withJava(mode, path.text)
         .javaExecutable(widget.controller.settings);
     return AlertDialog(
-      title: const Text('版本 Java', style: TextStyle(fontSize: 19)),
+      title: const LText('版本 Java', style: TextStyle(fontSize: 19)),
       content: SizedBox(
         width: 520,
         child: ConstrainedBox(
@@ -122,7 +123,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
+                LText(
                   '${instance.name} · 推荐 Java ${instance.javaMajor}',
                   style: TextStyle(color: c.muted, fontSize: 12),
                 ),
@@ -163,7 +164,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                           ? null
                           : () async {
                               final file = await openFile(
-                                confirmButtonText: '选择 Java',
+                                confirmButtonText: tr('选择 Java'),
                               );
                               if (file != null && mounted) {
                                 setState(() => path.text = file.path);
@@ -172,7 +173,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                     ),
                   ),
                 ] else
-                  Text(
+                  LText(
                     executable == 'java' ? '使用系统 Java' : executable,
                     style: TextStyle(color: c.muted, fontSize: 11),
                   ),
@@ -204,7 +205,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                 ),
                 if (scanning || scanned) ...[
                   const SizedBox(height: 12),
-                  Text(
+                  LText(
                     scanning
                         ? '已检查 ${progress.checked} 项，找到 ${progress.found} 个 Java'
                         : installations.isEmpty
@@ -243,7 +244,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                 ],
                 if (error != null) ...[
                   const SizedBox(height: 14),
-                  Text(
+                  LText(
                     error!,
                     style: TextStyle(color: Colors.red.shade400, fontSize: 12),
                   ),

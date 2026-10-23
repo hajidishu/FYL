@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -184,8 +185,8 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(title),
-          content: Text(body),
+          title: LText(title),
+          content: LText(body),
           actions: [
             AppButton(
               '取消',
@@ -280,8 +281,8 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
   });
   Future<void> chooseIcon() => run(() async {
     final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(label: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp']),
+      acceptedTypeGroups: [
+        XTypeGroup(label: tr('图片'), extensions: ['png', 'jpg', 'jpeg', 'webp']),
       ],
     );
     if (file == null) return;
@@ -324,7 +325,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('版本隔离'),
+          title: const LText('版本隔离'),
           content: SizedBox(
             width: 430,
             child: Column(
@@ -343,11 +344,11 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text(
+                  title: const LText(
                     '同时复制当前游戏数据',
                     style: TextStyle(fontSize: 13),
                   ),
-                  subtitle: const Text(
+                  subtitle: const LText(
                     '原文件保留；不同的同名文件不会覆盖。版本 JSON、JAR 和共享依赖不参与复制。',
                     style: TextStyle(fontSize: 11),
                   ),
@@ -385,20 +386,20 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('移除游戏版本'),
+          title: const LText('移除游戏版本'),
           content: SizedBox(
             width: 430,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('从版本列表移除“${instance.name}”。'),
+                LText('从版本列表移除“${instance.name}”。'),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text(
+                  title: const LText(
                     '同时移走版本文件夹',
                     style: TextStyle(fontSize: 13),
                   ),
-                  subtitle: Text(
+                  subtitle: LText(
                     instance.isolated
                         ? '包含此版本的存档和 Mod。移至 .fyl-trash，可手动恢复。'
                         : '游戏根目录中的共享存档和 Mod 会保留。版本文件夹移至 .fyl-trash，可手动恢复。',
@@ -447,7 +448,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     final location = await getSaveLocation(
       suggestedName: '${fileName(instance.name)}.${windows ? 'ps1' : 'sh'}',
       acceptedTypeGroups: [
-        XTypeGroup(label: '启动脚本', extensions: [windows ? 'ps1' : 'sh']),
+        XTypeGroup(label: tr('启动脚本'), extensions: [windows ? 'ps1' : 'sh']),
       ],
     );
     if (location == null) return;
@@ -465,8 +466,8 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     if (dirty) throw StateError('请先保存修改。');
     final location = await getSaveLocation(
       suggestedName: '${fileName(instance.name)}.mrpack',
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'Modrinth 整合包', extensions: ['mrpack']),
+      acceptedTypeGroups: [
+        XTypeGroup(label: tr('Modrinth 整合包'), extensions: ['mrpack']),
       ],
     );
     if (location == null) return;
@@ -508,7 +509,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
           Row(
             children: [
               IconButton(
-                tooltip: '返回版本列表',
+                tooltip: AppLocalizations.of(context).textOrNull('返回版本列表'),
                 onPressed: busy ? null : back,
                 icon: const Icon(FIcons.arrowLeft, size: 20),
               ),
@@ -529,7 +530,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    LText(
                       '${i.version} · ${i.components.isEmpty ? '原版' : i.components}',
                       style: TextStyle(color: c.muted, fontSize: 11),
                     ),
@@ -580,7 +581,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
           if (error != null || message != null)
             Padding(
               padding: const EdgeInsets.only(top: 14),
-              child: SelectableText(
+              child: LSelectableText(
                 error ?? message!,
                 style: TextStyle(
                   fontSize: 12,
@@ -610,7 +611,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
                   if (widget.controller.instanceOperation != null)
                     TextButton(
                       onPressed: widget.controller.cancelInstall,
-                      child: const Text('取消任务'),
+                      child: const LText('取消任务'),
                     ),
                 ],
               ),
@@ -646,7 +647,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          LText(
             title,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
@@ -692,10 +693,10 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     minVerticalPadding: 4,
     horizontalTitleGap: 8,
     controlAffinity: ListTileControlAffinity.leading,
-    title: Text(title, style: const TextStyle(fontSize: 13)),
+    title: LText(title, style: const TextStyle(fontSize: 13)),
     subtitle: subtitle == null
         ? null
-        : Text(subtitle, style: const TextStyle(fontSize: 12)),
+        : LText(subtitle, style: const TextStyle(fontSize: 12)),
     value: value,
     onChanged: busy
         ? null
@@ -717,7 +718,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       field('name', '版本名称'),
       field('description', '描述', lines: 2),
       field('category', '版本标签', description: '留空时自动显示加载器或版本类型。'),
-      Text(
+      LText(
         '版本图标',
         style: TextStyle(color: LauncherColors.of(context).muted, fontSize: 12),
       ),
@@ -864,7 +865,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(switch (instance.javaMode) {
+                LText(switch (instance.javaMode) {
                   InstanceJavaMode.inherit => '跟随默认 Java',
                   InstanceJavaMode.automatic => '自动选择 Java',
                   InstanceJavaMode.custom => '指定 Java',
@@ -948,7 +949,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             field('width', '宽度（像素）', enabled: ownWindow && !fullscreen),
             field('height', '高度（像素）', enabled: ownWindow && !fullscreen),
           ),
-          const Text('启动后最小化 FYL', style: TextStyle(fontSize: 12)),
+          const LText('启动后最小化 FYL', style: TextStyle(fontSize: 12)),
           const SizedBox(height: 6),
           SelectBox<int>(
             compact: true,
@@ -1006,7 +1007,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         subtitle: '仍会检查 Java 是否可运行及架构是否匹配。',
       ),
       const SizedBox(height: 10),
-      const Text('下载文件校验', style: TextStyle(fontSize: 12)),
+      const LText('下载文件校验', style: TextStyle(fontSize: 12)),
       const SizedBox(height: 8),
       SelectBox<int>(
         compact: true,
@@ -1042,7 +1043,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             child: TextButton.icon(
               onPressed: () => setState(() => browseMods = false),
               icon: const Icon(FIcons.arrowLeft, size: 15),
-              label: const Text('返回 Mod 管理'),
+              label: const LText('返回 Mod 管理'),
             ),
           ),
           Expanded(
@@ -1068,7 +1069,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
 
   List<Widget> export() => [
     section('导出整合包', [
-      const Text(
+      const LText(
         '保存为 .mrpack，按所选内容打包。游戏本体、共享依赖库和账号信息不包含在内。',
         style: TextStyle(fontSize: 12, height: 1.6),
       ),
@@ -1078,7 +1079,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,
-          title: Text(entry.value, style: const TextStyle(fontSize: 12)),
+          title: LText(entry.value, style: const TextStyle(fontSize: 12)),
           value: folders.contains(entry.key),
           onChanged: busy
               ? null
@@ -1093,7 +1094,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
-        title: const Text('游戏选项（options.txt）', style: TextStyle(fontSize: 12)),
+        title: const LText('游戏选项（options.txt）', style: TextStyle(fontSize: 12)),
         value: gameOptions,
         onChanged: busy ? null : (v) => setState(() => gameOptions = v ?? true),
       ),

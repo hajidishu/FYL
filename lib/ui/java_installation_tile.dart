@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
@@ -36,7 +37,7 @@ class JavaInstallationTile extends StatelessWidget {
         : !compatible
         ? '需要 Java $requiredMajor 或更新版本'
         : null;
-    return Tooltip(
+    return LTooltip(
       message:
           '${java.label}\n${java.vendor}\n${java.executable}'
           '${warning == null ? '' : '\n$warning'}',
@@ -59,7 +60,7 @@ class JavaInstallationTile extends StatelessWidget {
                   Row(
                     children: [
                       Flexible(
-                        child: Text(
+                        child: LText(
                           java.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -94,7 +95,7 @@ class JavaInstallationTile extends StatelessWidget {
                   ? FButtonVariant.primary
                   : FButtonVariant.outline,
               onPress: selected || !compatible || !enabled ? null : onSelected,
-              child: Text(
+              child: LText(
                 selected ? '已选择' : '使用此 Java',
                 style: const TextStyle(fontSize: 11),
               ),

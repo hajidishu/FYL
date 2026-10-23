@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
@@ -27,13 +28,15 @@ Future<String?> pickModSaveLocation(String directory, String name) async {
     suggestedName: name,
     acceptedTypeGroups: [
       XTypeGroup(
-        label: name.toLowerCase().endsWith('.jar')
-            ? 'Minecraft Mod'
-            : 'Minecraft 资源',
+        label: tr(
+          name.toLowerCase().endsWith('.jar')
+              ? 'Minecraft Mod'
+              : 'Minecraft 资源',
+        ),
         extensions: [p.extension(name).substring(1)],
       ),
     ],
-    confirmButtonText: '保存',
+    confirmButtonText: tr('保存'),
   );
   return location?.path;
 }
@@ -203,9 +206,10 @@ class _CommunityPageState extends State<CommunityPage> {
                   children: [
                     if (widget.kind.hasTarget &&
                         widget.controller.instances.isNotEmpty) ...[
-                      const Text('目标版本', style: TextStyle(fontSize: 12)),
+                      const LText('目标版本', style: TextStyle(fontSize: 12)),
                       const SizedBox(height: 7),
                       SelectBox<String>(
+                        localizeItems: false,
                         compact: true,
                         value: targetId ?? widget.controller.instances.first.id,
                         items: {
@@ -306,7 +310,7 @@ class _CommunityPageState extends State<CommunityPage> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(
+                        child: LText(
                           notices.join('\n'),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
@@ -316,7 +320,7 @@ class _CommunityPageState extends State<CommunityPage> {
                       if (widget.controller.settings.curseforgeApiKey.isEmpty)
                         TextButton(
                           onPressed: widget.onOpenSettings,
-                          child: const Text('配置来源'),
+                          child: const LText('配置来源'),
                         ),
                     ],
                   ),
@@ -337,7 +341,7 @@ class _CommunityPageState extends State<CommunityPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('社区搜索失败', style: TextStyle(color: c.muted)),
+                  LText('社区搜索失败', style: TextStyle(color: c.muted)),
                   const SizedBox(height: 10),
                   AppButton(
                     '重试搜索',
@@ -353,7 +357,7 @@ class _CommunityPageState extends State<CommunityPage> {
           SliverFillRemaining(
             hasScrollBody: false,
             child: Center(
-              child: Text('没有找到匹配的项目', style: TextStyle(color: c.muted)),
+              child: LText('没有找到匹配的项目', style: TextStyle(color: c.muted)),
             ),
           )
         else
@@ -483,7 +487,7 @@ class SourceBadge extends StatelessWidget {
               .withValues(alpha: .13),
       borderRadius: BorderRadius.circular(5),
     ),
-    child: Text(
+    child: LText(
       source.label,
       style: TextStyle(
         color: LauncherColors.of(context).foreground,
@@ -676,8 +680,8 @@ class _ContentDetailsState extends State<ContentDetails> {
             .firstOrNull;
         if (file?.urls.isEmpty == true) {
           final selected = await openFile(
-            acceptedTypeGroups: const [
-              XTypeGroup(label: '整合包', extensions: ['zip', 'mrpack']),
+            acceptedTypeGroups: [
+              XTypeGroup(label: tr('整合包'), extensions: ['zip', 'mrpack']),
             ],
           );
           if (selected == null) return;
@@ -754,7 +758,7 @@ class _ContentDetailsState extends State<ContentDetails> {
           children: [
             IconButton(
               onPressed: widget.onBack,
-              tooltip: '返回搜索',
+              tooltip: AppLocalizations.of(context).textOrNull('返回搜索'),
               icon: const Icon(FIcons.arrowLeft, size: 18),
             ),
             const SizedBox(width: 6),
@@ -909,7 +913,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                 ),
                 if (project.kind.hasTarget) ...[
                   const SizedBox(height: 8),
-                  Text(
+                  LText(
                     widget.target == null
                         ? '请先创建并选择一个游戏版本。'
                         : '安装到 ${widget.target!.name}',
@@ -925,7 +929,10 @@ class _ContentDetailsState extends State<ContentDetails> {
                               : (v) => setState(() => dependencies = v ?? true),
                         ),
                         const Expanded(
-                          child: Text('下载必需依赖', style: TextStyle(fontSize: 12)),
+                          child: LText(
+                            '下载必需依赖',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
@@ -938,7 +945,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: SelectableText(
+                    child: LSelectableText(
                       error!,
                       style: TextStyle(color: c.muted, fontSize: 12),
                     ),
@@ -951,7 +958,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                 else if (versions.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text('没有匹配的发布版本', style: TextStyle(color: c.muted)),
+                    child: LText('没有匹配的发布版本', style: TextStyle(color: c.muted)),
                   ),
                 for (var i = 0; i < groupNames.length; i++) ...[
                   const SizedBox(height: 10),
@@ -963,14 +970,14 @@ class _ContentDetailsState extends State<ContentDetails> {
                       ),
                       initiallyExpanded: i == 0,
                       tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                      title: Text(
+                      title: LText(
                         groupNames[i],
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      subtitle: Text(
+                      subtitle: LText(
                         '${groups[groupNames[i]]!.length} 个版本',
                         style: TextStyle(color: c.muted, fontSize: 10),
                       ),
@@ -1014,7 +1021,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                         compact: true,
                                       ),
                                       const SizedBox(height: 2),
-                                      Text(
+                                      LText(
                                         '${_date(release.published)} · ${switch (release.releaseType) {
                                           'beta' => '测试版',
                                           'alpha' => '预览版',
@@ -1086,10 +1093,11 @@ class _DataPackWorldDialogState extends State<DataPackWorldDialog> {
   late String selected = widget.worlds.first.path;
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('选择存档'),
+    title: const LText('选择存档'),
     content: SizedBox(
       width: 420,
       child: SelectBox<String>(
+        localizeItems: false,
         value: selected,
         items: {
           for (final world in widget.worlds) world.path: p.basename(world.path),
@@ -1136,7 +1144,7 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
     final c = LauncherColors.of(context);
     final plan = widget.plan;
     return AlertDialog(
-      title: const Text('安装整合包', style: TextStyle(fontSize: 19)),
+      title: const LText('安装整合包', style: TextStyle(fontSize: 19)),
       content: SizedBox(
         width: 500,
         child: ConstrainedBox(
@@ -1156,7 +1164,7 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                LText(
                   '发布版本：${widget.release.name}\nMinecraft：${plan.minecraft}\n加载器：${plan.loader?.label ?? '原版'} ${plan.loaderVersion ?? ''}\n文件：${plan.files.length} 项',
                   style: TextStyle(
                     color: c.secondaryText,
@@ -1170,18 +1178,18 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
                 const SizedBox(height: 12),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('启用版本隔离', style: TextStyle(fontSize: 12)),
+                  title: const LText('启用版本隔离', style: TextStyle(fontSize: 12)),
                   value: isolated,
                   onChanged: (v) => setState(() => isolated = v ?? true),
                 ),
                 if (!isolated)
-                  Text(
+                  LText(
                     '模组和配置将写入游戏根目录，与其他未隔离版本共用。',
                     style: TextStyle(color: c.muted, fontSize: 11),
                   ),
                 if (plan.files.any((f) => f.optional)) ...[
                   const SizedBox(height: 12),
-                  const Text(
+                  const LText(
                     '可选文件',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
@@ -1190,7 +1198,7 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         file.path.isEmpty
-                            ? '项目 ${file.projectId} · 文件 ${file.fileId}'
+                            ? tr('项目 ${file.projectId} · 文件 ${file.fileId}')
                             : file.path,
                         style: const TextStyle(fontSize: 11),
                       ),
@@ -1212,7 +1220,7 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
                     ),
                 ],
                 if (error != null)
-                  Text(
+                  LText(
                     error!,
                     style: TextStyle(color: Colors.red.shade400, fontSize: 12),
                   ),

@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
@@ -220,8 +221,8 @@ class _InstanceModsState extends State<InstanceMods> {
 
   Future<void> installFiles() => run(() async {
     final files = await openFiles(
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'Minecraft Mod', extensions: ['jar']),
+      acceptedTypeGroups: [
+        XTypeGroup(label: tr('Minecraft Mod'), extensions: ['jar']),
       ],
     );
     if (files.isEmpty) return;
@@ -240,7 +241,7 @@ class _InstanceModsState extends State<InstanceMods> {
           await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('同名 Mod 已存在'),
+              title: const LText('同名 Mod 已存在'),
               content: SizedBox(
                 width: 430,
                 child: SingleChildScrollView(
@@ -275,8 +276,8 @@ class _InstanceModsState extends State<InstanceMods> {
         await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('移除 ${chosen.length} 个 Mod'),
-            content: const Text('文件会移至版本文件夹的 .fyl/mod-trash，可手动恢复。'),
+            title: LText('移除 ${chosen.length} 个 Mod'),
+            content: const LText('文件会移至版本文件夹的 .fyl/mod-trash，可手动恢复。'),
             actions: [
               AppButton(
                 '取消',
@@ -425,7 +426,7 @@ class _InstanceModsState extends State<InstanceMods> {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(
+                LText(
                   '已选择 ${selected.length} 项',
                   style: TextStyle(color: c.muted, fontSize: 12),
                 ),
@@ -479,7 +480,7 @@ class _InstanceModsState extends State<InstanceMods> {
         if (updateCheck != null || message != null || progress != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(
+            child: LText(
               progress ??
                   message ??
                   '发现 ${updateCheck!.updates.length} 个可更新 Mod${updateCheck!.unidentified > 0 ? ' · ${updateCheck!.unidentified} 个未识别' : ''}',
@@ -491,9 +492,9 @@ class _InstanceModsState extends State<InstanceMods> {
         if (updateCheck?.notices.isNotEmpty == true)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Tooltip(
+            child: LTooltip(
               message: updateCheck!.notices.join('\n'),
-              child: Text(
+              child: LText(
                 updateCheck!.notices.join('\n'),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -504,7 +505,7 @@ class _InstanceModsState extends State<InstanceMods> {
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Text(
+            child: LText(
               error!,
               style: TextStyle(
                 color: c.dark ? Colors.red.shade200 : Colors.red.shade800,
@@ -518,7 +519,7 @@ class _InstanceModsState extends State<InstanceMods> {
             ))
           const Padding(
             padding: EdgeInsets.only(top: 10),
-            child: Text('请先关闭游戏再修改 Mod。', style: TextStyle(fontSize: 11)),
+            child: LText('请先关闭游戏再修改 Mod。', style: TextStyle(fontSize: 11)),
           ),
         if (loading || working || checkingUpdates)
           const Padding(
@@ -529,7 +530,7 @@ class _InstanceModsState extends State<InstanceMods> {
         Expanded(
           child: visible.isEmpty
               ? Center(
-                  child: Text(
+                  child: LText(
                     loading
                         ? '正在读取 Mod…'
                         : mods.isEmpty
@@ -624,12 +625,16 @@ class _InstanceModsState extends State<InstanceMods> {
                                   ),
                                   const SizedBox(height: 3),
                                   Tooltip(
-                                    message: mod.warning ?? mod.description,
+                                    message: mod.warning == null
+                                        ? mod.description
+                                        : tr(mod.warning!),
                                     constraints: const BoxConstraints(
                                       maxWidth: 480,
                                     ),
                                     child: Text(
-                                      mod.warning ??
+                                      (mod.warning == null
+                                              ? null
+                                              : tr(mod.warning!)) ??
                                           (mod.description.isEmpty
                                               ? p.basename(mod.path)
                                               : mod.description.replaceAll(
@@ -668,9 +673,11 @@ class _InstanceModsState extends State<InstanceMods> {
                             const SizedBox(width: 8),
                             IconButton(
                               key: ValueKey('update-mod-${mod.path}'),
-                              tooltip: updateCheck?.updates[mod.path] == null
-                                  ? '检查并更新此 Mod'
-                                  : '更新到 ${updateCheck!.updates[mod.path]!.latest.number}',
+                              tooltip: AppLocalizations.of(context).textOrNull(
+                                updateCheck?.updates[mod.path] == null
+                                    ? '检查并更新此 Mod'
+                                    : '更新到 ${updateCheck!.updates[mod.path]!.latest.number}',
+                              ),
                               icon: Icon(
                                 FIcons.download,
                                 size: 18,
@@ -686,7 +693,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                   ? null
                                   : () => updateChosen([mod]),
                             ),
-                            Tooltip(
+                            LTooltip(
                               message: mod.enabled ? '禁用此 Mod' : '启用此 Mod',
                               child: Switch(
                                 value: mod.enabled,

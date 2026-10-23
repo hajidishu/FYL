@@ -12,6 +12,7 @@ import 'core/data_directory.dart';
 import 'ui/launcher_runtime.dart';
 import 'ui/shell.dart';
 import 'ui/theme.dart';
+import 'l10n/app_localizations.dart';
 
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,12 +70,17 @@ class LauncherApp extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) {
+      AppLocalizations.current = AppLocalizations.forLanguage(
+        controller.settings.language,
+      );
       return MaterialApp(
         title: 'FYL',
         debugShowCheckedModeBanner: false,
-        locale: const Locale('zh', 'CN'),
-        supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+        locale: launcherLocale(controller.settings.language),
+        supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
+          AppLocalizations.delegate,
+          FLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,

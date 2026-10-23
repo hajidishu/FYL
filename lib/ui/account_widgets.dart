@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -174,7 +175,7 @@ class AccountBadge extends StatelessWidget {
         color: color.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(5),
       ),
-      child: Text(
+      child: LText(
         online ? '正版账号' : '离线账号',
         style: TextStyle(color: color, fontSize: 10),
       ),
@@ -215,13 +216,13 @@ class _HomeAccountCardState extends State<HomeAccountCard> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('当前账号', style: TextStyle(color: c.muted, fontSize: 11)),
+          LText('当前账号', style: TextStyle(color: c.muted, fontSize: 11)),
           const SizedBox(height: 22),
           Center(
             child: MouseRegion(
               onEnter: (_) => setState(() => hovering = true),
               onExit: (_) => setState(() => hovering = false),
-              child: Tooltip(
+              child: LTooltip(
                 message: account == null ? '添加账号' : '切换账号',
                 child: Semantics(
                   button: true,
@@ -242,7 +243,7 @@ class _HomeAccountCardState extends State<HomeAccountCard> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               alignment: Alignment.center,
-                              child: Text(
+                              child: LText(
                                 account == null ? '添加账号' : '切换账号',
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -260,7 +261,7 @@ class _HomeAccountCardState extends State<HomeAccountCard> {
           ),
           const SizedBox(height: 14),
           Text(
-            account?.username ?? '尚未添加账号',
+            account?.username ?? tr('尚未添加账号'),
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
@@ -354,7 +355,7 @@ class _AccountManagerDialogState extends State<AccountManagerDialog> {
     builder: (context, _) {
       final c = LauncherColors.of(context);
       return AlertDialog(
-        title: const Text(
+        title: const LText(
           '选择游戏账号',
           style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
         ),
@@ -368,7 +369,7 @@ class _AccountManagerDialogState extends State<AccountManagerDialog> {
                 if (widget.controller.accounts.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Text(
+                    child: LText(
                       '还没有账号，请在下方添加。',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.muted),
@@ -466,7 +467,7 @@ class _AccountManagerDialogState extends State<AccountManagerDialog> {
                 ],
                 if (error != null) ...[
                   const SizedBox(height: 16),
-                  Text(
+                  LText(
                     error!,
                     style: TextStyle(
                       color: c.dark
@@ -481,7 +482,7 @@ class _AccountManagerDialogState extends State<AccountManagerDialog> {
                         Navigator.pop(context);
                         widget.onOpenSettings();
                       },
-                      child: const Text('前往设置'),
+                      child: const LText('前往设置'),
                     ),
                 ],
               ],
@@ -565,7 +566,7 @@ class _MicrosoftLoginDialogState extends State<MicrosoftLoginDialog> {
     final c = LauncherColors.of(context);
     return AlertDialog(
       scrollable: true,
-      title: const Text('微软账号登录', style: TextStyle(fontSize: 19)),
+      title: const LText('微软账号登录', style: TextStyle(fontSize: 19)),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -573,7 +574,7 @@ class _MicrosoftLoginDialogState extends State<MicrosoftLoginDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (error != null) ...[
-              SelectableText(error!, style: const TextStyle(fontSize: 12)),
+              LSelectableText(error!, style: const TextStyle(fontSize: 12)),
               if (appRegistrationRejected) ...[
                 const SizedBox(height: 16),
                 AppButton(
@@ -591,7 +592,7 @@ class _MicrosoftLoginDialogState extends State<MicrosoftLoginDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
-              Text(
+              LText(
                 '在微软页面输入此验证码并完成授权。FYL 不会收集你的微软密码。',
                 style: TextStyle(color: c.muted, fontSize: 12, height: 1.7),
               ),
@@ -622,7 +623,7 @@ class _MicrosoftLoginDialogState extends State<MicrosoftLoginDialog> {
                     Clipboard.setData(ClipboardData(text: code!.userCode)),
               ),
               const SizedBox(height: 18),
-              Text(
+              LText(
                 '正在等待浏览器中的登录结果…',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: c.muted, fontSize: 11),

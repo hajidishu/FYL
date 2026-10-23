@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
@@ -126,7 +127,14 @@ class Tag extends StatelessWidget {
   final String text;
   final bool accent;
   final bool compact;
-  const Tag(this.text, {this.accent = false, this.compact = false, super.key});
+  final bool localize;
+  const Tag(
+    this.text, {
+    this.accent = false,
+    this.compact = false,
+    this.localize = true,
+    super.key,
+  });
   @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
@@ -140,7 +148,7 @@ class Tag extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
-        text,
+        localize ? AppLocalizations.of(context).text(text) : text,
         maxLines: compact ? 1 : null,
         overflow: compact ? TextOverflow.ellipsis : null,
         style: TextStyle(
@@ -176,7 +184,7 @@ class AppButton extends StatelessWidget {
     size: small ? FButtonSizeVariant.sm : FButtonSizeVariant.lg,
     mainAxisSize: MainAxisSize.min,
     prefix: icon == null ? null : Icon(icon, size: 16),
-    child: Text(label, style: const TextStyle(fontSize: 13)),
+    child: LText(label, style: const TextStyle(fontSize: 13)),
   );
 }
 
@@ -214,10 +222,10 @@ class AppInput extends StatelessWidget {
       initial: controller == null ? TextEditingValue(text: initial) : null,
       onChange: onChanged == null ? null : (value) => onChanged!(value.text),
     ),
-    label: label == null ? null : Text(label!),
-    hint: hint,
-    description: description == null ? null : Text(description!),
-    error: error == null ? null : Text(error!),
+    label: label == null ? null : LText(label!),
+    hint: hint == null ? null : AppLocalizations.of(context).text(hint!),
+    description: description == null ? null : LText(description!),
+    error: error == null ? null : LText(error!),
     enabled: enabled,
     maxLines: maxLines,
     obscureText: obscureText,
@@ -231,11 +239,13 @@ class SelectBox<T> extends StatelessWidget {
   final Map<T, String> items;
   final ValueChanged<T>? onChanged;
   final bool compact;
+  final bool localizeItems;
   const SelectBox({
     required this.value,
     required this.items,
     this.onChanged,
     this.compact = false,
+    this.localizeItems = true,
     super.key,
   });
   @override
@@ -250,7 +260,9 @@ class SelectBox<T> extends StatelessWidget {
       ),
       enabled: onChanged != null && items.isNotEmpty,
       size: compact ? FTextFieldSizeVariant.sm : FTextFieldSizeVariant.md,
-      format: (selected) => items[selected] ?? '',
+      format: (selected) => localizeItems
+          ? AppLocalizations.of(context).text(items[selected] ?? '')
+          : items[selected] ?? '',
       contentConstraints: const FAutoWidthPortalConstraints(maxHeight: 280),
       style: FSelectStyleDelta.delta(
         contentStyle: FSelectContentStyleDelta.delta(
@@ -276,7 +288,9 @@ class SelectBox<T> extends StatelessWidget {
           FSelectItem<T>(
             value: entry.key,
             title: Text(
-              entry.value,
+              localizeItems
+                  ? AppLocalizations.of(context).text(entry.value)
+                  : entry.value,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 13),
@@ -316,12 +330,12 @@ class EmptyState extends StatelessWidget {
             child: Icon(icon, color: c.accent, size: 30),
           ),
           const SizedBox(height: 22),
-          Text(
+          LText(
             title,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 9),
-          Text(
+          LText(
             description,
             textAlign: TextAlign.center,
             style: TextStyle(color: c.muted, height: 1.8),

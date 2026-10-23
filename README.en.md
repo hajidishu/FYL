@@ -13,7 +13,9 @@
     <a href="README.md">简体中文</a> ·
     <a href="README.zh-Hant.md">繁體中文</a> ·
     <strong>English</strong> ·
-    <a href="README.ru.md">Русский</a>
+    <a href="README.ru.md">Русский</a> ·
+    <a href="README.fr.md">Français</a> ·
+    <a href="README.de.md">Deutsch</a>
   </p>
 
   <p>
@@ -31,6 +33,8 @@ FYL (free_your_launcher) is a cross-platform Minecraft launcher built with Flutt
 I started FYL because Minecraft launchers from mainland China have recently been [deliberately disabling game downloads for users in mainland China](https://github.com/HMCL-dev/HMCL/commit/583e004d718102ae4489aa3f64bcde0c0161d000). I understand that this is not what the HMCL developers wanted. I will not demand that HMCL or other launcher developers restore game downloads. Instead, I chose to build FYL to preserve users' freedom, including the freedom to download the game.
 
 > FYL is still in early development and may contain many bugs. If you encounter a problem, open the Issues tab at the top of the repository page.
+
+Choose Simplified Chinese, Traditional Chinese, English, Russian, French or German under Settings → General.
 
 ## Build and run
 

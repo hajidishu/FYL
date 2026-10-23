@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
@@ -5,7 +6,25 @@ import '../core/community_models.dart';
 import '../core/mod_catalog.dart' show compareComponentVersions;
 import 'theme.dart';
 
-String formatContentDownloads(int count) {
+String formatContentDownloads(int count, {String language = 'zh-Hans'}) {
+  if (!language.startsWith('zh')) {
+    final labels = switch (language) {
+      'ru' => ['тыс.', 'млн', 'млрд', 'трлн'],
+      'fr' => ['k', 'M', 'Md', 'T'],
+      'de' => ['Tsd.', 'Mio.', 'Mrd.', 'Bio.'],
+      _ => ['K', 'M', 'B', 'T'],
+    };
+    if (count < 1000) return '$count';
+    var value = count / 1000;
+    var unit = 0;
+    while (value >= 1000 && unit < labels.length - 1) {
+      value /= 1000;
+      unit++;
+    }
+    var number = value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+    if (language != 'en') number = number.replaceFirst('.', ',');
+    return '$number ${labels[unit]}';
+  }
   if (count < 10000) return '$count';
   var unit = count >= 100000000 ? '亿' : '万';
   var value = (count / (unit == '亿' ? 100000000 : 10000)).toStringAsFixed(2);
@@ -13,7 +32,11 @@ String formatContentDownloads(int count) {
     unit = '亿';
     value = '1.00';
   }
-  return '${value.replaceFirst(RegExp(r'\.?0+$'), '')} $unit';
+  return '${value.replaceFirst(RegExp(r'\.?0+$'), '')} ${language == 'zh-Hant'
+      ? unit == '亿'
+            ? '億'
+            : '萬'
+      : unit}';
 }
 
 String formatContentAge(DateTime? value, {DateTime? now}) {
@@ -109,12 +132,18 @@ class SupportedContentVersions extends StatelessWidget {
       'minecraft': '原版',
     };
     final loaderText = loaders
-        .map((value) => names[value.toLowerCase()] ?? value)
+        .map(
+          (value) => AppLocalizations.of(
+            context,
+          ).text(names[value.toLowerCase()] ?? value),
+        )
         .toSet()
         .join(' / ');
     final ranges = contentGameVersionRanges(gameVersions, releases: releases);
-    final supported = ranges.isEmpty ? '暂无正式版支持信息' : 'Minecraft $ranges';
-    return Tooltip(
+    final supported = ranges.isEmpty
+        ? AppLocalizations.of(context).text('暂无正式版支持信息')
+        : 'Minecraft $ranges';
+    return LTooltip(
       message: ranges.isEmpty ? supported : '支持的 Minecraft 版本：$ranges',
       constraints: const BoxConstraints(maxWidth: 480),
       child: Text(
@@ -156,24 +185,30 @@ class ProjectMetadata extends StatelessWidget {
           final stats = [
             _MetadataItem(
               icon: FIcons.download,
-              text: '${formatContentDownloads(project.downloads)} 次下载',
-              tooltip: '${project.downloads} 次下载',
+              text:
+                  '${formatContentDownloads(project.downloads, language: AppLocalizations.of(context).language)} 次下载',
+              tooltip: AppLocalizations.of(
+                context,
+              ).textOrNull('${project.downloads} 次下载'),
               compact: true,
             ),
             _MetadataItem(
               icon: FIcons.clock,
               text: formatContentAge(project.updated),
-              tooltip: project.updated
-                  ?.toLocal()
-                  .toIso8601String()
-                  .replaceFirst('T', ' ')
-                  .substring(0, 16),
+              tooltip: AppLocalizations.of(context).textOrNull(
+                project.updated
+                    ?.toLocal()
+                    .toIso8601String()
+                    .replaceFirst('T', ' ')
+                    .substring(0, 16),
+              ),
               compact: true,
             ),
             if (project.author.isNotEmpty)
               _MetadataItem(
                 icon: FIcons.user,
                 text: project.author,
+                localize: false,
                 compact: true,
               ),
           ];
@@ -216,18 +251,27 @@ class ProjectMetadata extends StatelessWidget {
           children: [
             _MetadataItem(
               icon: FIcons.download,
-              text: '${formatContentDownloads(project.downloads)} 次下载',
-              tooltip: '${project.downloads} 次下载',
+              text:
+                  '${formatContentDownloads(project.downloads, language: AppLocalizations.of(context).language)} 次下载',
+              tooltip: AppLocalizations.of(
+                context,
+              ).textOrNull('${project.downloads} 次下载'),
             ),
             _MetadataItem(
               icon: FIcons.clock,
               text: formatContentAge(project.updated),
-              tooltip: project.updated == null
-                  ? '更新时间未知'
-                  : '更新于 ${project.updated!.toLocal().toIso8601String().replaceFirst('T', ' ').substring(0, 16)}',
+              tooltip: AppLocalizations.of(context).textOrNull(
+                project.updated == null
+                    ? '更新时间未知'
+                    : '更新于 ${project.updated!.toLocal().toIso8601String().replaceFirst('T', ' ').substring(0, 16)}',
+              ),
             ),
             if (project.author.isNotEmpty)
-              _MetadataItem(icon: FIcons.user, text: project.author),
+              _MetadataItem(
+                icon: FIcons.user,
+                text: project.author,
+                localize: false,
+              ),
           ],
         ),
       ],
@@ -240,18 +284,22 @@ class _MetadataItem extends StatelessWidget {
   final String text;
   final String? tooltip;
   final bool compact;
+  final bool localize;
   const _MetadataItem({
     required this.icon,
     required this.text,
     this.tooltip,
     this.compact = false,
+    this.localize = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = LauncherColors.of(context).secondaryText;
     return Tooltip(
-      message: tooltip ?? text,
+      message: localize
+          ? AppLocalizations.of(context).text(tooltip ?? text)
+          : tooltip ?? text,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -259,7 +307,7 @@ class _MetadataItem extends StatelessWidget {
           SizedBox(width: compact ? 4 : 5),
           Flexible(
             child: Text(
-              text,
+              localize ? AppLocalizations.of(context).text(text) : text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(

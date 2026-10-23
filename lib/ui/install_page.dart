@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -126,8 +127,8 @@ class _InstallPageState extends State<InstallPage> {
 
   Future<void> localOptifine() async {
     final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'JAR', extensions: ['jar']),
+      acceptedTypeGroups: [
+        XTypeGroup(label: tr('JAR'), extensions: ['jar']),
       ],
     );
     if (file == null || !mounted) return;
@@ -147,8 +148,8 @@ class _InstallPageState extends State<InstallPage> {
 
   Future<void> localOptifabric() async {
     final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'JAR', extensions: ['jar']),
+      acceptedTypeGroups: [
+        XTypeGroup(label: tr('JAR'), extensions: ['jar']),
       ],
     );
     if (file == null || !mounted) return;
@@ -191,14 +192,14 @@ class _InstallPageState extends State<InstallPage> {
             children: [
               IconButton(
                 onPressed: widget.onBack,
-                tooltip: '返回版本列表',
+                tooltip: AppLocalizations.of(context).textOrNull('返回版本列表'),
                 icon: Icon(FIcons.arrowLeft, color: c.muted, size: 19),
               ),
               const SizedBox(width: 8),
               const ComponentIcon(GameComponent.minecraft, size: 44),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
+                child: LText(
                   '安装 Minecraft ${widget.version.id}',
                   style: const TextStyle(
                     fontSize: 22,
@@ -208,7 +209,7 @@ class _InstallPageState extends State<InstallPage> {
               ),
               IconButton(
                 onPressed: loading.isEmpty ? load : null,
-                tooltip: '刷新组件版本',
+                tooltip: AppLocalizations.of(context).textOrNull('刷新组件版本'),
                 icon: const Icon(FIcons.refreshCw, size: 16),
               ),
             ],
@@ -225,7 +226,7 @@ class _InstallPageState extends State<InstallPage> {
                     description: '同时作为 versions 下的文件夹名称。',
                   ),
                   const SizedBox(height: 18),
-                  Text(
+                  LText(
                     '可选组件',
                     style: TextStyle(color: c.muted, fontSize: 11, height: 1.7),
                   ),
@@ -341,7 +342,7 @@ class _InstallPageState extends State<InstallPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          const LText(
                             'Fabric 与 OptiFine 存在兼容性问题',
                             style: TextStyle(
                               fontSize: 13,
@@ -349,7 +350,7 @@ class _InstallPageState extends State<InstallPage> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          const LText(
                             '即使安装 OptiFabric，也可能与其他模组冲突。建议使用 Iris 替代 OptiFine；若继续此组合，请在上方选择对应的 OptiFabric。',
                             style: TextStyle(fontSize: 12, height: 1.7),
                           ),
@@ -368,7 +369,7 @@ class _InstallPageState extends State<InstallPage> {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Text(
+                  LText(
                     '安装目录：${widget.controller.settings.gameRoot}',
                     style: TextStyle(color: c.muted, fontSize: 11, height: 1.8),
                   ),
@@ -380,7 +381,7 @@ class _InstallPageState extends State<InstallPage> {
           if (formError != null || invalid != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Text(
+              child: LText(
                 formError ?? invalid!,
                 style: TextStyle(
                   fontSize: 12,
@@ -413,7 +414,7 @@ class _InstallPageState extends State<InstallPage> {
                     }
                     widget.onInstall(name.text.trim(), options);
                   },
-            child: const Text('开始安装'),
+            child: const LText('开始安装'),
           ),
         ],
       ),
@@ -464,7 +465,7 @@ class _InstallPageState extends State<InstallPage> {
                 children: [
                   ComponentIcon(componentFor(title), size: 40),
                   const SizedBox(width: 12),
-                  Text(
+                  LText(
                     title,
                     style: const TextStyle(
                       fontSize: 13,
@@ -473,7 +474,7 @@ class _InstallPageState extends State<InstallPage> {
                   ),
                   const SizedBox(width: 18),
                   Expanded(
-                    child: Text(
+                    child: LText(
                       enabled ? status : note ?? status,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -485,7 +486,9 @@ class _InstallPageState extends State<InstallPage> {
                   ),
                   if (selected != null)
                     IconButton(
-                      tooltip: '取消选择 $title',
+                      tooltip: AppLocalizations.of(
+                        context,
+                      ).textOrNull('取消选择 $title'),
                       onPressed: clear,
                       icon: const Icon(FIcons.x, size: 14),
                       visualDensity: VisualDensity.compact,
@@ -508,7 +511,7 @@ class _InstallPageState extends State<InstallPage> {
                   if (note != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Text(
+                      child: LText(
                         note,
                         style: TextStyle(color: c.muted, fontSize: 11),
                       ),
@@ -518,20 +521,20 @@ class _InstallPageState extends State<InstallPage> {
                   else if (rows.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
+                      child: LText(
                         failures[key] ?? '当前 Minecraft 版本暂无可用的 $title。',
                         style: TextStyle(color: c.muted, fontSize: 11),
                       ),
                     ),
                   if (rows.isNotEmpty) ...[
-                    Text(
+                    LText(
                       '最新版本',
                       style: TextStyle(color: c.muted, fontSize: 11),
                     ),
                     const SizedBox(height: 6),
                     rows.first,
                     const SizedBox(height: 14),
-                    Text(
+                    LText(
                       '全部版本 (${rows.length})',
                       style: TextStyle(color: c.muted, fontSize: 11),
                     ),
@@ -578,7 +581,7 @@ class _InstallPageState extends State<InstallPage> {
             ComponentIcon(component, size: 40),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
+              child: LText(
                 text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

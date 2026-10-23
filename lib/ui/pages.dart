@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'package:file_selector/file_selector.dart';
 
@@ -48,7 +49,7 @@ class PageHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                LText(
                   title,
                   style: TextStyle(
                     color: c.foreground,
@@ -58,7 +59,7 @@ class PageHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(subtitle, style: TextStyle(color: c.muted, fontSize: 12)),
+                LText(subtitle, style: TextStyle(color: c.muted, fontSize: 12)),
               ],
             ),
           ),
@@ -132,12 +133,12 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 30),
           Row(
             children: [
-              const Text(
+              const LText(
                 '快捷入口',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const Spacer(),
-              Text(
+              LText(
                 '${controller.instances.length} 个已安装版本',
                 style: TextStyle(color: c.muted, fontSize: 11),
               ),
@@ -195,7 +196,7 @@ class _HomePageState extends State<HomePage> {
                   Icon(FIcons.terminal, color: c.muted, size: 18),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
+                    child: LText(
                       '最近一次游戏退出码：${controller.lastExitCode}',
                       style: TextStyle(color: c.muted, fontSize: 12),
                     ),
@@ -285,7 +286,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const Spacer(),
                         Text(
-                          instance == null ? '未安装游戏' : instance.name,
+                          instance == null ? tr('未安装游戏') : instance.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -294,7 +295,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        Text(
+                        LText(
                           instance == null
                               ? '在下载管理中选择并安装 Minecraft。'
                               : '${instance.components.isEmpty ? '原版' : instance.components} · ${instance.version} · Java ${instance.javaMajor}+',
@@ -315,6 +316,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   if (instance != null) ...[
                     SelectBox<String>(
+                      localizeItems: false,
                       value: instance.id,
                       items: {
                         for (final item in controller.instances)
@@ -344,7 +346,7 @@ class _HomePageState extends State<HomePage> {
                               !hasAccount
                         ? null
                         : launch,
-                    child: Text(
+                    child: LText(
                       instance == null ? '安装游戏' : '启动游戏',
                       style: const TextStyle(
                         fontSize: 14,
@@ -355,7 +357,7 @@ class _HomePageState extends State<HomePage> {
                   if (instance != null && !hasAccount)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Text(
+                      child: LText(
                         '请先在首页添加或选择账号。',
                         style: TextStyle(color: c.muted, fontSize: 11),
                       ),
@@ -397,12 +399,12 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 18),
-            Text(
+            LText(
               title,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 5),
-            Text(subtitle, style: TextStyle(color: c.muted, fontSize: 10)),
+            LText(subtitle, style: TextStyle(color: c.muted, fontSize: 10)),
           ],
         ),
       ),
@@ -441,8 +443,8 @@ class InstancesPageState extends State<InstancesPage> {
         throw StateError('请等待当前任务完成。');
       }
       final file = await openFile(
-        acceptedTypeGroups: const [
-          XTypeGroup(label: 'Minecraft 整合包', extensions: ['mrpack', 'zip']),
+        acceptedTypeGroups: [
+          XTypeGroup(label: tr('Minecraft 整合包'), extensions: ['mrpack', 'zip']),
         ],
       );
       if (file == null) return;
@@ -575,7 +577,7 @@ class InstancesPageState extends State<InstancesPage> {
           if (visible.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
-              child: Text('没有匹配的游戏版本'),
+              child: LText('没有匹配的游戏版本'),
             ),
         ],
         for (final instance in visible) ...[
@@ -608,7 +610,7 @@ class InstancesPageState extends State<InstancesPage> {
                             ),
                           ),
                           const SizedBox(height: 5),
-                          Text(
+                          LText(
                             '${instance.components.isEmpty ? '原版' : instance.components} · ${instance.version} · Java ${instance.javaMajor}+',
                             style: TextStyle(color: c.muted, fontSize: 12),
                           ),
@@ -630,7 +632,12 @@ class InstancesPageState extends State<InstancesPage> {
                   runSpacing: 8,
                   children: [
                     Tag(instance.isolated ? '版本隔离' : '未隔离'),
-                    Tag(categoryOf(instance)),
+                    Tag(
+                      categoryOf(instance),
+                      localize:
+                          instance.category.trim().isEmpty ||
+                          instance.category == '整合包',
+                    ),
                     Tag(switch (instance.javaMode) {
                       InstanceJavaMode.inherit => '默认 Java',
                       InstanceJavaMode.automatic => '自动 Java',
@@ -829,14 +836,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   Icon(FIcons.globe, size: 12, color: c.muted),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
+                    child: LText(
                       '${widget.controller.settings.downloadSource.attribution}${widget.controller.manifestFromCache ? ' · 当前显示本地缓存' : ''}',
                       style: TextStyle(color: c.muted, fontSize: 10),
                     ),
                   ),
                   TextButton(
                     onPressed: () => widget.navigate(3),
-                    child: Text(
+                    child: LText(
                       '下载与版本设置',
                       style: TextStyle(color: c.accent, fontSize: 11),
                     ),
@@ -906,7 +913,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
                         key: ValueKey(
                           'dismiss-install-task-${identityHashCode(task)}',
                         ),
-                        tooltip: '移除任务记录',
+                        tooltip: AppLocalizations.of(
+                          context,
+                        ).textOrNull('移除任务记录'),
                         icon: const Icon(FIcons.x, size: 16),
                         onPressed: () => controller.dismissInstallTask(task),
                       ),
@@ -929,7 +938,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
+                      LText(
                         '${task.completedFiles} / ${task.totalFiles} 个文件 · 已传输 ${formatByteSize(task.downloadedBytes)}${task.cachedBytes == 0 ? '' : ' · 复用缓存 ${formatByteSize(task.cachedBytes)}'}',
                         style: TextStyle(color: c.muted, fontSize: 11),
                       ),
@@ -937,7 +946,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
+                  LText(
                     task.detail,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -952,7 +961,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     onPressed: controller.cancelInstall,
                   ),
                 ] else if (task.status == TaskStatus.completed) ...[
-                  Text(
+                  LText(
                     '${task.version.id} 安装完成。',
                     style: TextStyle(color: c.muted, fontSize: 12),
                   ),
@@ -965,7 +974,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   ),
                 ] else ...[
                   if (task.error != null)
-                    SelectableText(
+                    LSelectableText(
                       task.error!,
                       style: TextStyle(color: c.muted, fontSize: 12),
                     ),
