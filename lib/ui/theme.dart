@@ -125,12 +125,16 @@ class Surface extends StatelessWidget {
 class Tag extends StatelessWidget {
   final String text;
   final bool accent;
-  const Tag(this.text, {this.accent = false, super.key});
+  final bool compact;
+  const Tag(this.text, {this.accent = false, this.compact = false, super.key});
   @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 9,
+        vertical: compact ? 1 : 4,
+      ),
       decoration: BoxDecoration(
         color: accent ? c.accentBackground : c.raised,
         borderRadius: BorderRadius.circular(5),
@@ -139,6 +143,7 @@ class Tag extends StatelessWidget {
         text,
         style: TextStyle(
           fontSize: 12,
+          height: compact ? 1.2 : null,
           letterSpacing: 0,
           fontWeight: FontWeight.w500,
           color: accent ? c.accent : c.muted,

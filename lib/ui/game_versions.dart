@@ -83,7 +83,7 @@ class _GameVersionListState extends State<GameVersionList> {
                     if (needle.isEmpty && (release != null || preview != null))
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.only(bottom: 10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -124,7 +124,7 @@ class _GameVersionListState extends State<GameVersionList> {
                                       : Column(
                                           children: [
                                             _card(release, release, preview),
-                                            const SizedBox(height: 9),
+                                            const SizedBox(height: 4),
                                             _card(preview, release, preview),
                                           ],
                                         ),
@@ -192,7 +192,7 @@ class _GameVersionListState extends State<GameVersionList> {
       if (expanded)
         SliverList.separated(
           itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 9),
+          separatorBuilder: (_, _) => const SizedBox(height: 4),
           itemBuilder: (_, i) => _card(items[i], release, preview),
         ),
       if (expanded) const SliverToBoxAdapter(child: SizedBox(height: 12)),
@@ -209,18 +209,19 @@ class _GameVersionListState extends State<GameVersionList> {
       (i) => i.version == version.id,
     );
     return Surface(
-      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+      key: ValueKey('game-version-card-${version.id}'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: c.raised,
               borderRadius: BorderRadius.circular(8),
             ),
             child: VersionGroupIcon(version.group),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,20 +235,21 @@ class _GameVersionListState extends State<GameVersionList> {
                       version.id,
                       style: const TextStyle(
                         fontSize: 14,
+                        height: 1.2,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (version.id == release?.id)
-                      const Tag('最新正式版', accent: true),
+                      const Tag('最新正式版', accent: true, compact: true),
                     if (version.id == preview?.id)
-                      const Tag('最新预览版', accent: true),
-                    if (installed) const Tag('已安装'),
+                      const Tag('最新预览版', accent: true, compact: true),
+                    if (installed) const Tag('已安装', compact: true),
                   ],
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
                 Text(
                   '${version.group.label} · ${version.released.toLocal().toIso8601String().substring(0, 10)}',
-                  style: TextStyle(color: c.muted, fontSize: 11),
+                  style: TextStyle(color: c.muted, fontSize: 12, height: 1.25),
                 ),
               ],
             ),

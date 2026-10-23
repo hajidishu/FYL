@@ -302,6 +302,12 @@ class _InstanceModsState extends State<InstanceMods> {
   @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
+    final rowExtent =
+        (textScaler.scale(14) * 2.5 + textScaler.scale(12) * 1.25 + 23).clamp(
+          74.0,
+          double.infinity,
+        );
     final visible = mods
         .where(
           (m) =>
@@ -534,7 +540,7 @@ class _InstanceModsState extends State<InstanceMods> {
                 )
               : ListView.builder(
                   itemCount: visible.length,
-                  itemExtent: 116,
+                  itemExtent: rowExtent,
                   itemBuilder: (context, index) {
                     final mod = visible[index];
                     return Padding(
@@ -542,7 +548,7 @@ class _InstanceModsState extends State<InstanceMods> {
                       child: Surface(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
-                          vertical: 8,
+                          vertical: 6,
                         ),
                         child: Row(
                           children: [
@@ -595,6 +601,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             fontSize: 14,
+                                            height: 1.25,
                                             fontWeight: FontWeight.w600,
                                             color: mod.enabled
                                                 ? c.foreground
@@ -607,26 +614,36 @@ class _InstanceModsState extends State<InstanceMods> {
                                           ) ==
                                           true) ...[
                                         const SizedBox(width: 6),
-                                        const Tag('可更新', accent: true),
+                                        const Tag(
+                                          '可更新',
+                                          accent: true,
+                                          compact: true,
+                                        ),
                                       ],
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    mod.warning ??
-                                        (mod.description.isEmpty
-                                            ? p.basename(mod.path)
-                                            : mod.description.replaceAll(
-                                                '\n',
-                                                ' ',
-                                              )),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: c.secondaryText,
-                                      fontSize: 14,
-                                      height: 1.5,
-                                      letterSpacing: 0,
+                                  const SizedBox(height: 3),
+                                  Tooltip(
+                                    message: mod.warning ?? mod.description,
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 480,
+                                    ),
+                                    child: Text(
+                                      mod.warning ??
+                                          (mod.description.isEmpty
+                                              ? p.basename(mod.path)
+                                              : mod.description.replaceAll(
+                                                  '\n',
+                                                  ' ',
+                                                )),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: c.secondaryText,
+                                        fontSize: 14,
+                                        height: 1.25,
+                                        letterSpacing: 0,
+                                      ),
                                     ),
                                   ),
                                   Tooltip(
@@ -641,6 +658,7 @@ class _InstanceModsState extends State<InstanceMods> {
                                       style: TextStyle(
                                         color: c.muted,
                                         fontSize: 12,
+                                        height: 1.25,
                                       ),
                                     ),
                                   ),

@@ -358,7 +358,7 @@ class _CommunityPageState extends State<CommunityPage> {
         else
           SliverList.separated(
             itemCount: projects.length + (hasMore ? 1 : 0),
-            separatorBuilder: (_, _) => const SizedBox(height: 9),
+            separatorBuilder: (_, _) => const SizedBox(height: 4),
             itemBuilder: (context, index) {
               if (index == projects.length) {
                 return AppButton(
@@ -373,15 +373,21 @@ class _CommunityPageState extends State<CommunityPage> {
               }
               final project = projects[index];
               return InkWell(
+                key: ValueKey(
+                  'community-project-${project.source.name}-${project.id}',
+                ),
                 onTap: () => setState(() => selected = project),
                 borderRadius: BorderRadius.circular(14),
                 child: Surface(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      ProjectIcon(project: project, size: 64),
-                      const SizedBox(width: 14),
+                      ProjectIcon(project: project, size: 48),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,31 +400,37 @@ class _CommunityPageState extends State<CommunityPage> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 15,
+                                      height: 1.2,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                SourceBadge(project.source),
+                                SourceBadge(project.source, compact: true),
                               ],
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              project.summary,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: c.secondaryText,
-                                fontSize: 14,
-                                height: 1.6,
-                                letterSpacing: 0,
+                            const SizedBox(height: 2),
+                            Tooltip(
+                              message: project.summary,
+                              constraints: const BoxConstraints(maxWidth: 480),
+                              child: Text(
+                                project.summary,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: c.secondaryText,
+                                  fontSize: 14,
+                                  height: 1.2,
+                                  letterSpacing: 0,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 2),
                             ProjectMetadata(
                               project: project,
                               releases: releases,
+                              compact: true,
                             ),
                           ],
                         ),
@@ -468,10 +480,14 @@ class ProjectIcon extends StatelessWidget {
 
 class SourceBadge extends StatelessWidget {
   final ContentSource source;
-  const SourceBadge(this.source, {super.key});
+  final bool compact;
+  const SourceBadge(this.source, {this.compact = false, super.key});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    padding: EdgeInsets.symmetric(
+      horizontal: compact ? 6 : 7,
+      vertical: compact ? 1 : 3,
+    ),
     decoration: BoxDecoration(
       color:
           (source == ContentSource.modrinth
@@ -485,6 +501,7 @@ class SourceBadge extends StatelessWidget {
       style: TextStyle(
         color: LauncherColors.of(context).foreground,
         fontSize: 12,
+        height: compact ? 1.2 : 1.5,
       ),
     ),
   );
@@ -973,7 +990,10 @@ class _ContentDetailsState extends State<ContentDetails> {
                       children: [
                         for (final release in groups[groupNames[i]]!)
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             child: Row(
                               children: [
                                 ProjectIcon(project: project, size: 40),
@@ -983,22 +1003,30 @@ class _ContentDetailsState extends State<ContentDetails> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        release.name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
+                                      Tooltip(
+                                        message: release.name,
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 480,
+                                        ),
+                                        child: Text(
+                                          release.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            height: 1.25,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       SupportedContentVersions(
                                         gameVersions: release.gameVersions,
                                         loaders: release.loaders,
                                         releases: releases,
+                                        compact: true,
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       Text(
                                         '${_date(release.published)} · ${switch (release.releaseType) {
                                           'beta' => '测试版',
@@ -1008,6 +1036,7 @@ class _ContentDetailsState extends State<ContentDetails> {
                                         style: TextStyle(
                                           color: c.muted,
                                           fontSize: 12,
+                                          height: 1.25,
                                         ),
                                       ),
                                     ],

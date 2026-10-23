@@ -87,10 +87,12 @@ String formatContentGameVersions(
 class SupportedContentVersions extends StatelessWidget {
   final List<String> gameVersions, loaders;
   final Iterable<String> releases;
+  final bool compact;
   const SupportedContentVersions({
     required this.gameVersions,
     required this.loaders,
     this.releases = const [],
+    this.compact = false,
     super.key,
   });
 
@@ -117,12 +119,12 @@ class SupportedContentVersions extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 480),
       child: Text(
         '${loaderText.isEmpty ? '' : '$loaderText · '}$supported',
-        maxLines: 2,
+        maxLines: compact ? 1 : 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: LauncherColors.of(context).secondaryText,
           fontSize: 12,
-          height: 1.5,
+          height: compact ? 1.25 : 1.5,
         ),
       ),
     );
@@ -132,51 +134,118 @@ class SupportedContentVersions extends StatelessWidget {
 class ProjectMetadata extends StatelessWidget {
   final ContentProject project;
   final Iterable<String> releases;
+  final bool compact;
   const ProjectMetadata({
     required this.project,
     this.releases = const [],
+    this.compact = false,
     super.key,
   });
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      SupportedContentVersions(
-        gameVersions: project.gameVersions,
-        loaders: project.loaders,
-        releases: releases,
-      ),
-      const SizedBox(height: 6),
-      Wrap(
-        spacing: 16,
-        runSpacing: 6,
-        children: [
-          _MetadataItem(
-            icon: FIcons.download,
-            text: '${formatContentDownloads(project.downloads)} 次下载',
-            tooltip: '${project.downloads} 次下载',
-          ),
-          _MetadataItem(
-            icon: FIcons.clock,
-            text: formatContentAge(project.updated),
-            tooltip: project.updated == null
-                ? '更新时间未知'
-                : '更新于 ${project.updated!.toLocal().toIso8601String().replaceFirst('T', ' ').substring(0, 16)}',
-          ),
-          if (project.author.isNotEmpty)
-            _MetadataItem(icon: FIcons.user, text: project.author),
-        ],
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    if (compact) {
+      return LayoutBuilder(
+        builder: (_, constraints) {
+          final supported = SupportedContentVersions(
+            gameVersions: project.gameVersions,
+            loaders: project.loaders,
+            releases: releases,
+            compact: true,
+          );
+          final stats = [
+            _MetadataItem(
+              icon: FIcons.download,
+              text: '${formatContentDownloads(project.downloads)} 次下载',
+              tooltip: '${project.downloads} 次下载',
+              compact: true,
+            ),
+            _MetadataItem(
+              icon: FIcons.clock,
+              text: formatContentAge(project.updated),
+              tooltip: project.updated
+                  ?.toLocal()
+                  .toIso8601String()
+                  .replaceFirst('T', ' ')
+                  .substring(0, 16),
+              compact: true,
+            ),
+            if (project.author.isNotEmpty)
+              _MetadataItem(
+                icon: FIcons.user,
+                text: project.author,
+                compact: true,
+              ),
+          ];
+          final narrow =
+              constraints.maxWidth <
+              520 * MediaQuery.textScalerOf(context).scale(12) / 12;
+          final row = Row(
+            children: [
+              if (!narrow) ...[
+                Expanded(flex: 5, child: supported),
+                const SizedBox(width: 12),
+              ],
+              for (var i = 0; i < stats.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Flexible(flex: 2, child: stats[i]),
+              ],
+            ],
+          );
+          return narrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [supported, const SizedBox(height: 2), row],
+                )
+              : row;
+        },
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SupportedContentVersions(
+          gameVersions: project.gameVersions,
+          loaders: project.loaders,
+          releases: releases,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 16,
+          runSpacing: 6,
+          children: [
+            _MetadataItem(
+              icon: FIcons.download,
+              text: '${formatContentDownloads(project.downloads)} 次下载',
+              tooltip: '${project.downloads} 次下载',
+            ),
+            _MetadataItem(
+              icon: FIcons.clock,
+              text: formatContentAge(project.updated),
+              tooltip: project.updated == null
+                  ? '更新时间未知'
+                  : '更新于 ${project.updated!.toLocal().toIso8601String().replaceFirst('T', ' ').substring(0, 16)}',
+            ),
+            if (project.author.isNotEmpty)
+              _MetadataItem(icon: FIcons.user, text: project.author),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _MetadataItem extends StatelessWidget {
   final IconData icon;
   final String text;
   final String? tooltip;
-  const _MetadataItem({required this.icon, required this.text, this.tooltip});
+  final bool compact;
+  const _MetadataItem({
+    required this.icon,
+    required this.text,
+    this.tooltip,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -186,14 +255,18 @@ class _MetadataItem extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
+          Icon(icon, size: compact ? 12 : 13, color: color),
+          SizedBox(width: compact ? 4 : 5),
           Flexible(
             child: Text(
               text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontSize: 12, height: 1.5),
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                height: compact ? 1.25 : 1.5,
+              ),
             ),
           ),
         ],
