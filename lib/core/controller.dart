@@ -29,6 +29,7 @@ import 'launch_progress.dart';
 import 'launch_worker.dart';
 import 'launch_tips.dart';
 import 'system_memory.dart';
+import 'data_directory.dart';
 
 class RunningGame {
   bool finished = false;
@@ -53,6 +54,9 @@ class LauncherController extends ChangeNotifier {
   final ContentCatalogFactory? _communityCatalogFactory;
   final LaunchTips launchTips;
   final MemoryProbe memoryProbe;
+  final DataDirectoryManager? dataDirectories;
+  final Future<void> Function(String directory, bool migrate)?
+  onDataDirectoryChange;
   Future<String?>? launchTip;
   ContentCatalogFactory get communityCatalogFactory =>
       _communityCatalogFactory ?? CommunityCatalog.new;
@@ -143,6 +147,8 @@ class LauncherController extends ChangeNotifier {
     ContentCatalogFactory? communityCatalogFactory,
     LaunchTips? launchTips,
     this.memoryProbe = readSystemMemory,
+    this.dataDirectories,
+    this.onDataDirectoryChange,
   }) : launchTips = launchTips ?? LaunchTips(),
        _communityCatalogFactory = communityCatalogFactory,
        appSecrets =
@@ -217,6 +223,11 @@ class LauncherController extends ChangeNotifier {
         errorMessage =
             '设置文件无法读取。原文件已保留，请检查 $supportDirectory 中的 launcher.json。';
       } else {
+        final savedDirectory = data['dataDirectory'];
+        if (savedDirectory is String &&
+            !p.equals(savedDirectory, supportDirectory)) {
+          rebaseDataPaths(data, savedDirectory, supportDirectory);
+        }
         loadCurseForgeKey = data['hasCurseforgeApiKey'] == true;
         settings = LauncherSettings.fromJson(
           data['settings'] as Json? ?? {},
@@ -262,6 +273,7 @@ class LauncherController extends ChangeNotifier {
   Future<void> _save() {
     final data = <String, dynamic>{
       'schemaVersion': 2,
+      'dataDirectory': supportDirectory,
       'settings': settings.toJson(),
       'instances': instances.map((i) => i.toJson()).toList(),
       'selectedId': selectedId,
@@ -308,6 +320,17 @@ class LauncherController extends ChangeNotifier {
     }
     notice = '设置已保存';
     notifyListeners();
+  }
+
+  Future<void> changeDataDirectory(
+    String directory, {
+    required bool migrate,
+  }) async {
+    if (installing || running) throw StateError('请先结束下载任务并关闭正在运行的游戏，再切换数据目录。');
+    final change = onDataDirectoryChange;
+    if (change == null) throw StateError('当前运行环境不支持切换数据目录。');
+    await flush();
+    await change(directory, migrate);
   }
 
   Future<void> addOfflineAccount(String username) async {

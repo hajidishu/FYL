@@ -36,6 +36,13 @@ test-results/
 .minecraft/
 .fyl/
 .fyl-trash/
+FYL-data/
+fyl-storage.json
+fyl-storage.json.*
+*.fyl-migration-*/
+.fyl-data.lock
+.fyl-migration.json
+.fyl-migration-owner
 *.tmp
 *.bak
 *.dmp

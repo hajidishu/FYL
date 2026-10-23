@@ -122,6 +122,21 @@ class ReleaseTests(unittest.TestCase):
                 self.assertEqual(executable.mode & 0o111, 0o111)
             self.assertIsNotNone(contents.getmember("FYL/ARTWORK-SOURCES.txt"))
 
+    def test_portable_user_data_and_custom_profile_never_enter_release_archive(self):
+        self.binary("windows")
+        base = "build/windows/x64/runner/Release/"
+        for path in ("FYL-data/launcher.json", "FYL-data/credentials/session.dpapi",
+                     "custom-profile/launcher.json", "custom-profile/credentials/account.dpapi",
+                     "custom-profile.fyl-migration-1234567890/partial", "fyl-storage.json.bak"):
+            self.write(base + path, "private fixture")
+        self.write(base + "fyl-storage.json", json.dumps({"dataDirectory": "custom-profile"}))
+        self.write(base + "data/flutter_assets/public", "resource")
+        archive = release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40)
+        with zipfile.ZipFile(archive) as contents:
+            names = contents.namelist()
+            self.assertIn("FYL/data/flutter_assets/public", names)
+            self.assertFalse(any("FYL-data" in name or "custom-profile" in name or "fyl-storage" in name for name in names))
+
     def test_bundle_must_not_link_to_files_outside_it(self):
         self.binary("linux")
         outside = self.write("private.txt", "do not package")

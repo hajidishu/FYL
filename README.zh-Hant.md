@@ -51,6 +51,12 @@ flutter pub get
 - macOS：`build/macos/Build/Products/Release/`
 - Linux：`build/linux/x64/release/bundle/`
 
+## 資料儲存
+
+預設儲存在程式旁的 `FYL-data/` 資料夾。可在「設定 → 資料儲存」中變更目錄，並選擇是否自動遷移；偵測到舊版 AppData 資料時會提供遷移入口。另行設定在外部的遊戲目錄保持原位。
+
+亦可透過 `--data-dir "目錄路徑"` 啟動參數或 `FYL_DATA_DIR` 環境變數指定目錄。程式旁的 `fyl-storage.json` 僅記錄目錄位置；使用啟動參數或環境變數時無須寫入此檔案。
+
 ## 授權條款與致謝
 
 FYL 的原始碼採用 [GPL-3](http://www.gnu.org/licenses/gpl-3.0) 授權條款發布。

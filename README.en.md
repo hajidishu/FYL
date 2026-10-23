@@ -51,6 +51,12 @@ Build output:
 - macOS: `build/macos/Build/Products/Release/`
 - Linux: `build/linux/x64/release/bundle/`
 
+## Data storage
+
+Data is stored in `FYL-data/` next to the launcher by default. Change it under Settings → Data storage and choose whether to migrate existing data. FYL offers to migrate data from the previous AppData location when detected. Game directories configured outside the data folder stay in place.
+
+You can also use the `--data-dir "path"` startup argument or the `FYL_DATA_DIR` environment variable. `fyl-storage.json` next to the launcher records the selected location; command-line and environment overrides do not require this file to be written.
+
 ## License and acknowledgements
 
 FYL's source code is released under the [GPL-3](http://www.gnu.org/licenses/gpl-3.0) license.

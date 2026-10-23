@@ -136,9 +136,23 @@ def package(root, target, version, repository, sha):
         "linux": "free_your_launcher",
     }[target]
     arch = architecture(target, executable)
-    for entry in bundle.rglob("*"):
-        if entry.is_symlink() and not entry.resolve(strict=True).is_relative_to(bundle.resolve()):
-            raise ValueError(f"Bundle contains an external symlink: {entry.name}")
+    private_names = {"FYL-data", "fyl-storage.json", "fyl-storage.json.bak", "fyl-storage.json.tmp"}
+    storage = bundle / "fyl-storage.json"
+    if storage.is_file():
+        selected = json.loads(storage.read_text(encoding="utf-8"))["dataDirectory"]
+        selected = Path(selected) if Path(selected).is_absolute() else bundle / selected
+        if selected.resolve().is_relative_to(bundle.resolve()):
+            relative = selected.resolve().relative_to(bundle.resolve())
+            if not relative.parts or relative.parts[0] in {"data", "lib", "plugins", executable.name}:
+                raise ValueError("Custom data directory overlaps launcher runtime files")
+            private_names.add(relative.parts[0])
+    for entry in bundle.iterdir():
+        if entry.name in private_names or ".fyl-migration-" in entry.name:
+            continue
+        candidates = [entry, *entry.rglob("*")] if entry.is_dir() and not entry.is_symlink() else [entry]
+        for candidate in candidates:
+            if candidate.is_symlink() and not candidate.resolve(strict=True).is_relative_to(bundle.resolve()):
+                raise ValueError(f"Bundle contains an external symlink: {candidate.name}")
     name = f"FYL-{version}-{target}-{arch}"
     extension = ".tar.gz" if target == "linux" else ".zip"
     output = root / "build/releases" / (name + extension)
@@ -150,7 +164,11 @@ def package(root, target, version, repository, sha):
         staging.mkdir(parents=True)
         subprocess.run(["ditto", str(bundle), str(staging / bundle.name)], check=True)
     else:
-        shutil.copytree(bundle, staging, symlinks=True)
+        def ignore_private(directory, names):
+            if Path(directory) == bundle:
+                return {name for name in names if name in private_names or ".fyl-migration-" in name}
+            return set()
+        shutil.copytree(bundle, staging, symlinks=True, ignore=ignore_private)
     shutil.copyfile(root / "LICENSE", staging / "LICENSE-FYL.txt")
     shutil.copyfile(root / "assets/components/SOURCES.txt", staging / "ARTWORK-SOURCES.txt")
     (staging / "SOURCE.txt").write_text(

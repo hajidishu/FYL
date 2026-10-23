@@ -36,6 +36,7 @@ class SettingsPageState extends State<SettingsPage> {
   int group = 0;
   bool dirty = false;
   bool saving = false;
+  bool migrateData = true;
   String? error;
   late final JavaDiscovery javaDiscovery;
   List<JavaInstallation> installations = [];
@@ -53,6 +54,7 @@ class SettingsPageState extends State<SettingsPage> {
     '下载与版本',
     '社区资源',
     '日志',
+    '数据存储',
   ];
 
   @override
@@ -83,6 +85,9 @@ class SettingsPageState extends State<SettingsPage> {
     }
     fields['curseforgeApiKey'] = TextEditingController(
       text: draft.curseforgeApiKey,
+    );
+    fields['dataDirectory'] = TextEditingController(
+      text: widget.controller.supportDirectory,
     );
     if (draft.minMemory == 0) fields['minMemory']!.clear();
   }
@@ -239,6 +244,48 @@ class SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> save() async {
+    final directory = fields['dataDirectory']!.text.trim();
+    final changingDirectory = !p.equals(
+      directory,
+      widget.controller.supportDirectory,
+    );
+    if (changingDirectory) {
+      if (widget.controller.installing || widget.controller.running) {
+        setState(() => error = '请先结束下载任务并关闭正在运行的游戏，再切换数据目录。');
+        return;
+      }
+      try {
+        await widget.controller.dataDirectories!.validateDestination(
+          directory,
+          source: widget.controller.supportDirectory,
+          migrate: migrateData,
+        );
+      } catch (e) {
+        if (mounted) setState(() => error = '数据目录无效：$e');
+        return;
+      }
+      if (!mounted) return;
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('切换数据目录'),
+          content: Text(
+            migrateData
+                ? '将数据迁移到：\n$directory\n\n完成后重新加载启动器并清理旧目录。外部游戏目录保持原位。'
+                : '将使用以下目录中的数据：\n$directory\n\n当前数据不会迁移，原目录保留。',
+          ),
+          actions: [
+            AppButton(
+              '取消',
+              secondary: true,
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            AppButton('应用并重新加载', onPressed: () => Navigator.pop(context, true)),
+          ],
+        ),
+      );
+      if (accepted != true || !mounted) return;
+    }
     final next = draft.copy();
     next.gameRoot = fields['gameRoot']!.text.trim();
     next.microsoftClientId = LauncherSettings.resolveMicrosoftClientId(
@@ -269,6 +316,12 @@ class SettingsPageState extends State<SettingsPage> {
     setState(() => saving = true);
     try {
       await widget.controller.saveSettings(next);
+      if (changingDirectory) {
+        await widget.controller.changeDataDirectory(
+          directory,
+          migrate: migrateData,
+        );
+      }
       if (!mounted) return;
       draft = next;
       fields['microsoftClientId']!.text = next.microsoftClientId;
@@ -342,7 +395,8 @@ class SettingsPageState extends State<SettingsPage> {
                     4 => _window(),
                     5 => _downloads(),
                     6 => _community(),
-                    _ => _logs(),
+                    7 => _logs(),
+                    _ => _dataStorage(),
                   },
                   const SizedBox(height: 18),
                   const SizedBox(height: 30),
@@ -450,6 +504,91 @@ class SettingsPageState extends State<SettingsPage> {
       description: '默认 1 份，可设置为 1–50。运行中或错误报告正在使用的日志暂不清理。',
     ),
   ]);
+
+  Widget _dataStorage() {
+    final directories = widget.controller.dataDirectories;
+    final enabled =
+        directories != null && directories.directoryOverride == null && !saving;
+    return _section('启动器数据目录', '保存启动器设置、账号、缓存和默认游戏目录。', [
+      const Text('当前目录', style: TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      SelectableText(widget.controller.supportDirectory),
+      const SizedBox(height: 18),
+      _field(
+        'dataDirectory',
+        '数据目录',
+        enabled: enabled,
+        description: directories?.directoryOverride != null
+            ? '当前目录由 --data-dir 或 FYL_DATA_DIR 指定。'
+            : '修改后保存，将重新加载启动器。',
+      ),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          AppButton(
+            '选择文件夹',
+            icon: FIcons.folderOpen,
+            secondary: true,
+            small: true,
+            key: const ValueKey('choose-data-directory'),
+            onPressed: !enabled
+                ? null
+                : () async {
+                    final path = await getDirectoryPath(
+                      initialDirectory: widget.controller.supportDirectory,
+                      confirmButtonText: '选择数据目录',
+                    );
+                    if (path != null && mounted) {
+                      fields['dataDirectory']!.text = path;
+                      changed();
+                    }
+                  },
+          ),
+          AppButton(
+            '恢复默认目录',
+            icon: FIcons.rotateCcw,
+            secondary: true,
+            small: true,
+            key: const ValueKey('reset-data-directory'),
+            onPressed: !enabled
+                ? null
+                : () {
+                    fields['dataDirectory']!.text =
+                        directories.defaultDirectory;
+                    changed();
+                  },
+          ),
+          AppButton(
+            '打开当前目录',
+            icon: FIcons.folderOpen,
+            secondary: true,
+            small: true,
+            onPressed: () => widget.controller.openDirectory(
+              widget.controller.supportDirectory,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      CheckboxListTile(
+        contentPadding: EdgeInsets.zero,
+        key: const ValueKey('migrate-launcher-data'),
+        title: const Text('自动迁移数据', style: TextStyle(fontSize: 13)),
+        subtitle: const Text(
+          '包含当前数据目录中的游戏、设置和账号；校验完成后清理旧目录。',
+          style: TextStyle(fontSize: 12),
+        ),
+        value: migrateData,
+        onChanged: !enabled
+            ? null
+            : (value) {
+                migrateData = value!;
+                changed();
+              },
+      ),
+    ]);
+  }
 
   Widget _appearance() => _section('界面外观', '调整主题和界面色调。', [
     const Text(
