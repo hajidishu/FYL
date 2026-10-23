@@ -24,6 +24,9 @@ import 'local_mods.dart';
 import 'mod_updates.dart';
 import 'community_catalog.dart';
 import 'pack_import.dart' show ensurePackParents;
+import 'game_window.dart';
+import 'launch_progress.dart';
+import 'launch_worker.dart';
 
 class RunningGame {
   bool finished = false;
@@ -100,6 +103,10 @@ class LauncherController extends ChangeNotifier {
   bool loadingVersions = false;
   bool manifestFromCache = false;
   bool preparingLaunch = false;
+  LaunchProgress? launchProgress;
+  String? launchingInstanceName;
+  int get launchSequence => _launchSequence;
+  GameWindowWaiter? _windowWaiter;
   String? instanceOperation;
   String? repairingInstanceId;
   InstallTask? repairTask;
@@ -156,7 +163,7 @@ class LauncherController extends ChangeNotifier {
       content.tasks.any((t) => t.state == ContentTaskState.running);
   bool get running => preparingLaunch || runningGames.isNotEmpty;
   String get activityText {
-    if (preparingLaunch) return '正在准备启动';
+    if (preparingLaunch) return launchProgress?.phase.label ?? '正在准备启动';
     if (instanceOperation != null) return '正在$instanceOperation';
     if (tasks.any((t) => t.status == TaskStatus.running)) return '正在安装游戏';
     if (content.tasks.any((t) => t.state == ContentTaskState.running)) {
@@ -957,7 +964,31 @@ class LauncherController extends ChangeNotifier {
     GameInstance instance,
     LauncherSettings snapshot,
     GameSession session,
-  ) => MinecraftRunner(platform).prepare(instance, snapshot, session: session);
+  ) => prepareGameInBackground(
+    platform,
+    instance,
+    snapshot,
+    session,
+    _launchProgress,
+  );
+
+  void _launchProgress(LaunchProgress progress) {
+    if (_disposed || !preparingLaunch) return;
+    final changed = launchProgress?.phase != progress.phase;
+    launchProgress = progress;
+    if (changed) {
+      notifyListeners();
+    } else {
+      _throttledNotify();
+    }
+  }
+
+  Future<bool> waitForGameWindow(RunningGame game, GameWindowWaiter waiter) =>
+      waiter.wait(game.process);
+
+  void stopWaitingForGameWindow() {
+    if (launchProgress?.phase == LaunchPhase.window) _windowWaiter?.stop();
+  }
 
   Future<Process> startGameProcess(LaunchCommand command) => Process.start(
     command.executable,
@@ -1021,6 +1052,8 @@ class LauncherController extends ChangeNotifier {
     }
     final sequence = ++_launchSequence;
     preparingLaunch = true;
+    launchingInstanceName = instance.name;
+    launchProgress = const LaunchProgress(LaunchPhase.account);
     _logGame = null;
     lastExitCode = null;
     lastLogPath = null;
@@ -1036,6 +1069,7 @@ class LauncherController extends ChangeNotifier {
       if (command.memory != null) logs.add(command.memory!.logMessage);
       if (_disposed) throw const Cancelled();
       if (snapshot.preLaunchCommand.trim().isNotEmpty) {
+        _launchProgress(const LaunchProgress(LaunchPhase.hook));
         final hook = await runPreLaunchCommand(
           snapshot.preLaunchCommand,
           command.workingDirectory,
@@ -1071,6 +1105,7 @@ class LauncherController extends ChangeNotifier {
         log.writeln(line);
       }
       if (_disposed) throw const Cancelled();
+      _launchProgress(const LaunchProgress(LaunchPhase.process));
       final process = await startGameProcess(command);
       final game = RunningGame(
         process: process,
@@ -1080,9 +1115,8 @@ class LauncherController extends ChangeNotifier {
       runningGames.add(game);
       versionLogs[instance.id] = versionLog;
       _logGame = game;
-      preparingLaunch = false;
-      notice = '游戏已启动';
-      notifyListeners();
+      final waiter = _windowWaiter = GameWindowWaiter();
+      _launchProgress(const LaunchProgress(LaunchPhase.window));
       final stdoutFormatter = GameLogFormatter();
       final stderrFormatter = GameLogFormatter();
       void line(String value, GameLogFormatter formatter) {
@@ -1092,6 +1126,7 @@ class LauncherController extends ChangeNotifier {
         log?.writeln(value);
         final formatted = formatter.format(value);
         if (formatted == null || formatted.isEmpty) return;
+        waiter.observe(formatted);
         versionLog.append(formatted);
         if (_launchSequence == sequence) {
           logs.add(formatted);
@@ -1112,10 +1147,12 @@ class LauncherController extends ChangeNotifier {
           .transform(const Utf8Decoder(allowMalformed: true))
           .transform(const LineSplitter())
           .forEach((value) => line(value, stderrFormatter));
+      var processExited = false;
       unawaited(() async {
         int? exitCode;
         try {
           final code = await process.exitCode;
+          processExited = true;
           exitCode = code;
           versionLog.exitCode = code;
           versionLog.endedAt = DateTime.now();
@@ -1209,9 +1246,30 @@ class LauncherController extends ChangeNotifier {
           notifyListeners();
         }
       }());
-      return true;
-    } catch (e) {
+      bool ready;
+      try {
+        ready = await waitForGameWindow(game, waiter);
+      } finally {
+        waiter.stop();
+        if (identical(_windowWaiter, waiter)) _windowWaiter = null;
+      }
+      if (_disposed) return false;
       preparingLaunch = false;
+      launchProgress = null;
+      launchingInstanceName = null;
+      if (ready) {
+        notice = '游戏窗口已打开';
+      } else if (!processExited && runningGames.contains(game) && !game.finished) {
+        notice = '已停止等待游戏窗口，游戏进程继续运行。';
+      }
+      notifyListeners();
+      return ready;
+    } catch (e) {
+      _windowWaiter?.stop();
+      _windowWaiter = null;
+      preparingLaunch = false;
+      launchProgress = null;
+      launchingInstanceName = null;
       errorMessage = '$e';
       try {
         await log?.close();
@@ -1258,6 +1316,7 @@ class LauncherController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _windowWaiter?.stop();
     _notifyTimer?.cancel();
     _usernameTimer?.cancel();
     _installToken?.cancel();

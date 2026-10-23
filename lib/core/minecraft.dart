@@ -14,6 +14,7 @@ import 'mod_installer.dart';
 import 'game_options.dart';
 import 'memory_allocation.dart';
 import 'system_memory.dart';
+import 'launch_progress.dart';
 
 const versionManifestUrl =
     'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
@@ -646,6 +647,7 @@ class MinecraftRunner {
     GameInstance instance,
     LauncherSettings settings, {
     GameSession? session,
+    void Function(LaunchProgress)? onProgress,
   }) async {
     settings = instance.effectiveSettings(settings);
     final usernameError = validateUsername(
@@ -654,11 +656,13 @@ class MinecraftRunner {
     if (usernameError != null) throw ArgumentError(usernameError);
     final settingsError = settings.validate();
     if (settingsError != null) throw ArgumentError(settingsError);
+    onProgress?.call(const LaunchProgress(LaunchPhase.metadata));
     final metadataFile = File(instance.metadataPath);
     if (!await metadataFile.exists()) {
       throw StateError('版本文件不完整，请在版本设置中补全与修复文件。');
     }
     final metadata = jsonDecode(await metadataFile.readAsString()) as Json;
+    onProgress?.call(const LaunchProgress(LaunchPhase.java));
     final java = await javaFor(instance, settings);
     final plan = planLibraries(metadata, instance.root, platform);
     final verifiable = [
@@ -678,12 +682,21 @@ class MinecraftRunner {
         ),
     ];
     if (settings.verifyDownloads) {
+      var completed = 0;
       for (final file in verifiable) {
+        onProgress?.call(
+          LaunchProgress(
+            LaunchPhase.files,
+            completed: completed,
+            total: verifiable.length,
+          ),
+        );
         if (!await file.matches(File(file.path))) {
           throw StateError(
             '游戏文件缺失或校验失败：${p.basename(file.path)}。请在版本设置中补全与修复文件。',
           );
         }
+        completed++;
       }
     }
     for (final path in [...plan.classpath, instance.clientJarPath]) {
@@ -691,6 +704,7 @@ class MinecraftRunner {
         throw StateError('游戏文件缺失：${p.basename(path)}。请在版本设置中补全与修复文件。');
       }
     }
+    onProgress?.call(const LaunchProgress(LaunchPhase.natives));
     final natives = p.join(instance.launcherDirectory, 'natives');
     await Directory(natives).create(recursive: true);
     // Only old metadata uses extraction; modern LWJGL loads native jars from the classpath.
@@ -705,6 +719,7 @@ class MinecraftRunner {
         await File(target).writeAsBytes(entry.content);
       }
     }
+    onProgress?.call(const LaunchProgress(LaunchPhase.resources));
     if (metadata['assetIndex'] != null) {
       final indexId = metadata['assetIndex']['id'] as String;
       final index =
@@ -745,6 +760,7 @@ class MinecraftRunner {
         }
       }
     }
+    onProgress?.call(const LaunchProgress(LaunchPhase.memory));
     return buildLaunchCommand(
       instance,
       metadata,

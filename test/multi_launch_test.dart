@@ -10,6 +10,8 @@ import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/minecraft.dart';
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/main.dart';
+import 'package:free_your_launcher/core/game_window.dart';
+import 'package:free_your_launcher/core/launch_progress.dart';
 import 'package:path/path.dart' as p;
 
 class ClientProcess implements Process {
@@ -38,6 +40,7 @@ class TestLauncher extends LauncherController {
   final processes = <ClientProcess>[];
   Completer<LaunchCommand>? preparation;
   bool failPreparation = false;
+  Completer<bool>? window;
   TestLauncher({required super.supportDirectory, required super.platform});
   @override
   Future<LaunchCommand> prepareLaunch(
@@ -56,6 +59,12 @@ class TestLauncher extends LauncherController {
     processes.add(process);
     return process;
   }
+
+  @override
+  Future<bool> waitForGameWindow(RunningGame game, GameWindowWaiter waiter) =>
+      window == null
+      ? Future.value(true)
+      : Future.any([window!.future, game.process.exitCode.then((_) => false)]);
 }
 
 Future<void> waitFor(bool Function() condition) async {
@@ -204,7 +213,37 @@ void main() {
     },
   );
 
-  testWidgets('the home button animates during launch and can launch again', (
+  test(
+    'the launching state lasts until this client opens its window',
+    () async {
+      final gate = controller.window = Completer<bool>();
+      final operation = controller.launch();
+      await waitFor(() => controller.runningGames.isNotEmpty);
+      expect(controller.preparingLaunch, isTrue);
+      expect(controller.launchProgress?.phase, LaunchPhase.window);
+      expect(await controller.launch(), isFalse);
+      gate.complete(true);
+      expect(await operation, isTrue);
+      expect(controller.preparingLaunch, isFalse);
+      expect(controller.launchProgress, isNull);
+      expect(controller.runningGames, hasLength(1));
+    },
+  );
+
+  test('exiting before the window restores the launch card', () async {
+    controller.window = Completer<bool>();
+    final operation = controller.launch();
+    await waitFor(() => controller.runningGames.isNotEmpty);
+    await controller.processes.single.finish(42);
+    expect(await operation, isFalse);
+    expect(controller.preparingLaunch, isFalse);
+    expect(controller.launchProgress, isNull);
+    await waitFor(() => controller.runningGames.isEmpty);
+    expect(controller.gameFailures.single.exitCode, 42);
+    expect(controller.notice, isNot(contains('进程继续运行')));
+  });
+
+  testWidgets('the home card is replaced during launch and can launch again', (
     tester,
   ) async {
     final gate = controller.preparation = Completer<LaunchCommand>();
@@ -219,7 +258,7 @@ void main() {
     });
     await tester.pump();
     expect(find.byKey(const ValueKey('launch-progress')), findsOneWidget);
-    expect(tester.widget<FButton>(button).onPress, isNull);
+    expect(button, findsNothing);
     await tester.runAsync(() async {
       gate.complete(LaunchCommand('test-java', [], first.gameDirectory));
       await waitFor(() => !controller.preparingLaunch);

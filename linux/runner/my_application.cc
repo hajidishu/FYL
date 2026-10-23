@@ -14,6 +14,58 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+// Returns null on desktops that prohibit cross-application window enumeration.
+static FlValue* game_window_visible(gint64 pid) {
+#ifdef GDK_WINDOWING_X11
+  GdkDisplay* display = gdk_display_get_default();
+  if (display && GDK_IS_X11_DISPLAY(display)) {
+    GList* windows = gdk_screen_get_window_stack(gdk_screen_get_default());
+    if (!windows) return fl_value_new_null();
+    gboolean visible = FALSE;
+    for (GList* item = windows; item && !visible; item = item->next) {
+      GdkWindow* window = GDK_WINDOW(item->data);
+      GdkAtom type;
+      gint format = 0, length = 0;
+      guchar* data = nullptr;
+      gdk_x11_display_error_trap_push(display);
+      gboolean found = gdk_property_get(window,
+          gdk_atom_intern_static_string("_NET_WM_PID"),
+          gdk_atom_intern_static_string("CARDINAL"), 0, 4, FALSE,
+          &type, &format, &length, &data);
+      int error = gdk_x11_display_error_trap_pop(display);
+      if (!error && found && data && format == 32 &&
+          length >= static_cast<gint>(sizeof(gulong)) &&
+          static_cast<gint64>(*reinterpret_cast<gulong*>(data)) == pid) {
+        visible = gdk_window_is_visible(window) &&
+            gdk_window_get_width(window) >= 64 && gdk_window_get_height(window) >= 64;
+      }
+      g_free(data);
+    }
+    g_list_free_full(windows, g_object_unref);
+    return fl_value_new_bool(visible);
+  }
+#endif
+  return fl_value_new_null();
+}
+
+static void game_window_call(FlMethodChannel* channel, FlMethodCall* call, gpointer data) {
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (g_strcmp0(fl_method_call_get_name(call), "isVisible") == 0) {
+    FlValue* arguments = fl_method_call_get_args(call);
+    FlValue* pid = arguments && fl_value_get_type(arguments) == FL_VALUE_TYPE_MAP
+        ? fl_value_lookup_string(arguments, "pid") : nullptr;
+    if (pid && fl_value_get_type(pid) == FL_VALUE_TYPE_INT && fl_value_get_int(pid) > 0) {
+      g_autoptr(FlValue) visible = game_window_visible(fl_value_get_int(pid));
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(visible));
+    } else {
+      response = FL_METHOD_RESPONSE(fl_method_error_response_new("invalid_pid", "Invalid game PID", nullptr));
+    }
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(call, response, nullptr);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -74,6 +126,11 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  g_autoptr(FlStandardMethodCodec) game_codec = fl_standard_method_codec_new();
+  g_autoptr(FlMethodChannel) game_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "fyl/game_window", FL_METHOD_CODEC(game_codec));
+  fl_method_channel_set_method_call_handler(game_channel, game_window_call, nullptr, nullptr);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

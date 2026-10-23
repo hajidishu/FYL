@@ -23,6 +23,8 @@ import 'content_tasks.dart';
 import 'instance_details.dart';
 import 'instance_icon.dart';
 import 'version_log_page.dart';
+import 'launch_loading_card.dart';
+import '../core/launch_progress.dart';
 
 class PageHeader extends StatelessWidget {
   final String title;
@@ -218,6 +220,17 @@ class _HomePageState extends State<HomePage> {
     final instance = controller.selectedInstance;
     final c = LauncherColors.of(context);
     final hasAccount = controller.activeAccount != null;
+    if (controller.preparingLaunch) {
+      return LaunchLoadingCard(
+        key: const ValueKey('launch-progress'),
+        instanceName:
+            controller.launchingInstanceName ?? instance?.name ?? 'Minecraft',
+        progress:
+            controller.launchProgress ??
+            const LaunchProgress(LaunchPhase.account),
+        onStopWaiting: controller.stopWaitingForGameWindow,
+      );
+    }
     return Surface(
       padding: EdgeInsets.zero,
       child: ClipRRect(
@@ -319,21 +332,9 @@ class _HomePageState extends State<HomePage> {
                   FButton(
                     key: const ValueKey('launch-game'),
                     size: FButtonSizeVariant.lg,
-                    prefix: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: controller.preparingLaunch
-                          ? SizedBox.square(
-                              key: const ValueKey('launch-progress'),
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: c.onAccent,
-                              ),
-                            )
-                          : Icon(
-                              instance == null ? FIcons.plus : FIcons.play,
-                              size: 18,
-                            ),
+                    prefix: Icon(
+                      instance == null ? FIcons.plus : FIcons.play,
+                      size: 18,
                     ),
                     onPress: instance == null
                         ? () => widget.navigate(2)
