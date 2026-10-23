@@ -30,6 +30,7 @@ import 'launch_worker.dart';
 import 'launch_tips.dart';
 import 'system_memory.dart';
 import 'data_directory.dart';
+import 'pack_updates.dart';
 
 class RunningGame {
   bool finished = false;
@@ -137,6 +138,7 @@ class LauncherController extends ChangeNotifier {
   Timer? _usernameTimer;
   Future<void> _saveTail = Future.value();
   bool _disposed = false;
+  bool _packRecoveryRequired = false;
 
   LauncherController({
     required this.supportDirectory,
@@ -172,6 +174,7 @@ class LauncherController extends ChangeNotifier {
   }
 
   bool get installing =>
+      _packRecoveryRequired ||
       instanceOperation != null ||
       tasks.any((t) => t.status == TaskStatus.running) ||
       content.tasks.any((t) => t.state == ContentTaskState.running);
@@ -266,6 +269,14 @@ class LauncherController extends ChangeNotifier {
       } catch (_) {
         errorMessage = '无法读取 CurseForge 访问密钥，请在设置中重新填写。';
       }
+    }
+    try {
+      notice = await recoverPackUpdate(supportDirectory, instances) ?? notice;
+    } catch (error) {
+      // Do not allow launching a version with an unresolved directory swap.
+      instanceOperation = '恢复整合包升级';
+      _packRecoveryRequired = true;
+      errorMessage = '无法恢复整合包升级，请保留数据并重新启动：$error';
     }
     notifyListeners();
   }
@@ -512,6 +523,269 @@ class LauncherController extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  Future<GameInstance> applyPackUpdate(
+    PackUpdatePreview preview,
+    Set<String> useIncoming,
+    ContentTask task, {
+    required bool keepOriginal,
+    String? copyName,
+  }) async {
+    final original = editableInstance(preview.original.id);
+    if (jsonEncode(original.toJson()) !=
+        jsonEncode(preview.original.toJson())) {
+      throw StateError('版本设置已变化，请重新预览升级。');
+    }
+    if (!original.isolated && !keepOriginal) {
+      throw StateError('未隔离的整合包需要升级到独立副本。');
+    }
+    final staged = preview.staged;
+    if (staged.root != original.root ||
+        !staged.isolated ||
+        !staged.name.startsWith('FYL-update-')) {
+      throw const FormatException('整合包升级暂存目录无效。');
+    }
+    task.canRetry = false;
+    task.state = ContentTaskState.running;
+    task.stage = '应用整合包升级';
+    instanceOperation = '升级整合包';
+    _instanceToken = task.token;
+    notifyListeners();
+    final backupRoot = safeJoin(
+      p.join(original.root, '.fyl', 'pack-backups'),
+      task.id,
+    );
+    final backup = p.join(backupRoot, 'version');
+    var archived = false, promoted = false, saved = false;
+    GameInstance? updated;
+    final index = instances.indexWhere(
+      (instance) => instance.id == original.id,
+    );
+    try {
+      await mergePackUpdate(preview, useIncoming, task.token);
+      final personal = <String, dynamic>{
+        'description': original.description,
+        'category': original.category,
+        'favorite': original.favorite,
+        'javaMode': original.javaMode.name,
+        'javaPath': original.javaPath,
+        'launchSettings': original.launchSettings.toJson(),
+      };
+      if (original.icon != 'auto') {
+        personal['icon'] = original.icon;
+        if (p.isWithin(original.versionDirectory, original.icon)) {
+          final relative = p.relative(
+            original.icon,
+            from: original.versionDirectory,
+          );
+          final target = safeJoin(staged.versionDirectory, relative);
+          await ensurePackParents(staged.root, target);
+          if (await FileSystemEntity.type(original.icon, followLinks: false) !=
+              FileSystemEntityType.file) {
+            throw StateError('自定义图标无法读取。');
+          }
+          await File(target).parent.create(recursive: true);
+          await File(original.icon).copy(target);
+          if (keepOriginal) personal['icon'] = target;
+        }
+      }
+      if (keepOriginal) {
+        final name = copyName?.trim() ?? staged.name;
+        final invalid = validateVersionName(name);
+        if (invalid != null) throw ArgumentError(invalid);
+        if (instances.any(
+          (instance) => instance.name.toLowerCase() == name.toLowerCase(),
+        )) {
+          throw StateError('版本名称已存在，请使用其他名称。');
+        }
+        updated = GameInstance.fromJson({
+          ...staged.toJson(),
+          ...personal,
+          'name': name,
+        });
+        if (p.isWithin(staged.versionDirectory, updated.icon)) {
+          updated = updated.copyWith(
+            icon: p.join(
+              updated.versionDirectory,
+              p.relative(updated.icon, from: staged.versionDirectory),
+            ),
+          );
+        }
+        await renameVersionDirectory(staged, updated);
+        instances.insert(0, updated);
+        final selected = selectedId;
+        selectedId = updated.id;
+        try {
+          await _save();
+        } catch (_) {
+          instances.remove(updated);
+          selectedId = selected;
+          await renameVersionDirectory(updated, staged);
+          rethrow;
+        }
+        saved = true;
+      } else {
+        updated = GameInstance.fromJson({
+          ...staged.toJson(),
+          ...personal,
+          'id': original.id,
+          'name': original.name,
+          'createdAt': original.createdAt.toIso8601String(),
+          'installation': {...staged.installation, 'packBackup': backupRoot},
+        });
+        await ensurePackParents(original.root, backup);
+        await Directory(backupRoot).create(recursive: true);
+        await writeJson(
+          File(p.join(backupRoot, 'instance.json')),
+          original.toJson(),
+        );
+        await writePackUpdateJournal(supportDirectory, {
+          'original': original.toJson(),
+          'updated': updated.toJson(),
+          'backup': backup,
+        });
+        task.token.check();
+        await Directory(original.versionDirectory).rename(backup);
+        archived = true;
+        await renameVersionDirectory(staged, updated);
+        promoted = true;
+        instances[index] = updated;
+        try {
+          await _save();
+        } catch (_) {
+          instances[index] = original;
+          rethrow;
+        }
+        saved = true;
+        try {
+          await File(
+            p.join(supportDirectory, 'pack-update-journal.json'),
+          ).delete();
+        } catch (_) {
+          /* Startup recovery verifies the committed installation. */
+        }
+      }
+      task.preparedInstance = null;
+      task.destination = updated.gameDirectory;
+      task.stage = '整合包升级完成';
+      task.state = ContentTaskState.completed;
+      task.error = null;
+      notice = '${original.name} 升级完成';
+      return updated;
+    } catch (error) {
+      if (!saved && archived) {
+        _packRecoveryRequired = true;
+        if (promoted) {
+          await renameVersionDirectory(updated!, staged);
+        }
+        await Directory(backup).rename(original.versionDirectory);
+        final journal = File(
+          p.join(supportDirectory, 'pack-update-journal.json'),
+        );
+        if (await journal.exists()) await journal.delete();
+        _packRecoveryRequired = false;
+      }
+      task.state = error is Cancelled
+          ? ContentTaskState.cancelled
+          : ContentTaskState.failed;
+      task.error = error.toString();
+      rethrow;
+    } finally {
+      instanceOperation = null;
+      _instanceToken = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> discardPackUpdate(ContentTask task) async {
+    final staged = task.preparedInstance;
+    if (staged == null || task.state == ContentTaskState.running) return;
+    if (!staged.name.startsWith('FYL-update-') ||
+        instances.any((instance) => instance.id == staged.id)) {
+      return;
+    }
+    final retained = safeJoin(
+      p.join(staged.root, '.fyl-trash'),
+      'unused-update-${task.id}',
+    );
+    await ensurePackParents(staged.root, retained);
+    if (await Directory(staged.versionDirectory).exists()) {
+      await Directory(staged.versionDirectory).rename(retained);
+    }
+    task.preparedInstance = null;
+    task.destination = retained;
+    task.state = ContentTaskState.cancelled;
+    task.canRetry = false;
+    task.stage = '已取消';
+    notifyListeners();
+  }
+
+  Future<void> restorePackBackup(String id) async {
+    final original = editableInstance(id);
+    final path = original.installation['packBackup'] as String?;
+    if (path == null ||
+        !p.isWithin(p.join(original.root, '.fyl', 'pack-backups'), path)) {
+      throw StateError('没有可还原的整合包升级备份。');
+    }
+    await ensurePackParents(original.root, p.join(path, 'instance.json'));
+    final previous = GameInstance.fromJson(
+      jsonDecode(await File(p.join(path, 'instance.json')).readAsString())
+          as Json,
+    );
+    if (previous.id != id ||
+        previous.versionDirectory != original.versionDirectory) {
+      throw const FormatException('整合包备份记录无效。');
+    }
+    final backup = p.join(path, 'version');
+    final retained = '$path.reverted';
+    await ensurePackParents(original.root, retained);
+    if (!await Directory(backup).exists() ||
+        await Directory(retained).exists()) {
+      throw StateError('整合包备份目录无法使用。');
+    }
+    instanceOperation = '还原整合包';
+    notifyListeners();
+    final index = instances.indexWhere((instance) => instance.id == id);
+    var moved = false, restored = false, committed = false;
+    try {
+      await writePackUpdateJournal(supportDirectory, {
+        'original': original.toJson(),
+        'updated': previous.toJson(),
+        'backup': retained,
+      });
+      await Directory(original.versionDirectory).rename(retained);
+      moved = true;
+      await Directory(backup).rename(original.versionDirectory);
+      restored = true;
+      instances[index] = previous;
+      try {
+        await _save();
+      } catch (_) {
+        instances[index] = original;
+        rethrow;
+      }
+      committed = true;
+      try {
+        await File(
+          p.join(supportDirectory, 'pack-update-journal.json'),
+        ).delete();
+      } catch (_) {
+        /* The committed record is recognized on next startup. */
+      }
+      notice = '已还原升级前的整合包，升级后的文件已保留。';
+    } catch (_) {
+      if (!committed) {
+        _packRecoveryRequired = true;
+        if (restored) await Directory(original.versionDirectory).rename(backup);
+        if (moved) await Directory(retained).rename(original.versionDirectory);
+        _packRecoveryRequired = false;
+      }
+      rethrow;
+    } finally {
+      instanceOperation = null;
+      notifyListeners();
+    }
   }
 
   GameInstance editableInstance(String id) {
@@ -969,6 +1243,7 @@ class LauncherController extends ChangeNotifier {
   }
 
   Future<void> stopActiveTasks() async {
+    if (_packRecoveryRequired && _instanceToken == null) return;
     cancelInstall();
     for (final task in content.tasks) {
       if (task.state == ContentTaskState.running ||

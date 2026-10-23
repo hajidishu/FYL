@@ -179,6 +179,31 @@ class CommunityCatalog {
         .replaceAll('&gt;', '>');
   }
 
+  Future<String> versionNotes(
+    ContentVersion version,
+    CancellationToken token,
+  ) async {
+    final data = await _get(
+      version.source,
+      version.source == ContentSource.modrinth
+          ? '/version/${version.id}'
+          : '/mods/${version.projectId}/files/${version.id}/changelog',
+      token,
+    );
+    final value = version.source == ContentSource.modrinth
+        ? (data as Json)['changelog']
+        : (data as Json)['data'];
+    return (value as String? ?? '')
+        .replaceAll(
+          RegExp(r'<(?:br\s*/?|/p|/div|/li|/h[1-6])>', caseSensitive: false),
+          '\n',
+        )
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+  }
+
   Future<ContentVersionPage> versions(
     ContentProject project,
     CancellationToken token, {

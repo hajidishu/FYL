@@ -191,6 +191,12 @@ class ContentTask {
   ContentTaskState state = ContentTaskState.running;
   String stage = '准备下载', detail = '';
   String? error, destination;
+  // Unregistered, isolated installation prepared for a pack upgrade.
+  GameInstance? preparedInstance;
+  String? updateTargetId, updateArchive;
+  ContentProject? updateProject;
+  ContentVersion? updateRelease;
+  bool canRetry = true;
   int done = 0, total = 0, cachedBytes = 0;
   int _bytes = 0;
   final downloadRate = DownloadRate();

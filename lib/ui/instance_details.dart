@@ -1,4 +1,5 @@
 import '../l10n/app_localizations.dart';
+import 'pack_update_dialog.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -714,6 +715,53 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     ],
   );
   List<Widget> overview() => [
+    if (instance.installation['modpack'] == true)
+      section('整合包升级', [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            AppButton(
+              '检查整合包更新',
+              small: true,
+              onPressed: busy || dirty
+                  ? null
+                  : () async {
+                      await showDialog<bool>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => PackUpdateDialog(
+                          controller: widget.controller,
+                          instance: instance,
+                        ),
+                      );
+                      if (mounted) setState(() {});
+                    },
+            ),
+            if (instance.installation['packBackup'] != null)
+              AppButton(
+                '还原升级前版本',
+                small: true,
+                secondary: true,
+                onPressed: busy || dirty
+                    ? null
+                    : () async {
+                        if (!await confirm(
+                          '还原整合包',
+                          '还原将恢复升级前的完整版本，包括当时的存档与配置。当前文件会另行保留。',
+                          '还原',
+                        )) {
+                          return;
+                        }
+                        await run(
+                          () =>
+                              widget.controller.restorePackBackup(instance.id),
+                        );
+                      },
+              ),
+          ],
+        ),
+      ]),
     section('个性化', [
       field('name', '版本名称'),
       field('description', '描述', lines: 2),

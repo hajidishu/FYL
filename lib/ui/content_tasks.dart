@@ -1,4 +1,5 @@
 import '../l10n/app_localizations.dart';
+import 'pack_update_dialog.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -13,9 +14,11 @@ import 'download_speed.dart';
 class ContentTaskCard extends StatefulWidget {
   final LauncherController controller;
   final ContentTask task;
+  final bool allowPackUpdate;
   const ContentTaskCard({
     required this.controller,
     required this.task,
+    this.allowPackUpdate = true,
     super.key,
   });
   @override
@@ -66,7 +69,17 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
                   key: ValueKey('dismiss-content-task-${task.id}'),
                   tooltip: AppLocalizations.of(context).textOrNull('移除任务记录'),
                   icon: const Icon(FIcons.x, size: 16),
-                  onPressed: () => widget.controller.dismissContentTask(task),
+                  onPressed:
+                      working ||
+                          !widget.allowPackUpdate &&
+                              task.preparedInstance != null
+                      ? null
+                      : () => run(() async {
+                          if (task.preparedInstance != null) {
+                            await widget.controller.discardPackUpdate(task);
+                          }
+                          widget.controller.dismissContentTask(task);
+                        }),
                 ),
             ],
           ),
@@ -163,6 +176,31 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
             spacing: 10,
             runSpacing: 8,
             children: [
+              if (widget.allowPackUpdate &&
+                  task.preparedInstance != null &&
+                  task.canRetry &&
+                  task.updateTargetId != null)
+                AppButton(
+                  '继续整合包升级',
+                  small: true,
+                  onPressed: widget.controller.installing
+                      ? null
+                      : () => run(() async {
+                          final instance = widget.controller.editableInstance(
+                            task.updateTargetId!,
+                          );
+                          if (!mounted) return;
+                          await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => PackUpdateDialog(
+                              controller: widget.controller,
+                              instance: instance,
+                              existingTask: task,
+                            ),
+                          );
+                        }),
+                ),
               if (task.state == ContentTaskState.running ||
                   task.state == ContentTaskState.waiting)
                 AppButton(
@@ -195,8 +233,9 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
                           }
                         }),
                 ),
-              if (task.state == ContentTaskState.failed ||
-                  task.state == ContentTaskState.cancelled)
+              if (task.canRetry &&
+                  (task.state == ContentTaskState.failed ||
+                      task.state == ContentTaskState.cancelled))
                 AppButton(
                   '重试',
                   icon: FIcons.refreshCw,

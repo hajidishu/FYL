@@ -15,6 +15,7 @@ import 'file_transaction.dart';
 import 'resource_packs.dart';
 import 'game_options.dart';
 import 'install_worker.dart';
+import 'pack_updates.dart';
 
 typedef ContentCatalogFactory = CommunityCatalog Function(LauncherSettings);
 typedef PackBaseInstaller =
@@ -31,6 +32,7 @@ class _PackSession {
   final String name;
   final LauncherSettings settings;
   final Set<String> optional;
+  final bool registerInstance;
   List<(ContentFile, String)>? files;
   GameInstance? baseInstance;
   _PackSession(
@@ -40,6 +42,7 @@ class _PackSession {
     this.name,
     this.settings,
     this.optional,
+    this.registerInstance,
   );
 }
 
@@ -203,6 +206,8 @@ class ContentInstaller {
     String name, {
     required bool isolated,
     Set<String> optional = const {},
+    bool registerInstance = true,
+    String? gameRoot,
     void Function(ContentTask)? onStarted,
   }) async {
     _checkBusy();
@@ -210,6 +215,7 @@ class ContentInstaller {
     final nameError = validateVersionName(normalizedName);
     if (nameError != null) throw ArgumentError(nameError);
     final snapshot = settings()..isolateVersions = isolated;
+    if (gameRoot != null) snapshot.gameRoot = gameRoot;
     final error = snapshot.validate();
     if (error != null) throw ArgumentError(error);
     final directory = safeJoin(
@@ -240,6 +246,7 @@ class ContentInstaller {
       normalizedName,
       snapshot,
       optional,
+      registerInstance,
     );
     onChanged();
     onStarted?.call(task);
@@ -739,15 +746,28 @@ class ContentInstaller {
       final provenance = File(
         p.join(_cache('pack-provenance:${task.id}'), 'modpack.json'),
       );
+      final authorFiles = <String, String>{
+        for (final (_, cached) in session.files!)
+          p.relative(cached, from: cacheRoot).replaceAll('\\', '/'): cached,
+        for (final path in plan.overrides.keys)
+          path.replaceAll('\\', '/'): safeJoin(overridesRoot, path),
+        if (languageOptions != null) 'options.txt': languageOptions.path,
+      };
+      final fileHashes = await hashPackFiles(authorFiles);
+      task.token.check();
       await writeJson(provenance, {
+        'schemaVersion': 2,
         'source': session.project.source.name,
         'projectId': session.project.id,
         'releaseId': session.release.id,
         'name': plan.name,
         'version': plan.version,
+        'published': session.release.published.toIso8601String(),
         'minecraft': plan.minecraft,
         'loader': plan.loader?.name,
         'loaderVersion': plan.loaderVersion,
+        'optional': session.optional.toList(),
+        'fileHashes': fileHashes,
         'managedFiles': [
           for (final (_, cached) in session.files!)
             p.relative(cached, from: cacheRoot),
@@ -793,11 +813,14 @@ class ContentInstaller {
           task.total = total;
           onChanged();
         },
-        finalize: () => onInstalled(installedInstance),
+        finalize: session.registerInstance
+            ? () => onInstalled(installedInstance)
+            : null,
       );
+      if (!session.registerInstance) task.preparedInstance = installedInstance;
       task.destination = instance.gameDirectory;
       task.state = ContentTaskState.completed;
-      task.stage = '安装完成';
+      task.stage = session.registerInstance ? '安装完成' : '等待确认升级';
     } catch (_) {
       await _retainIncompleteBase(session, instance);
       rethrow;
