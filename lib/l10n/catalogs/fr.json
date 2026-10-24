@@ -1011,5 +1011,6 @@
   "高于正常": "Supérieure à la normale",
   "高": "Haute",
   "重置": "Réinitialiser",
-  "跟随全局（{p0}）": "Paramètre global ({p0})"
+  "跟随全局（{p0}）": "Paramètre global ({p0})",
+  "更新内容": "Notes de version"
 }

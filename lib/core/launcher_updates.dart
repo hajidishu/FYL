@@ -209,6 +209,7 @@ class LauncherUpdater {
     }
     checking = true;
     error = null;
+    detail = '';
     final token = _checkToken = CancellationToken();
     final network = OfficialNetwork(
       settings().copy(),
@@ -243,7 +244,7 @@ class LauncherUpdater {
         'channel': selectedChannel,
         'releases': releases,
       });
-      detail = available == null ? '当前已是最新版本' : '发现新版本 ${available!.version}';
+      detail = available == null ? '当前已是最新版本' : '';
     } catch (e) {
       if (!automatic) error = '检查启动器更新失败：$e';
     } finally {

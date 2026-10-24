@@ -11,6 +11,7 @@ import '../l10n/app_localizations.dart';
 import 'byte_size.dart';
 import 'download_speed.dart';
 import 'theme.dart';
+import 'collapsible_section.dart';
 
 class LauncherUpdatePanel extends StatelessWidget {
   final LauncherController controller;
@@ -117,22 +118,53 @@ class LauncherUpdatePanel extends StatelessWidget {
               padding: EdgeInsets.only(top: 10),
               child: LinearProgressIndicator(),
             ),
-          if (updater.detail.isNotEmpty)
+          if (updater.detail.isNotEmpty && release == null && !updater.checking)
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: LText(updater.detail),
             ),
           if (release != null) ...[
             const SizedBox(height: 10),
-            LText('发现新版本 ${release.version}'),
-            Tag(release.prerelease ? '测试版' : '正式版'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                LText(
+                  '发现新版本 ${release.version}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Tag(release.prerelease ? '测试版' : '正式版', compact: true),
+              ],
+            ),
             if (release.asset == null) const LText('没有适用于当前系统的更新包。'),
             if (release.asset != null && release.digest == null)
               const LText('更新包缺少 SHA-256，无法自动安装，请从发布页面下载。'),
-            if (release.notes.isNotEmpty)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
-                child: AppScrollView(child: SelectableText(release.notes)),
+            if (release.notes.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: CollapsibleSection(
+                  key: ValueKey('launcher-update-notes-${release.version}'),
+                  title: '更新内容',
+                  icon: FIcons.fileText,
+                  initiallyExpanded: true,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: AppScrollView(
+                      child: SelectableText(
+                        release.notes,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.6,
+                          color: LauncherColors.of(context).secondaryText,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
           ],
           if (updater.development) const LText('开发版请通过源码或发布页面更新。'),
