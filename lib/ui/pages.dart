@@ -132,63 +132,6 @@ class _HomePageState extends State<HomePage> {
                     );
             },
           ),
-          const SizedBox(height: 30),
-          Row(
-            children: [
-              const LText(
-                '快捷入口',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const Spacer(),
-              LText(
-                '${controller.instances.length} 个已安装版本',
-                style: TextStyle(color: c.muted, fontSize: 11),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cards = [
-                _quickCard(
-                  FIcons.layers,
-                  '版本管理',
-                  '管理已安装版本和启动设置',
-                  () => widget.navigate(1),
-                ),
-                _quickCard(
-                  FIcons.download,
-                  '下载游戏',
-                  '下载 Minecraft 和游戏组件',
-                  () => widget.navigate(2),
-                ),
-                _quickCard(
-                  FIcons.settings,
-                  '设置',
-                  '隔离、Java、内存与更多设置',
-                  () => widget.navigate(3),
-                ),
-              ];
-              return constraints.maxWidth >= 650
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (var i = 0; i < cards.length; i++) ...[
-                          if (i > 0) const SizedBox(width: 14),
-                          Expanded(child: cards[i]),
-                        ],
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        for (final card in cards) ...[
-                          card,
-                          const SizedBox(height: 12),
-                        ],
-                      ],
-                    );
-            },
-          ),
           if (controller.lastExitCode != null) ...[
             const SizedBox(height: 22),
             Surface(
@@ -377,41 +320,6 @@ class _HomePageState extends State<HomePage> {
     controller: widget.controller,
     onOpenSettings: () => widget.navigate(3),
   );
-
-  Widget _quickCard(
-    IconData icon,
-    String title,
-    String subtitle,
-    VoidCallback onTap,
-  ) {
-    final c = LauncherColors.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Surface(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: c.accent),
-                const Spacer(),
-                Icon(FIcons.arrowUpRight, size: 14, color: c.muted),
-              ],
-            ),
-            const SizedBox(height: 18),
-            LText(
-              title,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 5),
-            LText(subtitle, style: TextStyle(color: c.muted, fontSize: 10)),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class InstancesPage extends StatefulWidget {
