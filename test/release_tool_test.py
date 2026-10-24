@@ -44,8 +44,16 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(beta["prerelease"], "true")
         dev = release.metadata(self.root, "refs/heads/main", "b" * 40)
         self.assertEqual(dev["is_release"], "false")
-        self.assertEqual(dev["version"], "0.2.0-beta.1.dev.bbbbbbbb")
+        self.assertEqual(dev["version"], "0.2.0-beta.1.dev.gbbbbbbbb")
         self.assertEqual(dev["prerelease"], "true")
+
+    def test_numeric_commit_hashes_produce_valid_development_versions(self):
+        for sha in ("08088917" + "a" * 32, "0" * 40, "12345678" + "b" * 32):
+            with self.subTest(sha=sha):
+                dev = release.metadata(self.root, "refs/heads/main", sha)
+                self.assertEqual(dev["version"], "0.1.0-dev.g" + sha[:8])
+                self.assertEqual(release.version_parts(dev["version"])[0], (0, 1, 0))
+                self.assertEqual(dev["prerelease"], "true")
 
     def test_plain_version_can_be_explicitly_published_as_a_test_release(self):
         self.write("pubspec.yaml", "version: 0.1.1+2\n")

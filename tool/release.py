@@ -71,7 +71,8 @@ def metadata(root, ref, sha):
     else:
         if not re.fullmatch(r"[0-9a-f]{7,40}", sha):
             raise ValueError("A valid commit SHA is required for development builds")
-        version += ("." if prerelease else "-") + "dev." + sha[:8]
+        # A numeric SHA beginning with zero is not a valid SemVer identifier.
+        version += ("." if prerelease else "-") + "dev.g" + sha[:8]
     return {
         "version": version,
         "build_name": ".".join(map(str, core)),
