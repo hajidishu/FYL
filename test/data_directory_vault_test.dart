@@ -55,9 +55,9 @@ void main() {
   testWidgets(
     'legacy startup preserves OS vault accounts without moving data or changing namespaces',
     (tester) async {
-      final temporary = await Directory.systemTemp.createTemp(
-        'fyl-legacy-vault-',
-      );
+      final temporary = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('fyl-legacy-vault-'),
+      ))!;
       addTearDown(() => temporary.delete(recursive: true));
       final previousVault = FlutterSecureStoragePlatform.instance;
       final vault = FixtureVault();
@@ -120,6 +120,7 @@ void main() {
         await tester.pump();
       }
       expect(active, isNotNull);
+      await tester.pumpAndSettle();
       expect(find.byType(LauncherApp), findsOneWidget);
       expect(active!.supportDirectory, source);
       expect(active!.activeAccount!.id, account.id);

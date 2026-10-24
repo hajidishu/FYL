@@ -225,6 +225,7 @@ void main() {
           await tester.pump();
         }
         expect(active, isNotNull);
+        await tester.pumpAndSettle();
         expect(active!.supportDirectory, oldPath);
         expect(active!.activeAccount!.username, 'Legacy_User');
         expect(find.text('迁移旧版数据'), findsNothing);

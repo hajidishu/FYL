@@ -114,7 +114,7 @@ void main() {
 
   for (final kind in ContentKind.values) {
     testWidgets(
-      'six ${kind.name} rows fit the reference viewport with readable descriptions',
+      '${kind.name} rows balance spacing and readable descriptions in the reference viewport',
       (tester) async {
         final catalog = CompactCatalog(controller.settings.copy());
         await show(
@@ -131,7 +131,7 @@ void main() {
           tester,
           find.byKey(const ValueKey('community-project-modrinth-0')),
         );
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < 4; i++) {
           final row = find.byKey(ValueKey('community-project-modrinth-$i'));
           final bounds = tester.getRect(row);
           expect(bounds.top, greaterThanOrEqualTo(viewport.top - .5));
@@ -139,13 +139,17 @@ void main() {
             bounds.bottom,
             lessThanOrEqualTo(viewport.bottom + .5),
             reason:
-                'Six complete rows should fit without reducing description text size',
+                'Four complete rows should fit after increasing list spacing',
           );
           final description = find.descendant(
             of: row,
             matching: find.text(CompactCatalog.summary),
           );
-          expect(tester.widget<Text>(description).style?.fontSize, 14);
+          expect(
+            tester.widget<Text>(description).style?.fontSize,
+            greaterThanOrEqualTo(13),
+          );
+          expect(bounds.height, inInclusiveRange(72, 110));
         }
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());

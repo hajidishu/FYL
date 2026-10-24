@@ -364,7 +364,13 @@ void main() {
       );
       expect(action(tester, '从文件更新').onPressed, isNotNull);
       expect(find.text('显示测试版'), findsNothing);
-      expect(tester.getRect(find.byType(AlertDialog)).height, lessThan(716));
+      final surface = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Material && widget.type == MaterialType.card,
+        ),
+      );
+      expect(tester.getRect(surface).height, lessThan(716));
       await tester.enterText(
         find.descendant(
           of: find.byKey(const ValueKey('pack-update-project-reference')),

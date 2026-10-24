@@ -466,18 +466,20 @@ class EmptyState extends StatelessWidget {
   final String title;
   final String description;
   final Widget? action;
+  final EdgeInsetsGeometry padding;
   const EmptyState({
     required this.icon,
     required this.title,
     required this.description,
     this.action,
+    this.padding = const EdgeInsets.symmetric(vertical: 46, horizontal: 24),
     super.key,
   });
   @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 46, horizontal: 24),
+      padding: padding,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

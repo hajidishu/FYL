@@ -787,6 +787,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
               icon: FIcons.download,
               title: '暂无下载任务',
               description: '选择一个版本开始安装。',
+              padding: const EdgeInsets.all(24),
               action: AppButton(
                 '浏览版本',
                 onPressed: () => setState(() => tab = 0),
