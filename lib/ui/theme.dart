@@ -394,7 +394,7 @@ class AppInput extends StatelessWidget {
   }
 }
 
-class SelectBox<T> extends StatefulWidget {
+class SelectBox<T> extends StatelessWidget {
   final T value;
   final Map<T, String> items;
   final ValueChanged<T>? onChanged;
@@ -409,179 +409,51 @@ class SelectBox<T> extends StatefulWidget {
     super.key,
   });
   @override
-  State<SelectBox<T>> createState() => _SelectBoxState<T>();
-}
-
-class _SelectBoxState<T> extends State<SelectBox<T>> {
-  bool expanded = false;
-
-  @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
-    final enabled = widget.onChanged != null && widget.items.isNotEmpty;
-    final outline = c.muted.withValues(alpha: c.dark ? .6 : .45);
-    OutlineInputBorder border(Color color, {double width = 1}) =>
-        OutlineInputBorder(
-          borderSide: BorderSide(color: color, width: width),
-          borderRadius: BorderRadius.circular(9),
-        );
     return FSelect<T>.rich(
       control: FSelectControl<T>.lifted(
-        value: widget.items.containsKey(widget.value) ? widget.value : null,
+        value: items.containsKey(value) ? value : null,
         onChange: (selected) {
-          if (selected != null) widget.onChanged?.call(selected);
+          if (selected != null) onChanged?.call(selected);
         },
       ),
-      popoverControl: FPopoverControl.managed(
-        onChange: (value) {
-          if (mounted && expanded != value) {
-            setState(() => expanded = value);
-          }
-        },
-      ),
-      enabled: enabled,
-      mouseCursor: enabled
-          ? SystemMouseCursors.click
-          : SystemMouseCursors.basic,
-      size: widget.compact
-          ? FTextFieldSizeVariant.sm
-          : FTextFieldSizeVariant.md,
-      format: (selected) => widget.localizeItems
-          ? AppLocalizations.of(context).text(widget.items[selected] ?? '')
-          : widget.items[selected] ?? '',
-      suffixBuilder: (context, _, _) => IgnorePointer(
-        child: Container(
-          width: 30,
-          height: 24,
-          margin: const EdgeInsets.only(left: 4, right: 5),
-          decoration: BoxDecoration(
-            color: enabled ? c.surface : c.raised,
-            border: Border.all(color: expanded ? c.accent : c.border),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: AnimatedRotation(
-            turns: expanded ? .5 : 0,
-            duration: Duration(
-              milliseconds: MediaQuery.disableAnimationsOf(context) ? 0 : 160,
-            ),
-            child: Icon(
-              FIcons.chevronDown,
-              size: 17,
-              color: enabled ? c.foreground : c.muted.withValues(alpha: .5),
-            ),
-          ),
-        ),
-      ),
+      enabled: onChanged != null && items.isNotEmpty,
+      size: compact ? FTextFieldSizeVariant.sm : FTextFieldSizeVariant.md,
+      format: (selected) => localizeItems
+          ? AppLocalizations.of(context).text(items[selected] ?? '')
+          : items[selected] ?? '',
       contentConstraints: const FAutoWidthPortalConstraints(maxHeight: 280),
       style: FSelectStyleDelta.delta(
-        fieldStyles: FVariantsDelta.delta([
-          FVariantOperation.all(
-            FTextFieldStyleDelta.delta(
-              color: FVariantsValueDelta.delta([
-                FVariantValueDeltaOperation.base(
-                  expanded ? c.accentBackground : c.raised,
-                ),
-                FVariantValueDeltaOperation.exact({
-                  FTextFieldVariant.disabled,
-                }, c.surface),
-              ]),
-              border: FVariantsValueDelta.delta([
-                FVariantValueDeltaOperation.base(
-                  border(
-                    expanded ? c.accent : outline,
-                    width: expanded ? 1.5 : 1,
-                  ),
-                ),
-                FVariantValueDeltaOperation.exact({
-                  FTextFieldVariant.focused,
-                  FTextFieldVariant.hovered,
-                }, border(c.accent, width: 1.5)),
-                FVariantValueDeltaOperation.exact({
-                  FTextFieldVariant.disabled,
-                }, border(c.border)),
-              ]),
-            ),
-          ),
-        ]),
         contentStyle: FSelectContentStyleDelta.delta(
           padding: const EdgeInsetsGeometryDelta.value(EdgeInsets.all(6)),
           decoration: DecorationDelta.value(
             BoxDecoration(
               color: c.surface,
-              border: Border.all(color: outline),
+              border: Border.all(color: c.border),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: c.dark ? .45 : .18),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: c.dark ? .25 : .09),
+                  blurRadius: 18,
+                  offset: const Offset(0, 5),
                 ),
               ],
-            ),
-          ),
-          sectionStyle: FSelectSectionStyleDelta.delta(
-            itemStyle: FItemStyleDelta.delta(
-              margin: const EdgeInsetsGeometryDelta.value(
-                EdgeInsets.symmetric(vertical: 2),
-              ),
-              backgroundColor: FVariantsValueDelta.delta([
-                FVariantValueDeltaOperation.all(c.surface),
-              ]),
-              decoration: FVariantsDelta.delta([
-                FVariantOperation.all(
-                  DecorationDelta.value(
-                    BoxDecoration(
-                      color: c.surface,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                ),
-                FVariantOperation.exact(
-                  {
-                    FTappableVariant.hovered,
-                    FTappableVariant.focused,
-                    FTappableVariant.pressed,
-                  },
-                  DecorationDelta.value(
-                    BoxDecoration(
-                      color: c.raised,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                ),
-                FVariantOperation.exact(
-                  {FTappableVariant.selected},
-                  DecorationDelta.value(
-                    BoxDecoration(
-                      color: c.accentBackground,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: c.accent.withValues(alpha: .3)),
-                    ),
-                  ),
-                ),
-              ]),
             ),
           ),
         ),
       ),
       children: [
-        for (final entry in widget.items.entries)
+        for (final entry in items.entries)
           FSelectItem<T>(
             value: entry.key,
             title: Text(
-              widget.localizeItems
+              localizeItems
                   ? AppLocalizations.of(context).text(entry.value)
                   : entry.value,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: c.foreground,
-                fontWeight: entry.key == widget.value
-                    ? FontWeight.w600
-                    : FontWeight.w400,
-              ),
+              style: const TextStyle(fontSize: 13),
             ),
           ),
       ],
