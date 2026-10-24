@@ -648,9 +648,9 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
   }
 
   Widget section(String title, List<Widget> children) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.only(bottom: 10),
     child: Surface(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -658,7 +658,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             title,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ...children,
         ],
       ),
@@ -671,13 +671,14 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     int lines = 1,
     String? description,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.only(bottom: 8),
     child: AppInput(
       key: ValueKey('instance-field-$key'),
       controller: fields[key],
       compact: true,
       label: label,
-      maxLines: lines,
+      inlineLabel: true,
+      maxLines: lines > 1 ? 6 : 1,
       description: description,
       enabled: enabled && !busy,
       onChanged: (_) {
@@ -697,7 +698,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     dense: true,
     visualDensity: VisualDensity.compact,
     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    minVerticalPadding: 4,
+    minVerticalPadding: 2,
     horizontalTitleGap: 8,
     controlAffinity: ListTileControlAffinity.leading,
     title: LText(title, style: const TextStyle(fontSize: 13)),
@@ -716,7 +717,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Expanded(child: a),
-      const SizedBox(width: 14),
+      const SizedBox(width: 12),
       Expanded(child: b),
     ],
   );
@@ -1003,18 +1004,19 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
             field('width', '宽度（像素）', enabled: ownWindow && !fullscreen),
             field('height', '高度（像素）', enabled: ownWindow && !fullscreen),
           ),
-          const LText('启动后最小化 FYL', style: TextStyle(fontSize: 12)),
-          const SizedBox(height: 6),
-          SelectBox<int>(
-            compact: true,
-            value: minimize,
-            items: const {-1: '跟随全局设置', 1: '最小化', 0: '保持窗口'},
-            onChanged: busy
-                ? null
-                : (v) {
-                    minimize = v;
-                    changed();
-                  },
+          SettingsRow(
+            label: '启动后最小化 FYL',
+            child: SelectBox<int>(
+              compact: true,
+              value: minimize,
+              items: const {-1: '跟随全局设置', 1: '最小化', 0: '保持窗口'},
+              onChanged: busy
+                  ? null
+                  : (v) {
+                      minimize = v;
+                      changed();
+                    },
+            ),
           ),
         ]);
         return constraints.maxWidth >= 720
@@ -1056,7 +1058,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         setOverride(v, ownGame, const ['gameArguments']);
         ownGame = v;
       }),
-      field('gameArguments', '额外游戏参数', enabled: ownGame),
+      field('gameArguments', '额外游戏参数', enabled: ownGame, lines: 6),
       check('单独设置启动前命令', ownHook, (v) {
         setOverride(v, ownHook, const ['preLaunchCommand']);
         ownHook = v;
@@ -1065,6 +1067,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         'preLaunchCommand',
         '启动前执行',
         enabled: ownHook,
+        lines: 6,
         description:
             '在游戏目录中执行；Windows 使用 cmd，macOS/Linux 使用 sh。失败时停止启动，最长运行 2 分钟。',
       ),
@@ -1075,18 +1078,19 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         subtitle: '仍会检查 Java 是否可运行及架构是否匹配。',
       ),
       const SizedBox(height: 10),
-      const LText('下载文件校验', style: TextStyle(fontSize: 12)),
-      const SizedBox(height: 8),
-      SelectBox<int>(
-        compact: true,
-        value: verify,
-        items: const {-1: '跟随全局设置', 1: '开启校验', 0: '关闭校验'},
-        onChanged: busy
-            ? null
-            : (v) {
-                verify = v;
-                changed();
-              },
+      SettingsRow(
+        label: '下载文件校验',
+        child: SelectBox<int>(
+          compact: true,
+          value: verify,
+          items: const {-1: '跟随全局设置', 1: '开启校验', 0: '关闭校验'},
+          onChanged: busy
+              ? null
+              : (v) {
+                  verify = v;
+                  changed();
+                },
+        ),
       ),
       const SizedBox(height: 12),
       Align(

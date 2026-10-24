@@ -342,7 +342,7 @@ class SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(30, 30, 30, 0),
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -372,7 +372,7 @@ class SettingsPageState extends State<SettingsPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           if (error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -403,7 +403,6 @@ class SettingsPageState extends State<SettingsPage> {
                     _ => _dataStorage(),
                   },
                   const SizedBox(height: 18),
-                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -416,6 +415,7 @@ class SettingsPageState extends State<SettingsPage> {
   Widget _section(String title, String subtitle, List<Widget> children) {
     final c = LauncherColors.of(context);
     return Surface(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -423,12 +423,12 @@ class SettingsPageState extends State<SettingsPage> {
             title,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 4),
           LText(
             subtitle,
-            style: TextStyle(color: c.muted, fontSize: 11, height: 1.7),
+            style: TextStyle(color: c.muted, fontSize: 12, height: 1.45),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           ...children,
         ],
       ),
@@ -443,7 +443,7 @@ class SettingsPageState extends State<SettingsPage> {
   ) {
     final c = LauncherColors.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -458,15 +458,15 @@ class SettingsPageState extends State<SettingsPage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 LText(
                   description,
-                  style: TextStyle(fontSize: 11, color: c.muted, height: 1.7),
+                  style: TextStyle(fontSize: 12, color: c.muted, height: 1.45),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 16),
           FSwitch(
             value: value,
             semanticsLabel: AppLocalizations.of(context).text(title),
@@ -488,15 +488,17 @@ class SettingsPageState extends State<SettingsPage> {
     bool enabled = true,
     int lines = 1,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 20),
+    padding: const EdgeInsets.only(bottom: 10),
     child: AppInput(
       key: ValueKey('settings-field-$key'),
       controller: fields[key],
       label: label,
+      inlineLabel: true,
+      compact: true,
       description: description,
       hint: hint,
       enabled: enabled,
-      maxLines: lines,
+      maxLines: lines > 1 ? 6 : 1,
       onChanged: (_) => changed(),
     ),
   );
@@ -595,20 +597,19 @@ class SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _appearance() => _section('界面外观', '调整主题和界面色调。', [
-    const LText(
-      '界面主题',
-      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+    SettingsRow(
+      label: '界面主题',
+      child: SelectBox<String>(
+        compact: true,
+        value: draft.theme,
+        items: const {'dark': '深色', 'light': '浅色', 'system': '跟随系统'},
+        onChanged: (value) {
+          draft.theme = value;
+          changed();
+        },
+      ),
     ),
-    const SizedBox(height: 9),
-    SelectBox<String>(
-      value: draft.theme,
-      items: const {'dark': '深色', 'light': '浅色', 'system': '跟随系统'},
-      onChanged: (value) {
-        draft.theme = value;
-        changed();
-      },
-    ),
-    const SizedBox(height: 25),
+    const SizedBox(height: 14),
     const LText(
       '界面色调',
       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
@@ -664,7 +665,7 @@ class SettingsPageState extends State<SettingsPage> {
         ),
       ],
     ),
-    const SizedBox(height: 24),
+    const SizedBox(height: 14),
     const LText(
       '启动器背景',
       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
@@ -744,21 +745,20 @@ class SettingsPageState extends State<SettingsPage> {
   ]);
 
   Widget _general() => _section('启动行为', '设置启动器行为和登录选项。', [
-    const LText(
-      '语言 / Language',
-      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    SettingsRow(
+      label: '语言 / Language',
+      child: SelectBox<String>(
+        key: const ValueKey('launcher-language'),
+        compact: true,
+        value: draft.language,
+        items: launcherLanguages,
+        onChanged: (value) {
+          draft.language = value;
+          changed();
+        },
+      ),
     ),
-    const SizedBox(height: 9),
-    SelectBox<String>(
-      key: const ValueKey('launcher-language'),
-      value: draft.language,
-      items: launcherLanguages,
-      onChanged: (value) {
-        draft.language = value;
-        changed();
-      },
-    ),
-    const SizedBox(height: 24),
+    const SizedBox(height: 14),
     _switch(
       '启动游戏后最小化',
       '游戏进程成功启动后，将启动器最小化到任务栏。',
@@ -796,15 +796,17 @@ class SettingsPageState extends State<SettingsPage> {
       (value) => draft.checkLauncherUpdates = value,
     ),
     const SizedBox(height: 10),
-    const LText('更新渠道'),
-    const SizedBox(height: 8),
-    SelectBox<String>(
-      value: draft.launcherUpdateChannel,
-      items: const {'stable': '正式版', 'preview': '正式版与测试版'},
-      onChanged: (value) {
-        draft.launcherUpdateChannel = value;
-        changed();
-      },
+    SettingsRow(
+      label: '更新渠道',
+      child: SelectBox<String>(
+        compact: true,
+        value: draft.launcherUpdateChannel,
+        items: const {'stable': '正式版', 'preview': '正式版与测试版'},
+        onChanged: (value) {
+          draft.launcherUpdateChannel = value;
+          changed();
+        },
+      ),
     ),
     const SizedBox(height: 16),
     LauncherUpdatePanel(
@@ -836,7 +838,7 @@ class SettingsPageState extends State<SettingsPage> {
         },
       ),
     ),
-    const SizedBox(height: 25),
+    const SizedBox(height: 14),
     _switch(
       '新版本默认启用版本隔离',
       '开启时，游戏数据保存在 versions/<版本名称>；关闭时保存在游戏根目录。',
@@ -860,7 +862,7 @@ class SettingsPageState extends State<SettingsPage> {
       (value) => draft.automaticJava = value,
     ),
     _javaResults(),
-    const SizedBox(height: 24),
+    const SizedBox(height: 14),
     _field(
       'javaPath',
       'Java 可执行文件',
@@ -888,7 +890,7 @@ class SettingsPageState extends State<SettingsPage> {
               },
       ),
     ),
-    const SizedBox(height: 26),
+    const SizedBox(height: 16),
     SelectBox<bool>(
       key: const ValueKey('default-memory-mode'),
       value: draft.automaticMemory,
@@ -968,7 +970,7 @@ class SettingsPageState extends State<SettingsPage> {
         Expanded(
           child: _field('width', '窗口宽度（像素）', enabled: !draft.fullscreen),
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 12),
         Expanded(
           child: _field('height', '窗口高度（像素）', enabled: !draft.fullscreen),
         ),
@@ -980,6 +982,8 @@ class SettingsPageState extends State<SettingsPage> {
     AppInput(
       controller: fields['curseforgeApiKey'],
       label: 'CurseForge API Key',
+      inlineLabel: true,
+      compact: true,
       hint: '填写访问密钥',
       obscureText: true,
       description: '用于 CurseForge 搜索与下载。',
@@ -988,15 +992,19 @@ class SettingsPageState extends State<SettingsPage> {
   ]);
 
   Widget _downloads() => _section('下载与版本列表', '管理版本筛选与下载。', [
-    const LText('游戏下载源', style: TextStyle(fontSize: 13)),
-    const SizedBox(height: 8),
-    SelectBox<DownloadSource>(
-      value: draft.downloadSource,
-      items: {for (final source in DownloadSource.values) source: source.label},
-      onChanged: (value) {
-        draft.downloadSource = value;
-        changed();
-      },
+    SettingsRow(
+      label: '游戏下载源',
+      child: SelectBox<DownloadSource>(
+        compact: true,
+        value: draft.downloadSource,
+        items: {
+          for (final source in DownloadSource.values) source: source.label,
+        },
+        onChanged: (value) {
+          draft.downloadSource = value;
+          changed();
+        },
+      ),
     ),
     const SizedBox(height: 8),
     LText(
@@ -1010,7 +1018,7 @@ class SettingsPageState extends State<SettingsPage> {
       '用于 Minecraft、Java 运行库和游戏组件下载。',
       style: TextStyle(fontSize: 12),
     ),
-    const SizedBox(height: 25),
+    const SizedBox(height: 14),
     _switch(
       '默认展开预览版',
       '打开版本列表时展开快照和预发布版本分组。',
@@ -1024,14 +1032,14 @@ class SettingsPageState extends State<SettingsPage> {
       (value) => draft.showHistorical = value,
     ),
     const Divider(),
-    const SizedBox(height: 24),
+    const SizedBox(height: 14),
     Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _field('parallelDownloads', '并行下载数', description: '1–16'),
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 12),
         Expanded(
           child: _field('downloadRetries', '失败重试次数', description: '0–5'),
         ),

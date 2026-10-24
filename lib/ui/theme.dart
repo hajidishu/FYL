@@ -269,6 +269,75 @@ class AppButton extends StatelessWidget {
   );
 }
 
+class SettingsRow extends StatelessWidget {
+  final String label;
+  final Widget child;
+  final String? description;
+  const SettingsRow({
+    required this.label,
+    required this.child,
+    this.description,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final labelWidget = LText(
+        label,
+        style: const TextStyle(fontSize: 13, height: 1.45),
+      );
+      final field = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            label: AppLocalizations.of(context).text(label),
+            child: child,
+          ),
+          if (description != null) ...[
+            const SizedBox(height: 4),
+            LText(
+              description!,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.45,
+                color: LauncherColors.of(context).muted,
+              ),
+            ),
+          ],
+        ],
+      );
+      final scale = MediaQuery.textScalerOf(context).scale(13) / 13;
+      if (constraints.maxWidth < 400 * scale.clamp(1.0, 1.5)) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ExcludeSemantics(child: labelWidget),
+            const SizedBox(height: 6),
+            field,
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: (constraints.maxWidth * .27).clamp(120.0, 190.0),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 7),
+              child: ExcludeSemantics(child: labelWidget),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: field),
+        ],
+      );
+    },
+  );
+}
+
 class AppInput extends StatelessWidget {
   final String initial;
   final String? hint;
@@ -281,6 +350,7 @@ class AppInput extends StatelessWidget {
   final int maxLines;
   final bool obscureText;
   final bool compact;
+  final bool inlineLabel;
   const AppInput({
     this.initial = '',
     this.hint,
@@ -293,26 +363,35 @@ class AppInput extends StatelessWidget {
     this.maxLines = 1,
     this.obscureText = false,
     this.compact = false,
+    this.inlineLabel = false,
     super.key,
   });
   @override
-  Widget build(BuildContext context) => FTextField(
-    size: compact ? FTextFieldSizeVariant.sm : FTextFieldSizeVariant.md,
-    control: FTextFieldControl.managed(
-      controller: controller,
-      initial: controller == null ? TextEditingValue(text: initial) : null,
-      onChange: onChanged == null ? null : (value) => onChanged!(value.text),
-    ),
-    label: label == null ? null : LText(label!),
-    hint: hint == null ? null : AppLocalizations.of(context).text(hint!),
-    description: description == null ? null : LText(description!),
-    error: error == null ? null : LText(error!),
-    enabled: enabled,
-    maxLines: maxLines,
-    obscureText: obscureText,
-    autocorrect: false,
-    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-  );
+  Widget build(BuildContext context) {
+    final field = FTextField(
+      size: compact ? FTextFieldSizeVariant.sm : FTextFieldSizeVariant.md,
+      control: FTextFieldControl.managed(
+        controller: controller,
+        initial: controller == null ? TextEditingValue(text: initial) : null,
+        onChange: onChanged == null ? null : (value) => onChanged!(value.text),
+      ),
+      label: label == null || inlineLabel ? null : LText(label!),
+      hint: hint == null ? null : AppLocalizations.of(context).text(hint!),
+      description: description == null || inlineLabel
+          ? null
+          : LText(description!),
+      error: error == null ? null : LText(error!),
+      enabled: enabled,
+      maxLines: maxLines,
+      minLines: maxLines > 1 ? 1 : null,
+      obscureText: obscureText,
+      autocorrect: false,
+      spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+    );
+    return inlineLabel && label != null
+        ? SettingsRow(label: label!, description: description, child: field)
+        : field;
+  }
 }
 
 class SelectBox<T> extends StatelessWidget {

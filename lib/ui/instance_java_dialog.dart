@@ -127,7 +127,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                   '${instance.name} · 推荐 Java ${instance.javaMajor}',
                   style: TextStyle(color: c.muted, fontSize: 12),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 SelectBox<InstanceJavaMode>(
                   key: const ValueKey('instance-java-mode'),
                   value: mode,
@@ -146,6 +146,8 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                     key: const ValueKey('instance-java-path'),
                     controller: path,
                     label: 'Java 可执行文件',
+                    inlineLabel: true,
+                    compact: true,
                     hint: widget.controller.platform.os == 'windows'
                         ? r'C:\Java\bin\java.exe'
                         : '/path/to/java/bin/java',
@@ -177,7 +179,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                     executable == 'java' ? '使用系统 Java' : executable,
                     style: TextStyle(color: c.muted, fontSize: 11),
                   ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
