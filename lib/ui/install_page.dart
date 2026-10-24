@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -216,7 +217,7 @@ class _InstallPageState extends State<InstallPage> {
           ),
           const SizedBox(height: 20),
           Expanded(
-            child: SingleChildScrollView(
+            child: AppScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -541,7 +542,7 @@ class _InstallPageState extends State<InstallPage> {
                     const SizedBox(height: 6),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 250),
-                      child: SingleChildScrollView(
+                      child: AppScrollView(
                         primary: false,
                         child: Column(children: rows),
                       ),

@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'pack_update_dialog.dart';
 import 'dart:async';
@@ -627,7 +628,8 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
           Expanded(
             child: tab == 2
                 ? _mods()
-                : SingleChildScrollView(
+                : AppScrollView(
+                    key: ValueKey('instance-scroll-$tab'),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

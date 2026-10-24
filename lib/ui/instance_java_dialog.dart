@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -118,7 +119,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(context).height * .65,
           ),
-          child: SingleChildScrollView(
+          child: AppScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,7 +221,7 @@ class _InstanceJavaDialogState extends State<InstanceJavaDialog> {
                   const SizedBox(height: 10),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 220),
-                    child: SingleChildScrollView(
+                    child: AppScrollView(
                       primary: false,
                       child: Column(
                         children: [

@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -79,7 +80,7 @@ class _GameVersionListState extends State<GameVersionList> {
                     style: TextStyle(color: c.muted),
                   ),
                 )
-              : CustomScrollView(
+              : AppSliverView(
                   slivers: [
                     if (needle.isEmpty && (release != null || preview != null))
                       SliverToBoxAdapter(

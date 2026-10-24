@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -340,7 +341,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
             ),
             Expanded(
               child: Center(
-                child: SingleChildScrollView(
+                child: AppScrollView(
                   padding: const EdgeInsets.all(24),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 640),

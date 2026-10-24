@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
@@ -244,9 +245,7 @@ class _InstanceModsState extends State<InstanceMods> {
               title: const LText('同名 Mod 已存在'),
               content: SizedBox(
                 width: 430,
-                child: SingleChildScrollView(
-                  child: Text(collisions.join('\n')),
-                ),
+                child: AppScrollView(child: Text(collisions.join('\n'))),
               ),
               actions: [
                 AppButton(
@@ -533,7 +532,7 @@ class _InstanceModsState extends State<InstanceMods> {
                     style: TextStyle(color: c.muted, fontSize: 13),
                   ),
                 )
-              : ListView.builder(
+              : AppListView.builder(
                   itemCount: visible.length,
                   itemBuilder: (context, index) {
                     final mod = visible[index];

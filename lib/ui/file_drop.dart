@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
@@ -241,7 +242,7 @@ class _ModImportDialogState extends State<ModImportDialog> {
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 140),
-                child: SingleChildScrollView(
+                child: AppScrollView(
                   child: Text(
                     widget.files.map(p.basename).join('\n'),
                     style: TextStyle(

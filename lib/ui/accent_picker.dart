@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'theme.dart';
@@ -30,7 +31,7 @@ class _AccentPickerState extends State<AccentPicker> {
     title: const LText('选择色调'),
     content: SizedBox(
       width: 420,
-      child: SingleChildScrollView(
+      child: AppScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

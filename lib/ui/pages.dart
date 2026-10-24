@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'package:file_selector/file_selector.dart';
@@ -100,7 +101,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
     final controller = widget.controller;
-    return SingleChildScrollView(
+    return AppScrollView(
       padding: const EdgeInsets.fromLTRB(30, 30, 30, 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,7 +503,7 @@ class InstancesPageState extends State<InstancesPage> {
               ),
         )
         .toList();
-    return ListView(
+    return AppListView(
       padding: const EdgeInsets.all(30),
       children: [
         PageHeader(
@@ -871,7 +872,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
         controller.content.tasks.isEmpty &&
         !controller.launcherUpdater.hasTask) {
       return Center(
-        child: SingleChildScrollView(
+        child: AppScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: EmptyState(
@@ -887,7 +888,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
         ),
       );
     }
-    return ListView(
+    return AppListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         if (controller.launcherUpdater.hasTask) ...[

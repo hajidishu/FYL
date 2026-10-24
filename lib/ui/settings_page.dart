@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
@@ -223,7 +224,7 @@ class SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 300),
-              child: ListView.separated(
+              child: AppListView.separated(
                 primary: false,
                 shrinkWrap: true,
                 itemCount: installations.length,
@@ -387,7 +388,8 @@ class SettingsPageState extends State<SettingsPage> {
           Expanded(
             // These few sections have very different heights. Measure them in
             // full so the scrollbar does not change size as more come into view.
-            child: SingleChildScrollView(
+            child: AppScrollView(
+              key: ValueKey('settings-scroll-$group'),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

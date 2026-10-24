@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
@@ -193,7 +194,7 @@ class _CommunityPageState extends State<CommunityPage> {
       );
     }
     final c = LauncherColors.of(context);
-    return CustomScrollView(
+    return AppSliverView(
       slivers: [
         SliverToBoxAdapter(
           child: Column(
@@ -778,7 +779,7 @@ class _ContentDetailsState extends State<ContentDetails> {
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: SingleChildScrollView(
+          child: AppScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1151,7 +1152,7 @@ class _PackInstallDialogState extends State<PackInstallDialog> {
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(context).height * .6,
           ),
-          child: SingleChildScrollView(
+          child: AppScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

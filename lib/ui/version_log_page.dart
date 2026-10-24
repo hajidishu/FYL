@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -162,7 +163,7 @@ class _VersionLogPageState extends State<VersionLogPage> {
                     : error != null || log == null
                     ? Center(child: LText(error ?? '此版本还没有启动日志。'))
                     : SelectionArea(
-                        child: ListView.builder(
+                        child: AppListView.builder(
                           reverse: true,
                           itemCount: log.lines.length,
                           itemBuilder: (context, index) => Padding(

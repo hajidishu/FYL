@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'pack_update_dialog.dart';
 import 'package:file_selector/file_selector.dart';
@@ -123,7 +124,7 @@ class _ContentTaskCardState extends State<ContentTaskCard> {
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
+              child: AppScrollView(
                 child: Column(
                   children: [
                     for (final missing in task.missing)

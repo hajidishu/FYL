@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import 'dart:async';
 
 import 'package:file_selector/file_selector.dart';
@@ -509,7 +510,7 @@ class _PackUpdateDialogState extends State<PackUpdateDialog> {
           ),
           child: SizedBox(
             width: 680,
-            child: SingleChildScrollView(
+            child: AppScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,

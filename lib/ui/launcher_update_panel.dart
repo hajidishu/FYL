@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -131,9 +132,7 @@ class LauncherUpdatePanel extends StatelessWidget {
             if (release.notes.isNotEmpty)
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
-                child: SingleChildScrollView(
-                  child: SelectableText(release.notes),
-                ),
+                child: AppScrollView(child: SelectableText(release.notes)),
               ),
           ],
           if (updater.development) const LText('开发版请通过源码或发布页面更新。'),

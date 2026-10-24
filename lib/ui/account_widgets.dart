@@ -1,3 +1,4 @@
+import 'scrolling.dart';
 import '../l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:io';
@@ -361,7 +362,7 @@ class _AccountManagerDialogState extends State<AccountManagerDialog> {
         ),
         content: SizedBox(
           width: 480,
-          child: SingleChildScrollView(
+          child: AppScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -377,7 +378,7 @@ class _AccountManagerDialogState extends State<AccountManagerDialog> {
                   ),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 250),
-                  child: SingleChildScrollView(
+                  child: AppScrollView(
                     child: Column(
                       children: [
                         for (final account in widget.controller.accounts)
