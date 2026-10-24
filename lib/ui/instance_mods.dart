@@ -303,12 +303,6 @@ class _InstanceModsState extends State<InstanceMods> {
   @override
   Widget build(BuildContext context) {
     final c = LauncherColors.of(context);
-    final textScaler = MediaQuery.textScalerOf(context);
-    final rowExtent =
-        (textScaler.scale(14) * 2.5 + textScaler.scale(12) * 1.25 + 23).clamp(
-          74.0,
-          double.infinity,
-        );
     final visible = mods
         .where(
           (m) =>
@@ -541,7 +535,6 @@ class _InstanceModsState extends State<InstanceMods> {
                 )
               : ListView.builder(
                   itemCount: visible.length,
-                  itemExtent: rowExtent,
                   itemBuilder: (context, index) {
                     final mod = visible[index];
                     return Padding(
@@ -590,6 +583,7 @@ class _InstanceModsState extends State<InstanceMods> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
