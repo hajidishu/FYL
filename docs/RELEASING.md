@@ -16,6 +16,8 @@ git push origin v0.1.0-beta.1
 
 带预发布后缀，或 `.github/release.json` 中 `prerelease` 为 `true` 的版本标记为 Pre-release。发布正式版时使用不带预发布后缀的版本号，并将该选项设为 `false`。正式版只在版本号高于当前 Latest 时更新 Latest。
 
+发布说明使用用户确认的更新日志，条目末尾不加句号
+
 ## 自动化流程
 
 1. 校验版本与标签，执行发布工具测试。
