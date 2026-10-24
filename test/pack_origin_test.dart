@@ -397,6 +397,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('pack-update-version')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('2.0.0 · 1.21.1 · release').last);
+      // Forui commits selection after its menu-closing animation completes.
+      await tester.pumpAndSettle();
       await wait(tester, () => action(tester, '下载并预览').onPressed != null);
       await tester.pumpWidget(const SizedBox.shrink());
     },
