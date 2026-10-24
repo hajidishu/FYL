@@ -131,14 +131,23 @@ class SupportedContentVersions extends StatelessWidget {
       'datapack': '数据包',
       'minecraft': '原版',
     };
-    final loaderText = loaders
-        .map(
-          (value) => AppLocalizations.of(
-            context,
-          ).text(names[value.toLowerCase()] ?? value),
-        )
-        .toSet()
-        .join(' / ');
+    const colors = <String, (Color, Color)>{
+      'forge': (Colors.black, Colors.white),
+      'fabric': (Color(0xFF966A52), Colors.white),
+      'neoforge': (Color(0xFFF08A32), Color(0xFF281508)),
+      'quilt': (Color(0xFF3268C3), Colors.white),
+    };
+    final labels = <String, String>{};
+    for (final value in loaders) {
+      final id = value.trim().toLowerCase();
+      if (id.isEmpty) continue;
+      labels.putIfAbsent(
+        id,
+        () => AppLocalizations.of(context).text(names[id] ?? value.trim()),
+      );
+    }
+    final entries = labels.entries.toList();
+    final loaderText = labels.values.join(' / ');
     final ranges = contentGameVersionRanges(gameVersions, releases: releases);
     final supported = ranges.isEmpty
         ? AppLocalizations.of(context).text('暂无正式版支持信息')
@@ -146,8 +155,43 @@ class SupportedContentVersions extends StatelessWidget {
     return LTooltip(
       message: ranges.isEmpty ? supported : '支持的 Minecraft 版本：$ranges',
       constraints: const BoxConstraints(maxWidth: 480),
-      child: Text(
-        '${loaderText.isEmpty ? '' : '$loaderText · '}$supported',
+      child: Text.rich(
+        TextSpan(
+          children: [
+            for (var i = 0; i < entries.length; i++) ...[
+              if (i > 0) const TextSpan(text: ' / '),
+              if (colors[entries[i].key] case final palette?)
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.$1,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(
+                      entries[i].value,
+                      style: TextStyle(
+                        color: palette.$2,
+                        fontSize: 12,
+                        height: 1.2,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                TextSpan(text: entries[i].value),
+            ],
+            if (entries.isNotEmpty) const TextSpan(text: ' · '),
+            TextSpan(text: supported),
+          ],
+        ),
+        semanticsLabel:
+            '${loaderText.isEmpty ? '' : '$loaderText · '}$supported',
         maxLines: compact ? 1 : 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(

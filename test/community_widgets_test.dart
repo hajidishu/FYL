@@ -339,8 +339,17 @@ void main() {
         void checkMetadata() {
           expect(find.text('2.51 亿 次下载'), findsOneWidget);
           expect(find.text('5 天前更新'), findsOneWidget);
+          expect(find.text('Fabric'), findsWidgets);
+          expect(find.text('NeoForge'), findsWidgets);
           expect(
-            find.text('Fabric / NeoForge · Minecraft 1.21.1~1.20,1.16.5'),
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is Text &&
+                  widget.textSpan?.toPlainText().contains(
+                        'Minecraft 1.21.1~1.20,1.16.5',
+                      ) ==
+                      true,
+            ),
             findsOneWidget,
           );
           expect(
