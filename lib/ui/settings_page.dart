@@ -20,6 +20,7 @@ import 'launcher_background.dart';
 import 'memory_preview.dart';
 import 'launcher_update_panel.dart';
 import 'game_process_priority_setting.dart';
+import 'collapsible_section.dart';
 
 class SettingsPage extends StatefulWidget {
   final LauncherController controller;
@@ -767,18 +768,16 @@ class SettingsPageState extends State<SettingsPage> {
       draft.minimizeOnLaunch,
       (value) => draft.minimizeOnLaunch = value,
     ),
-    const Divider(),
-    ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      title: const LText('高级登录设置', style: TextStyle(fontSize: 12)),
-      children: [
-        _field(
-          'microsoftClientId',
-          '微软登录应用 Client ID',
-          hint: LauncherSettings.defaultMicrosoftClientId,
-          description: '自定义登录应用；清空并保存可恢复默认。',
-        ),
-      ],
+    CollapsibleSection(
+      key: const ValueKey('advanced-login-settings'),
+      title: '高级登录设置',
+      icon: FIcons.settings,
+      child: _field(
+        'microsoftClientId',
+        '微软登录应用 Client ID',
+        hint: LauncherSettings.defaultMicrosoftClientId,
+        description: '自定义登录应用；清空并保存可恢复默认。',
+      ),
     ),
     const SizedBox(height: 18),
     const Text(
