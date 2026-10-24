@@ -1,4 +1,5 @@
 #include "flutter_window.h"
+#include "game_process_priority.h"
 
 #include <optional>
 #include <cwchar>
@@ -77,6 +78,8 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  game_process_priorities_ = std::make_unique<GameProcessPriorities>(
+      flutter_controller_->engine()->messenger());
   game_window_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       flutter_controller_->engine()->messenger(), "fyl/game_window",
       &flutter::StandardMethodCodec::GetInstance());
@@ -109,6 +112,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  game_process_priorities_ = nullptr;
   game_window_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;

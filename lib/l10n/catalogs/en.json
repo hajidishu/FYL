@@ -1003,5 +1003,13 @@
   "所选项目不是整合包。": "The selected project is not a modpack.",
   "无法匹配该整合包项目，请检查链接或改用项目 ID。": "Could not match this modpack project. Check the URL or use its project ID.",
   "整合包来源与发布版本不匹配。": "The modpack source does not match the release.",
-  "关联整合包来源": "linking modpack source"
+  "关联整合包来源": "linking modpack source",
+  "游戏进程优先级": "Game process priority",
+  "低": "Low",
+  "低于正常": "Below normal",
+  "正常": "Normal",
+  "高于正常": "Above normal",
+  "高": "High",
+  "重置": "Reset",
+  "跟随全局（{p0}）": "Use global ({p0})"
 }

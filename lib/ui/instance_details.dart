@@ -13,12 +13,14 @@ import '../core/controller.dart';
 import '../core/instance_tools.dart';
 import '../core/minecraft.dart';
 import '../core/models.dart';
+import '../core/game_process_priority.dart';
 import 'community_page.dart';
 import 'instance_icon.dart';
 import 'instance_java_dialog.dart';
 import 'instance_mods.dart';
 import 'theme.dart';
 import 'memory_preview.dart';
+import 'game_process_priority_setting.dart';
 
 class InstanceDetailsPage extends StatefulWidget {
   final LauncherController controller;
@@ -53,6 +55,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       skipJava = false,
       gameOptions = true;
   bool automaticMemory = true;
+  GameProcessPriority? processPriority;
   int minimize = -1, verify = -1;
   String icon = 'auto';
   String? error, message;
@@ -64,6 +67,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     super.initState();
     final i = instance;
     final s = i.launchSettings;
+    processPriority = s.gameProcessPriority;
     final effective = i.effectiveSettings(widget.controller.settings);
     ownMemory =
         s.automaticMemory != null || s.minMemory != null || s.maxMemory != null;
@@ -179,6 +183,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
     fullscreen = widget.controller.settings.fullscreen;
     skipJava = false;
     minimize = verify = -1;
+    processPriority = null;
     changed();
   }
 
@@ -250,6 +255,7 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
         icon: icon,
         favorite: favorite,
         launchSettings: InstanceLaunchSettings(
+          gameProcessPriority: processPriority,
           automaticMemory: ownMemory ? automaticMemory : null,
           autoMemoryLimit: ownMemory ? number('autoMemoryLimit') : null,
           minMemory: ownMemory
@@ -1020,6 +1026,20 @@ class _InstanceDetailsPageState extends State<InstanceDetailsPage> {
       },
     ),
     section('高级启动选项', [
+      if (widget.controller.platform.os == 'windows') ...[
+        GameProcessPrioritySetting(
+          scope: 'instance',
+          value: processPriority,
+          inherited: widget.controller.settings.gameProcessPriority,
+          onChanged: busy
+              ? null
+              : (value) {
+                  processPriority = value;
+                  changed();
+                },
+        ),
+        const SizedBox(height: 12),
+      ],
       field('minMemory', '初始内存（MB，留空由 Java 决定）', enabled: ownMemory),
       check('单独设置 JVM 参数', ownJvm, (v) {
         setOverride(v, ownJvm, const ['jvmArguments']);

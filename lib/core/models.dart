@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'install_options.dart';
 import 'download_source.dart';
 import 'download_rate.dart';
+import 'game_process_priority.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -31,6 +32,7 @@ class LauncherSettings {
   String jvmArguments;
   String gameArguments;
   String preLaunchCommand;
+  GameProcessPriority gameProcessPriority;
   int parallelDownloads;
   int downloadRetries;
   int timeoutSeconds;
@@ -67,6 +69,7 @@ class LauncherSettings {
     this.jvmArguments = '',
     this.gameArguments = '',
     this.preLaunchCommand = '',
+    this.gameProcessPriority = GameProcessPriority.normal,
     this.parallelDownloads = 6,
     this.downloadRetries = 2,
     this.timeoutSeconds = 30,
@@ -111,6 +114,9 @@ class LauncherSettings {
     jvmArguments: json['jvmArguments'] as String? ?? '',
     gameArguments: json['gameArguments'] as String? ?? '',
     preLaunchCommand: json['preLaunchCommand'] as String? ?? '',
+    gameProcessPriority:
+        GameProcessPriority.fromName(json['gameProcessPriority']) ??
+        GameProcessPriority.normal,
     parallelDownloads: json['parallelDownloads'] as int? ?? 6,
     downloadRetries: json['downloadRetries'] as int? ?? 2,
     timeoutSeconds: json['timeoutSeconds'] as int? ?? 30,
@@ -165,6 +171,7 @@ class LauncherSettings {
     'jvmArguments': jvmArguments,
     'gameArguments': gameArguments,
     'preLaunchCommand': preLaunchCommand,
+    'gameProcessPriority': gameProcessPriority.name,
     'parallelDownloads': parallelDownloads,
     'downloadRetries': downloadRetries,
     'timeoutSeconds': timeoutSeconds,
@@ -249,6 +256,7 @@ String? validateVersionName(String name) {
 }
 
 class InstanceLaunchSettings {
+  final GameProcessPriority? gameProcessPriority;
   final bool? automaticMemory;
   final int? autoMemoryLimit;
   final int? minMemory, maxMemory, width, height;
@@ -256,6 +264,7 @@ class InstanceLaunchSettings {
   final String? jvmArguments, gameArguments, preLaunchCommand;
   final bool skipJavaVersionCheck;
   const InstanceLaunchSettings({
+    this.gameProcessPriority,
     this.automaticMemory,
     this.autoMemoryLimit,
     this.minMemory,
@@ -271,6 +280,7 @@ class InstanceLaunchSettings {
     this.skipJavaVersionCheck = false,
   });
   factory InstanceLaunchSettings.fromJson(Json j) => InstanceLaunchSettings(
+    gameProcessPriority: GameProcessPriority.fromName(j['gameProcessPriority']),
     automaticMemory: j['automaticMemory'] as bool?,
     autoMemoryLimit: j['autoMemoryLimit'] as int?,
     minMemory: j['minMemory'] as int?,
@@ -286,6 +296,7 @@ class InstanceLaunchSettings {
     skipJavaVersionCheck: j['skipJavaVersionCheck'] == true,
   );
   Json toJson() => {
+    'gameProcessPriority': gameProcessPriority?.name,
     'automaticMemory': automaticMemory,
     'autoMemoryLimit': autoMemoryLimit,
     'minMemory': minMemory,
@@ -301,6 +312,7 @@ class InstanceLaunchSettings {
     'skipJavaVersionCheck': skipJavaVersionCheck,
   };
   LauncherSettings apply(LauncherSettings defaults) => defaults.copy()
+    ..gameProcessPriority = gameProcessPriority ?? defaults.gameProcessPriority
     ..automaticMemory =
         automaticMemory ??
         ((minMemory != null || maxMemory != null)

@@ -10,6 +10,8 @@
 
 #include "win32_window.h"
 
+class GameProcessPriorities;
+
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
  public:
@@ -31,6 +33,7 @@ class FlutterWindow : public Win32Window {
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> game_window_channel_;
+  std::unique_ptr<GameProcessPriorities> game_process_priorities_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

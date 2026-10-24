@@ -25,6 +25,7 @@ import 'mod_updates.dart';
 import 'community_catalog.dart';
 import 'pack_import.dart' show ensurePackParents;
 import 'game_window.dart';
+import 'game_process_priority_session.dart';
 import 'launch_progress.dart';
 import 'launch_worker.dart';
 import 'launch_tips.dart';
@@ -1443,6 +1444,7 @@ class LauncherController extends ChangeNotifier {
     logs.clear();
     notifyListeners();
     IOSink? log;
+    GameProcessPrioritySession? priority;
     try {
       final snapshot = instance.effectiveSettings(settings);
       final session = await prepareSession();
@@ -1528,12 +1530,25 @@ class LauncherController extends ChangeNotifier {
           .transform(const Utf8Decoder(allowMalformed: true))
           .transform(const LineSplitter())
           .forEach((value) => line(value, stderrFormatter));
+      if (platform.os == 'windows') {
+        try {
+          priority = GameProcessPrioritySession(
+            pid: process.pid,
+            priority: snapshot.gameProcessPriority,
+            onLog: (value) => line(value, stdoutFormatter),
+          );
+          await priority.start();
+        } catch (error) {
+          line('[Launcher] 无法设置游戏进程优先级：$error', stdoutFormatter);
+        }
+      }
       var processExited = false;
       unawaited(() async {
         int? exitCode;
         try {
           final code = await process.exitCode;
           processExited = true;
+          await priority?.finish();
           exitCode = code;
           versionLog.exitCode = code;
           versionLog.endedAt = DateTime.now();
@@ -1630,6 +1645,7 @@ class LauncherController extends ChangeNotifier {
       bool ready;
       try {
         ready = await waitForGameWindow(game, waiter);
+        await priority?.finish();
       } finally {
         waiter.stop();
         if (identical(_windowWaiter, waiter)) _windowWaiter = null;
@@ -1654,6 +1670,7 @@ class LauncherController extends ChangeNotifier {
       launchProgress = null;
       launchingInstanceName = null;
       errorMessage = '$e';
+      await priority?.finish();
       try {
         await log?.close();
       } catch (_) {

@@ -1003,5 +1003,13 @@
   "所选项目不是整合包。": "Das gewählte Projekt ist kein Modpack.",
   "无法匹配该整合包项目，请检查链接或改用项目 ID。": "Modpack-Projekt konnte nicht zugeordnet werden. Prüfen Sie den Link oder verwenden Sie die Projekt-ID.",
   "整合包来源与发布版本不匹配。": "Modpack-Quelle und Veröffentlichung stimmen nicht überein.",
-  "关联整合包来源": "Modpack-Quelle verknüpfen"
+  "关联整合包来源": "Modpack-Quelle verknüpfen",
+  "游戏进程优先级": "Priorität des Spielprozesses",
+  "低": "Niedrig",
+  "低于正常": "Niedriger als normal",
+  "正常": "Normal",
+  "高于正常": "Höher als normal",
+  "高": "Hoch",
+  "重置": "Zurücksetzen",
+  "跟随全局（{p0}）": "Globale Einstellung ({p0})"
 }

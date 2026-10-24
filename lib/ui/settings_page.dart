@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../core/controller.dart';
 import '../core/java_discovery.dart';
 import '../core/models.dart';
+import '../core/game_process_priority.dart';
 import '../core/download_source.dart';
 import '../core/build_info.dart';
 import 'pages.dart';
@@ -17,6 +18,7 @@ import 'accent_picker.dart';
 import 'launcher_background.dart';
 import 'memory_preview.dart';
 import 'launcher_update_panel.dart';
+import 'game_process_priority_setting.dart';
 
 class SettingsPage extends StatefulWidget {
   final LauncherController controller;
@@ -934,6 +936,19 @@ class SettingsPageState extends State<SettingsPage> {
       lines: 2,
       description: '在游戏目录执行，最长运行 2 分钟；命令失败时停止启动。',
     ),
+    if (widget.controller.platform.os == 'windows') ...[
+      GameProcessPrioritySetting(
+        scope: 'default',
+        value: draft.gameProcessPriority,
+        onChanged: saving
+            ? null
+            : (value) {
+                draft.gameProcessPriority = value ?? GameProcessPriority.normal;
+                changed();
+              },
+      ),
+      const SizedBox(height: 16),
+    ],
     const LText(
       '如果尚未准备 Java，可在版本设置中使用“补全与修复文件”下载运行时。',
       style: TextStyle(fontSize: 11, height: 1.7),
