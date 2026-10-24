@@ -17,7 +17,7 @@ import 'l10n/app_localizations.dart';
 
 Future<void> main(List<String> arguments) async {
   await handleLauncherUpdateMode(arguments);
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
   String? dataDirectory = Platform.environment['FYL_DATA_DIR'];
   for (var i = 0; i < arguments.length; i++) {
@@ -30,6 +30,8 @@ Future<void> main(List<String> arguments) async {
       dataDirectory = arguments[i];
     }
   }
+  // Present the initialized launcher instead of flashing a directory-loading page.
+  binding.deferFirstFrame();
   runApp(
     LauncherRuntime(
       directories: DataDirectoryManager(
@@ -39,6 +41,7 @@ Future<void> main(List<String> arguments) async {
             : dataDirectory,
       ),
       platform: await HostPlatform.detect(),
+      onStartupReady: binding.allowFirstFrame,
     ),
   );
   unawaited(
@@ -53,6 +56,7 @@ Future<void> main(List<String> arguments) async {
         windowButtonVisibility: false,
       ),
       () async {
+        await binding.waitUntilFirstFrameRasterized;
         await windowManager.show();
         await windowManager.focus();
       },

@@ -24,11 +24,13 @@ class LauncherRuntime extends StatefulWidget {
   final HostPlatform platform;
   final bool nativeWindow;
   final void Function(LauncherController)? onReady;
+  final VoidCallback? onStartupReady;
   const LauncherRuntime({
     required this.directories,
     required this.platform,
     this.nativeWindow = true,
     this.onReady,
+    this.onStartupReady,
     super.key,
   });
   @override
@@ -41,9 +43,16 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
   final path = TextEditingController();
   String? error;
   bool busy = true;
+  bool startupReady = false;
   DataMigrationProgress? progress;
   String language = 'zh-Hans';
   String? chosenLanguage;
+
+  void presentStartup() {
+    if (startupReady) return;
+    startupReady = true;
+    widget.onStartupReady?.call();
+  }
 
   Future<void> readLanguage(String directory) async {
     for (final name in ['launcher.json', 'launcher.json.bak']) {
@@ -86,6 +95,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
           error = '无法打开数据目录：$e';
           busy = false;
         });
+        presentStartup();
       }
     }
   }
@@ -94,7 +104,10 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
     final location = await widget.directories.read();
     final target = await widget.directories.activate(
       onProgress: (value) {
-        if (mounted) setState(() => progress = value);
+        if (mounted) {
+          setState(() => progress = value);
+          presentStartup();
+        }
       },
     );
     DataDirectoryLease? nextLease;
@@ -178,6 +191,7 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
         chosenLanguage = null;
         language = active.settings.language;
       });
+      presentStartup();
       if (widget.onReady != null) {
         widget.onReady!(active);
       } else {
@@ -274,6 +288,9 @@ class _LauncherRuntimeState extends State<LauncherRuntime> with WindowListener {
         controller: active,
         nativeWindow: widget.nativeWindow,
       );
+    }
+    if (!startupReady && busy && progress == null) {
+      return const SizedBox.shrink();
     }
     const colors = LauncherColors(true);
     AppLocalizations.current = AppLocalizations.forLanguage(language);
