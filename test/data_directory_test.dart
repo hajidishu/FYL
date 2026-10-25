@@ -87,6 +87,48 @@ void main() {
     }
   }
 
+  test('resource-directory aliases cannot contain launcher profiles', () async {
+    for (final name in ['data', 'lib', 'plugins']) {
+      final reserved = p.join(manager.installationDirectory, name);
+      await Directory(reserved).create(recursive: true);
+      final alias = p.join(temporary.path, 'alias-$name');
+      if (Platform.isWindows) {
+        final result = await Process.run('cmd.exe', [
+          '/d',
+          '/c',
+          'mklink',
+          '/J',
+          alias,
+          reserved,
+        ]);
+        expect(result.exitCode, 0, reason: result.stderr.toString());
+      } else {
+        await Link(alias).create(reserved);
+      }
+      final profile = p.join(alias, 'profile');
+      await expectLater(
+        manager.validateDestination(profile),
+        throwsArgumentError,
+      );
+      await expectLater(
+        ensureDataOutsideProgramComponents(
+          manager.installationDirectory,
+          profile,
+          [name],
+        ),
+        throwsStateError,
+      );
+      expect(await Directory(p.join(reserved, 'profile')).exists(), isFalse);
+    }
+    final ordinary = p.join(temporary.path, 'safe-profile');
+    expect(await manager.validateDestination(ordinary), ordinary);
+    await ensureDataOutsideProgramComponents(
+      manager.installationDirectory,
+      ordinary,
+      const ['data', 'lib', 'plugins'],
+    );
+  });
+
   test(
     'install directory is independent of cwd and outside the macOS bundle',
     () {

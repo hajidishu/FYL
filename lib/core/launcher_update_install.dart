@@ -335,6 +335,12 @@ Future<Json> _readPlan(String path) async {
   }
   await ensurePackParents(data, path);
   await ensurePackParents(installation, p.join(installation, _journalName));
+  await ensureDataOutsideProgramComponents(installation, data, const [
+    'data',
+    'lib',
+    'plugins',
+    'free_your_launcher.app',
+  ]);
   return plan;
 }
 
@@ -474,14 +480,14 @@ Future<void> _apply(String planPath, {int? recoveryParent}) async {
         allRoots = {..._roots(oldManifest, os), ..._roots(incoming, os)};
     final staging = safeJoin(installation, '.fyl-update-stage-$nonce');
     final backup = safeJoin(installation, '.fyl-update-backup-$nonce');
+    await ensureDataOutsideProgramComponents(
+      installation,
+      plan['dataDirectory'] as String,
+      allRoots,
+    );
     await Directory(staging).create();
     await Directory(backup).create();
     for (final name in allRoots) {
-      final target = safeJoin(installation, name);
-      final data = plan['dataDirectory'] as String;
-      if (p.equals(target, data) || p.isWithin(target, data)) {
-        throw StateError('数据目录与程序组件重叠，请先移动数据目录。');
-      }
       if (newRoots.contains(name)) {
         await _copyComponent(
           safeJoin(plan['payload'] as String, name),

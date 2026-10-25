@@ -30,6 +30,38 @@ String launcherInstallationDirectory({String? executable, String? os}) {
 String defaultDataDirectory() =>
     p.join(launcherInstallationDirectory(), 'FYL-data');
 
+/// Resolve existing ancestors even when the final data folder does not exist.
+Future<String> canonicalDataPath(String path) async {
+  path = p.normalize(p.absolute(path));
+  final tail = <String>[];
+  while (!await Directory(path).exists()) {
+    tail.insert(0, p.basename(path));
+    final parent = p.dirname(path);
+    if (parent == path) break;
+    path = parent;
+  }
+  return p.normalize(
+    p.joinAll([await Directory(path).resolveSymbolicLinks(), ...tail]),
+  );
+}
+
+Future<void> ensureDataOutsideProgramComponents(
+  String installation,
+  String data,
+  Iterable<String> components,
+) async {
+  final resolved = await canonicalDataPath(data);
+  if (p.equals(resolved, await canonicalDataPath(installation))) {
+    throw StateError('数据目录与程序组件重叠，请先移动数据目录。');
+  }
+  for (final name in components) {
+    final reserved = await canonicalDataPath(p.join(installation, name));
+    if (p.equals(resolved, reserved) || p.isWithin(reserved, resolved)) {
+      throw StateError('数据目录与程序组件重叠，请先移动数据目录。');
+    }
+  }
+}
+
 /// Only reads the old location; path_provider's getter would create it again.
 String? legacyDataDirectory() {
   final env = Platform.environment;
@@ -209,27 +241,21 @@ class DataDirectoryManager {
         p.dirname(target) == target) {
       throw ArgumentError('请选择单独的数据文件夹。');
     }
+    final resolved = await canonicalDataPath(target);
+    if (p.equals(resolved, await canonicalDataPath(installationDirectory)) ||
+        p.dirname(resolved) == resolved) {
+      throw ArgumentError('请选择单独的数据文件夹。');
+    }
     for (final name in ['data', 'lib', 'plugins']) {
-      final reserved = p.join(installationDirectory, name);
-      if (p.equals(target, reserved) || p.isWithin(reserved, target)) {
+      final reserved = await canonicalDataPath(
+        p.join(installationDirectory, name),
+      );
+      if (p.equals(resolved, reserved) || p.isWithin(reserved, resolved)) {
         throw ArgumentError('数据目录不能放在程序资源目录 $name 内。');
       }
     }
-    // Resolve existing ancestors too, so a junction cannot bypass the overlap check.
-    Future<String> canonical(String path) async {
-      final tail = <String>[];
-      while (!await Directory(path).exists()) {
-        tail.insert(0, p.basename(path));
-        final parent = p.dirname(path);
-        if (parent == path) break;
-        path = parent;
-      }
-      return p.joinAll([await Directory(path).resolveSymbolicLinks(), ...tail]);
-    }
-
-    final resolved = await canonical(target);
     if (source != null) {
-      final original = await canonical(source);
+      final original = await canonicalDataPath(source);
       if (p.equals(original, resolved) ||
           p.isWithin(original, resolved) ||
           p.isWithin(resolved, original)) {
