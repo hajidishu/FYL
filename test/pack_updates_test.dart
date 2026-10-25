@@ -9,6 +9,7 @@ import 'package:free_your_launcher/core/network.dart';
 import 'package:free_your_launcher/core/pack_updates.dart';
 import 'package:free_your_launcher/core/pack_origin.dart';
 import 'package:free_your_launcher/core/community_models.dart';
+import 'package:free_your_launcher/core/controller.dart';
 
 void main() {
   late Directory root;
@@ -55,6 +56,78 @@ void main() {
     staged = instance('FYL-update-test');
   });
   tearDown(() async => root.delete(recursive: true));
+
+  test(
+    'restoring after a version rename preserves its current name and the immutable backup',
+    () async {
+      final controller = LauncherController(
+        supportDirectory: p.join(root.path, 'support'),
+        platform: const HostPlatform('windows', 'x86_64'),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      await file(
+        original,
+        '${original.name}.json',
+        jsonEncode({'id': original.name}),
+      );
+      await file(original, '${original.name}.jar', 'new jar');
+      final backupRoot = p.join(original.root, '.fyl', 'pack-backups', 'test');
+      final backup = Directory(p.join(backupRoot, 'version'));
+      await backup.create(recursive: true);
+      final previous = GameInstance.fromJson({
+        ...original.toJson(),
+        'version': '1.20.1',
+        'icon': p.join(original.versionDirectory, 'cover.png'),
+      });
+      final snapshot = jsonEncode(previous.toJson());
+      await File(p.join(backupRoot, 'instance.json')).writeAsString(snapshot);
+      await File(
+        p.join(backup.path, '${original.name}.json'),
+      ).writeAsString(jsonEncode({'id': original.name}));
+      await File(
+        p.join(backup.path, '${original.name}.jar'),
+      ).writeAsString('old jar');
+      controller.instances.add(
+        GameInstance.fromJson({
+          ...original.toJson(),
+          'installation': {'packBackup': backupRoot},
+        }),
+      );
+      await controller.saveInstance(
+        controller.instances.single.copyWith(name: 'Renamed Pack'),
+      );
+      await controller.restorePackBackup(original.id);
+      final restored = controller.instances.single;
+      expect(restored.name, 'Renamed Pack');
+      expect(restored.version, '1.20.1');
+      expect(restored.icon, p.join(restored.versionDirectory, 'cover.png'));
+      expect(await File(restored.clientJarPath).readAsString(), 'old jar');
+      expect(
+        (jsonDecode(await File(restored.metadataPath).readAsString())
+            as Json)['id'],
+        restored.name,
+      );
+      expect(
+        await File(p.join(backupRoot, 'instance.json')).readAsString(),
+        snapshot,
+      );
+      expect(
+        await File(p.join(backup.path, '${original.name}.jar')).readAsString(),
+        'old jar',
+      );
+      expect(
+        await File(
+          p.join('$backupRoot.reverted', '${restored.name}.jar'),
+        ).readAsString(),
+        'new jar',
+      );
+      expect(
+        await Directory(p.join(backupRoot, 'restore-prepared')).exists(),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'author updates and removals preserve personal and unmanaged files',

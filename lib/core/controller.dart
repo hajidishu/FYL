@@ -789,15 +789,6 @@ class LauncherController extends ChangeNotifier {
         !p.isWithin(p.join(original.root, '.fyl', 'pack-backups'), path)) {
       throw StateError('没有可还原的整合包升级备份。');
     }
-    await ensurePackParents(original.root, p.join(path, 'instance.json'));
-    final previous = GameInstance.fromJson(
-      jsonDecode(await File(p.join(path, 'instance.json')).readAsString())
-          as Json,
-    );
-    if (previous.id != id ||
-        previous.versionDirectory != original.versionDirectory) {
-      throw const FormatException('整合包备份记录无效。');
-    }
     final backup = p.join(path, 'version');
     final retained = '$path.reverted';
     await ensurePackParents(original.root, retained);
@@ -809,7 +800,11 @@ class LauncherController extends ChangeNotifier {
     notifyListeners();
     final index = instances.indexWhere((instance) => instance.id == id);
     var moved = false, restored = false, committed = false;
+    String? prepared;
     try {
+      final preparation = await preparePackBackupRestore(original, path);
+      final previous = preparation.$1;
+      prepared = preparation.$2;
       await writePackUpdateJournal(supportDirectory, {
         'original': original.toJson(),
         'updated': previous.toJson(),
@@ -817,7 +812,7 @@ class LauncherController extends ChangeNotifier {
       });
       await Directory(original.versionDirectory).rename(retained);
       moved = true;
-      await Directory(backup).rename(original.versionDirectory);
+      await Directory(prepared).rename(original.versionDirectory);
       restored = true;
       instances[index] = previous;
       try {
@@ -829,6 +824,9 @@ class LauncherController extends ChangeNotifier {
       committed = true;
       try {
         await File(
+          p.join(original.versionDirectory, '.fyl-restore-owner'),
+        ).delete();
+        await File(
           p.join(supportDirectory, 'pack-update-journal.json'),
         ).delete();
       } catch (_) {
@@ -838,14 +836,22 @@ class LauncherController extends ChangeNotifier {
     } catch (_) {
       if (!committed) {
         _packRecoveryRequired = true;
-        if (restored) await Directory(original.versionDirectory).rename(backup);
+        if (restored) {
+          await Directory(original.versionDirectory).rename(prepared!);
+        }
         if (moved) await Directory(retained).rename(original.versionDirectory);
         _packRecoveryRequired = false;
       }
       rethrow;
     } finally {
-      instanceOperation = null;
-      notifyListeners();
+      try {
+        if (prepared != null && !_packRecoveryRequired) {
+          await removePreparedPackRestore(original, prepared);
+        }
+      } finally {
+        instanceOperation = null;
+        notifyListeners();
+      }
     }
   }
 

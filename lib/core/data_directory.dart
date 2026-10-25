@@ -113,6 +113,8 @@ void rebaseDataPaths(Json data, String source, String destination) {
   for (final instance in data['instances'] as List<dynamic>? ?? []) {
     if (instance is Map) {
       fields(instance, ['root', 'javaPath', 'managedJava', 'icon']);
+      final installation = instance['installation'];
+      if (installation is Map) fields(installation, ['packBackup']);
     }
   }
   data['dataDirectory'] = destination;
@@ -506,6 +508,30 @@ Future<void> _copyDataDirectory(
     }
     final configuration = await _readConfiguration(staging.path);
     rebaseDataPaths(configuration, source, destination);
+    final rebasedFiles = <String, String>{};
+    // Backup snapshots are launcher-owned metadata, including older backups
+    // referenced by a snapshot. Keep their source and destination hashes apart.
+    for (final relative in fingerprints.keys) {
+      final parts = p.split(relative);
+      final index = parts.lastIndexOf('pack-backups');
+      if (index < 1 ||
+          parts[index - 1] != '.fyl' ||
+          parts.length != index + 3 ||
+          parts.last != 'instance.json') {
+        continue;
+      }
+      final file = File(p.join(staging.path, relative));
+      final snapshot = jsonDecode(await file.readAsString()) as Json;
+      rebaseDataPaths(
+        {
+          'instances': [snapshot],
+        },
+        source,
+        destination,
+      );
+      await file.writeAsString(jsonEncode(snapshot), flush: true);
+      rebasedFiles[relative] = await _digest(file);
+    }
     // Do not leave a backup pointing back into the old directory.
     final text = const JsonEncoder.withIndent('  ').convert(configuration);
     await File(
@@ -520,6 +546,7 @@ Future<void> _copyDataDirectory(
         'source': source,
         'complete': true,
         'files': fingerprints,
+        'rebasedFiles': rebasedFiles,
         'links': links,
         'directories': directories,
       }),
@@ -613,13 +640,15 @@ Future<void> _cleanMigratedSource(
 
 Future<void> _verifyDestination(String directory, Json marker) async {
   final files = (marker['files'] as Map).cast<String, String>();
+  final rebased = (marker['rebasedFiles'] as Map? ?? {}).cast<String, String>();
   for (final entry in files.entries) {
     // Configuration is rebased and may be upgraded by initialize().
     if (entry.key == 'launcher.json' || entry.key == 'launcher.json.bak') {
       continue;
     }
     final file = File(safeJoin(directory, entry.key));
-    if (!await file.exists() || await _digest(file) != entry.value) {
+    if (!await file.exists() ||
+        await _digest(file) != (rebased[entry.key] ?? entry.value)) {
       throw StateError('迁移后的文件未通过校验：${entry.key}。原数据已保留。');
     }
   }

@@ -255,6 +255,69 @@ void main() {
   );
 
   test(
+    'migration rebases backup snapshots and keeps restore usable after source cleanup',
+    () async {
+      await createSource();
+      final controller = LauncherController(
+        supportDirectory: source,
+        platform: platform,
+      );
+      await controller.initialize();
+      final original = controller.instances.first;
+      final backupRoot = p.join(original.root, '.fyl', 'pack-backups', 'test');
+      final old = GameInstance.fromJson({
+        ...original.toJson(),
+        'version': '1.20.1',
+        'icon': p.join(original.versionDirectory, 'cover.png'),
+      });
+      await Directory(p.join(backupRoot, 'version')).create(recursive: true);
+      await File(
+        p.join(backupRoot, 'instance.json'),
+      ).writeAsString(jsonEncode(old.toJson()));
+      await File(
+        p.join(backupRoot, 'version', '${old.name}.json'),
+      ).writeAsString(jsonEncode({'id': old.name}));
+      await File(
+        p.join(backupRoot, 'version', '${old.name}.jar'),
+      ).writeAsString('old jar');
+      controller.instances[0] = GameInstance.fromJson({
+        ...original.toJson(),
+        'installation': {'packBackup': backupRoot},
+      });
+      await controller.flush();
+      controller.dispose();
+
+      await manager.select(target, source: source, migrate: true);
+      await manager.activate();
+      expect(await manager.completeMigration(), isNull);
+      expect(await Directory(source).exists(), isFalse);
+      final loaded = LauncherController(
+        supportDirectory: target,
+        platform: platform,
+      );
+      addTearDown(loaded.dispose);
+      await loaded.initialize();
+      final rebased = loaded.instances.first;
+      expect(
+        rebased.installation['packBackup'],
+        p.join(target, '.minecraft', '.fyl', 'pack-backups', 'test'),
+      );
+      await loaded.restorePackBackup(rebased.id);
+      expect(loaded.instances.first.version, '1.20.1');
+      expect(
+        loaded.instances.first.icon,
+        p.join(rebased.versionDirectory, 'cover.png'),
+      );
+      expect(
+        await File(
+          p.join(rebased.versionDirectory, '${rebased.name}.jar'),
+        ).readAsString(),
+        'old jar',
+      );
+    },
+  );
+
+  test(
     'existing portable profiles take precedence over discovered legacy data',
     () async {
       await createSource();

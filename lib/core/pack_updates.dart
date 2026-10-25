@@ -259,6 +259,110 @@ Future<void> writePackUpdateJournal(String supportDirectory, Json value) =>
       value,
     );
 
+const _restoreOwner = '.fyl-restore-owner';
+
+/// The immutable backup is copied before its version identity is changed.
+/// A leftover preparation can be safely replaced after an interrupted restore.
+Future<(GameInstance, String)> preparePackBackupRestore(
+  GameInstance current,
+  String backupRoot,
+) => Isolate.run(() async {
+  final snapshotPath = p.join(backupRoot, 'instance.json');
+  if (!p.isWithin(p.join(current.root, '.fyl', 'pack-backups'), backupRoot)) {
+    throw const FormatException('整合包备份记录无效。');
+  }
+  await ensurePackParents(current.root, snapshotPath);
+  final snapshot = GameInstance.fromJson(
+    jsonDecode(await File(snapshotPath).readAsString()) as Json,
+  );
+  if (snapshot.id != current.id ||
+      !p.equals(snapshot.root, current.root) ||
+      validateVersionName(snapshot.name) != null ||
+      validateVersionName(current.name) != null) {
+    throw const FormatException('整合包备份记录无效。');
+  }
+  String relocate(String path) => p.isWithin(snapshot.versionDirectory, path)
+      ? p.join(
+          current.versionDirectory,
+          p.relative(path, from: snapshot.versionDirectory),
+        )
+      : path;
+  final restored = GameInstance.fromJson({
+    ...snapshot.toJson(),
+    'name': current.name,
+    'icon': relocate(snapshot.icon),
+    'javaPath': relocate(snapshot.javaPath),
+    'managedJava': snapshot.managedJava == null
+        ? null
+        : relocate(snapshot.managedJava!),
+  });
+  final backup = p.join(backupRoot, 'version');
+  final prepared = p.join(backupRoot, 'restore-prepared');
+  await ensurePackParents(current.root, backup);
+  if (!await Directory(backup).exists()) {
+    throw StateError('整合包备份目录无法使用。');
+  }
+  await removePreparedPackRestore(current, prepared);
+  await Directory(prepared).create();
+  await File(
+    p.join(prepared, _restoreOwner),
+  ).writeAsString(current.id, flush: true);
+  try {
+    await for (final entry in Directory(
+      backup,
+    ).list(recursive: true, followLinks: false)) {
+      final target = safeJoin(prepared, p.relative(entry.path, from: backup));
+      if (p.relative(entry.path, from: backup) == _restoreOwner) continue;
+      if (entry is Link) throw const FormatException('整合包备份包含符号链接。');
+      if (entry is Directory) {
+        await Directory(target).create(recursive: true);
+      } else if (entry is File) {
+        await File(target).parent.create(recursive: true);
+        await entry.copy(target);
+      }
+    }
+    if (snapshot.name != current.name) {
+      for (final suffix in ['.json', '.json.bak', '.jar']) {
+        final source = File(p.join(prepared, '${snapshot.name}$suffix'));
+        if (!await source.exists()) continue;
+        final target = p.join(prepared, '${current.name}$suffix');
+        if (await File(target).exists() &&
+            !await FileSystemEntity.identical(source.path, target)) {
+          throw const FormatException('整合包备份中的版本文件名冲突。');
+        }
+        await source.rename(target);
+      }
+      final metadata = File(p.join(prepared, '${current.name}.json'));
+      if (await metadata.exists()) {
+        final json = jsonDecode(await metadata.readAsString()) as Json;
+        json['id'] = current.name;
+        await metadata.writeAsString(jsonEncode(json), flush: true);
+      }
+    }
+    return (restored, prepared);
+  } catch (_) {
+    await removePreparedPackRestore(current, prepared);
+    rethrow;
+  }
+});
+
+Future<void> removePreparedPackRestore(
+  GameInstance current,
+  String path,
+) async {
+  if (!p.isWithin(p.join(current.root, '.fyl', 'pack-backups'), path) ||
+      p.basename(path) != 'restore-prepared') {
+    throw const FormatException('整合包备份记录无效。');
+  }
+  await ensurePackParents(current.root, path);
+  if (!await Directory(path).exists()) return;
+  final owner = File(p.join(path, _restoreOwner));
+  if (!await owner.exists() || await owner.readAsString() != current.id) {
+    throw const FormatException('整合包备份记录无效。');
+  }
+  await Directory(path).delete(recursive: true);
+}
+
 /// Interrupted directory swaps are recovered before a version can be launched.
 Future<String?> recoverPackUpdate(
   String supportDirectory,
