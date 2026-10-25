@@ -13,6 +13,7 @@ import 'theme.dart';
 import 'game_failure_dialog.dart';
 import 'file_drop.dart';
 import 'launcher_background.dart';
+import 'multiplayer_page.dart';
 
 class LauncherShell extends StatefulWidget {
   final LauncherController controller;
@@ -141,6 +142,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
         await widget.controller.stopActiveTasks();
       }
       await widget.controller.flush();
+      await widget.controller.multiplayer.stop();
       await windowManager.destroy();
     } catch (e) {
       widget.controller.errorMessage = '关闭启动器失败：$e';
@@ -276,6 +278,8 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                               const SizedBox(height: 7),
                               _navigation(2, '下载管理', FIcons.download, compact),
                               const SizedBox(height: 7),
+                              _navigation(4, '联机', FIcons.network, compact),
+                              const SizedBox(height: 7),
                               _navigation(3, '设置', FIcons.settings, compact),
                               const Spacer(),
                               LText(
@@ -361,6 +365,9 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                                   2 => DownloadsPage(
                                     controller: controller,
                                     navigate: navigate,
+                                  ),
+                                  4 => MultiplayerPage(
+                                    controller: controller.multiplayer,
                                   ),
                                   _ => SettingsPage(
                                     key: settingsKey,

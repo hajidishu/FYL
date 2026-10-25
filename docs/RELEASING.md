@@ -22,6 +22,7 @@ git push origin v0.1.0-beta.1
 
 1. 校验版本与标签，执行发布工具测试。
 2. 三个平台分别执行格式检查、静态分析、Flutter 测试、编译和打包。
+   构建环境另需 Go 1.24+ 和 Python 3，平台构建阶段会把无特权的 Minecraft 联机助手及其依赖许可证放入运行目录；CI 另执行该助手的 Go 格式、静态分析与回归测试。
 3. 根据实际程序架构命名压缩包：Windows ZIP、macOS ZIP、Linux TAR.GZ。macOS 若同时包含 x64 和 ARM64，标记为 `universal`。
 4. 三个平台全部成功后，再次核对产物与 SHA-256。Release 仅上传三个平台的压缩包，不额外发布 `SHA256SUMS`；校验值使用 GitHub 下载页提供的 SHA-256。
 5. 创建 Release 草稿、上传完整产物，再自动发布。

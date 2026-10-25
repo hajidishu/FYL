@@ -38,6 +38,8 @@ Unter Einstellungen → Allgemein stehen vereinfachtes und traditionelles Chines
 
 ## Erstellen und ausführen
 
+Go 1.24+ und Python 3 werden benötigt; der Minecraft-Netzwerkhelfer wird automatisch mit dem Launcher erstellt
+
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
 flutter pub get

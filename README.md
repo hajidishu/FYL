@@ -38,6 +38,8 @@ FYL（free_your_launcher）是一款基于Flutter + Forui开发的跨平台minec
 
 ## 编译与运行
 
+需要 Go 1.24+ 和 Python 3，Minecraft 联机助手会随启动器自动构建
+
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
 flutter pub get

@@ -38,6 +38,8 @@ FYL (free_your_launcher) — кроссплатформенный лаунчер
 
 ## Сборка и запуск
 
+Требуются Go 1.24+ и Python 3; сетевой помощник Minecraft собирается автоматически вместе с лаунчером
+
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
 flutter pub get

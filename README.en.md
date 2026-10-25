@@ -38,6 +38,8 @@ Choose Simplified Chinese, Traditional Chinese, English, Russian, French or Germ
 
 ## Build and run
 
+Requires Go 1.24+ and Python 3; the Minecraft networking helper builds automatically with the launcher
+
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
 flutter pub get

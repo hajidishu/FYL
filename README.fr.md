@@ -38,6 +38,8 @@ Choisissez le chinois simplifié, le chinois traditionnel, l’anglais, le russe
 
 ## Compilation et exécution
 
+Go 1.24+ et Python 3 sont nécessaires ; l’assistant réseau Minecraft est compilé automatiquement avec le lanceur
+
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
 flutter pub get

@@ -90,6 +90,8 @@ install(CODE "
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/Multiplayer.cmake")
+fyl_configure_network(${BINARY_NAME} linux)
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
