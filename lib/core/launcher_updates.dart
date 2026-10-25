@@ -147,6 +147,7 @@ LauncherRelease? selectLauncherRelease(
 
 class LauncherUpdater {
   final String supportDirectory, currentVersion;
+  final bool releaseBuild;
   final String? explicitDataDirectory;
   final HostPlatform platform;
   final LauncherSettings Function() settings;
@@ -170,9 +171,11 @@ class LauncherUpdater {
     required this.settings,
     required this.onChanged,
     this.currentVersion = launcherVersion,
+    this.releaseBuild = launcherIsRelease,
     this.explicitDataDirectory,
   });
-  bool get development => LauncherVersion.parse(currentVersion) == null;
+  bool get development =>
+      !releaseBuild || LauncherVersion.parse(currentVersion) == null;
   bool get busy => downloading || applying;
   double? get progress {
     final size = downloadedRelease?.asset?['size'] as num?;
@@ -345,6 +348,7 @@ class LauncherUpdater {
   }
 
   Future<void> startHelper() async {
+    if (development) throw StateError('开发版请通过源码或发布页面更新。');
     if (!ready || busy || _workspace == null || _payload == null) {
       throw StateError('请先下载启动器更新。');
     }

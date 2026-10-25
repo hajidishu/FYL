@@ -32,6 +32,40 @@ void main() {
     ],
   };
   const windows = HostPlatform('windows', 'x86_64');
+  test(
+    'build provenance controls self-update independently of SemVer',
+    () async {
+      final settings = LauncherSettings(gameRoot: Directory.systemTemp.path);
+      for (final version in ['development', '0.1.5-dev.g08088917', '0.1.5']) {
+        final updater = LauncherUpdater(
+          supportDirectory: Directory.systemTemp.path,
+          platform: windows,
+          settings: () => settings,
+          onChanged: () {},
+          currentVersion: version,
+          releaseBuild: false,
+        );
+        expect(updater.development, isTrue);
+        await updater.check(automatic: true);
+        expect(updater.checking, isFalse);
+        await expectLater(updater.download(), throwsStateError);
+        await expectLater(updater.startHelper(), throwsStateError);
+        updater.dispose();
+      }
+      for (final version in ['0.1.5', '0.1.6-beta.1']) {
+        final updater = LauncherUpdater(
+          supportDirectory: Directory.systemTemp.path,
+          platform: windows,
+          settings: () => settings,
+          onChanged: () {},
+          currentVersion: version,
+          releaseBuild: true,
+        );
+        expect(updater.development, isFalse);
+        updater.dispose();
+      }
+    },
+  );
   test('semantic versions compare numbers and prerelease identifiers', () {
     expect(
       LauncherVersion.parse(

@@ -25,6 +25,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       build_name: ${{ steps.version.outputs.build_name }}
       build_number: ${{ steps.version.outputs.build_number }}
+      is_release: ${{ steps.version.outputs.is_release }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,6 +57,7 @@ jobs:
       FYL_VERSION: ${{ needs.version.outputs.version }}
       FYL_BUILD_NAME: ${{ needs.version.outputs.build_name }}
       FYL_BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
+      FYL_IS_RELEASE: ${{ needs.version.outputs.is_release }}
       FYL_TARGET: ${{ matrix.target }}
     steps:
       - uses: actions/checkout@v4
@@ -85,6 +87,7 @@ jobs:
           flutter build "$FYL_TARGET" --release --no-pub
           --build-name="$FYL_BUILD_NAME" --build-number="$FYL_BUILD_NUMBER"
           --dart-define="FYL_VERSION=$FYL_VERSION"
+          --dart-define="FYL_IS_RELEASE=$FYL_IS_RELEASE"
       - name: Package
         run: python tool/release.py package --target "$FYL_TARGET" --version "$FYL_VERSION"
       - uses: actions/upload-artifact@v4
