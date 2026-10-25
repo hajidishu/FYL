@@ -32,6 +32,7 @@ import 'launch_tips.dart';
 import 'system_memory.dart';
 import 'data_directory.dart';
 import 'pack_updates.dart';
+import 'prepared_pack_updates.dart';
 import 'pack_origin.dart';
 import 'launcher_updates.dart';
 
@@ -90,6 +91,10 @@ class LauncherController extends ChangeNotifier {
     versionInUse: (directory) =>
         instances.any((i) => p.equals(i.versionDirectory, directory)),
     onChanged: _throttledNotify,
+    onPreparedPackUpdate: (task) async {
+      await validatePreparedPackUpdate(task, instances, supportDirectory);
+      await _save();
+    },
     onInstalled: (instance) async {
       final previous = selectedId;
       instances.insert(0, instance);
@@ -222,6 +227,8 @@ class LauncherController extends ChangeNotifier {
 
   Future<void> initialize() async {
     var loadCurseForgeKey = false;
+    var saveAfterLoad = false;
+    var preparedUpdates = <dynamic>[];
     await Directory(supportDirectory).create(recursive: true);
     if (await _config.exists() || await File('${_config.path}.bak').exists()) {
       Json? data;
@@ -255,6 +262,7 @@ class LauncherController extends ChangeNotifier {
           }
         }
         selectedId = data['selectedId'] as String?;
+        preparedUpdates = data['preparedPackUpdates'] as List<dynamic>? ?? [];
         for (final raw in data['accounts'] as List<dynamic>? ?? []) {
           try {
             accounts.add(LauncherAccount.fromJson(raw as Json));
@@ -267,7 +275,7 @@ class LauncherController extends ChangeNotifier {
           final migrated = LauncherAccount.offline(settings.username);
           accounts.add(migrated);
           activeAccountId = migrated.id;
-          await _save();
+          saveAfterLoad = true;
         }
         if (activeAccount != null) settings.username = activeAccount!.username;
       }
@@ -289,6 +297,35 @@ class LauncherController extends ChangeNotifier {
       _packRecoveryRequired = true;
       errorMessage = '无法恢复整合包升级，请保留数据并重新启动：$error';
     }
+    for (final raw in preparedUpdates) {
+      try {
+        final task = preparedPackUpdateFromJson(raw as Json);
+        try {
+          await validatePreparedPackUpdate(task, instances, supportDirectory);
+        } catch (error) {
+          // Keep failed preparations visible and discardable, even when their
+          // cached archive is missing. Never move an untrusted staging path.
+          try {
+            validatePreparedPackUpdateLocation(
+              task,
+              instances,
+              supportDirectory,
+            );
+          } catch (_) {
+            task.preparedInstance = null;
+            saveAfterLoad = true;
+          }
+          task.state = ContentTaskState.failed;
+          task.stage = '安装失败';
+          task.canRetry = false;
+          task.error = error.toString();
+        }
+        content.tasks.add(task);
+      } catch (error) {
+        errorMessage = '无法恢复整合包升级，请保留数据并重新启动：$error';
+      }
+    }
+    if (saveAfterLoad) await _save();
     final updateResult = File(
       p.join(supportDirectory, 'launcher-update-result.json'),
     );
@@ -307,12 +344,18 @@ class LauncherController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _save() {
+  Future<void> _save({ContentTask? completedPackUpdate}) {
     final data = <String, dynamic>{
       'schemaVersion': 2,
       'dataDirectory': supportDirectory,
       'settings': settings.toJson(),
       'instances': instances.map((i) => i.toJson()).toList(),
+      'preparedPackUpdates': [
+        for (final task in content.tasks)
+          if (task.preparedInstance != null &&
+              !identical(task, completedPackUpdate))
+            preparedPackUpdateJson(task),
+      ],
       'selectedId': selectedId,
       'accounts': accounts.map((account) => account.toJson()).toList(),
       'activeAccountId': activeAccountId,
@@ -678,7 +721,7 @@ class LauncherController extends ChangeNotifier {
         final selected = selectedId;
         selectedId = updated.id;
         try {
-          await _save();
+          await _save(completedPackUpdate: task);
         } catch (_) {
           instances.remove(updated);
           selectedId = selected;
@@ -713,7 +756,7 @@ class LauncherController extends ChangeNotifier {
         promoted = true;
         instances[index] = updated;
         try {
-          await _save();
+          await _save(completedPackUpdate: task);
         } catch (_) {
           instances[index] = original;
           rethrow;
@@ -762,24 +805,44 @@ class LauncherController extends ChangeNotifier {
   Future<void> discardPackUpdate(ContentTask task) async {
     final staged = task.preparedInstance;
     if (staged == null || task.state == ContentTaskState.running) return;
+    if (instanceOperation != null) throw StateError('请等待当前任务完成。');
     if (!staged.name.startsWith('FYL-update-') ||
-        instances.any((instance) => instance.id == staged.id)) {
+        instances.any(
+          (instance) =>
+              instance.id == staged.id ||
+              p.equals(instance.versionDirectory, staged.versionDirectory),
+        )) {
       return;
     }
     final retained = safeJoin(
       p.join(staged.root, '.fyl-trash'),
       'unused-update-${task.id}',
     );
-    await ensurePackParents(staged.root, retained);
-    if (await Directory(staged.versionDirectory).exists()) {
-      await Directory(staged.versionDirectory).rename(retained);
+    instanceOperation = '升级整合包';
+    var moved = false;
+    try {
+      await ensurePackParents(staged.root, staged.versionDirectory);
+      await ensurePackParents(staged.root, retained);
+      if (await Directory(staged.versionDirectory).exists()) {
+        await Directory(staged.versionDirectory).rename(retained);
+        moved = true;
+      }
+      task.preparedInstance = null;
+      try {
+        await _save();
+      } catch (_) {
+        task.preparedInstance = staged;
+        if (moved) await Directory(retained).rename(staged.versionDirectory);
+        rethrow;
+      }
+      task.destination = retained;
+      task.state = ContentTaskState.cancelled;
+      task.canRetry = false;
+      task.stage = '已取消';
+    } finally {
+      instanceOperation = null;
+      notifyListeners();
     }
-    task.preparedInstance = null;
-    task.destination = retained;
-    task.state = ContentTaskState.cancelled;
-    task.canRetry = false;
-    task.stage = '已取消';
-    notifyListeners();
   }
 
   Future<void> restorePackBackup(String id) async {

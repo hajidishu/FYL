@@ -213,7 +213,7 @@ class ContentTask {
 
   List<ContentFile> missing = [];
   CancellationToken token = CancellationToken();
-  ContentTask(this.title, this.kind, this.source)
-    : id = DateTime.now().microsecondsSinceEpoch.toString();
+  ContentTask(this.title, this.kind, this.source, {String? id})
+    : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
   double? get progress => total == 0 ? null : done / total;
 }

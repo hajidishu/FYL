@@ -110,11 +110,21 @@ void rebaseDataPaths(Json data, String source, String destination) {
   if (settings is Map) {
     fields(settings, ['gameRoot', 'javaPath', 'backgroundPath']);
   }
-  for (final instance in data['instances'] as List<dynamic>? ?? []) {
+  void instanceFields(dynamic instance) {
     if (instance is Map) {
       fields(instance, ['root', 'javaPath', 'managedJava', 'icon']);
       final installation = instance['installation'];
       if (installation is Map) fields(installation, ['packBackup']);
+    }
+  }
+
+  for (final instance in data['instances'] as List<dynamic>? ?? []) {
+    instanceFields(instance);
+  }
+  for (final task in data['preparedPackUpdates'] as List<dynamic>? ?? []) {
+    if (task is Map) {
+      fields(task, ['archive']);
+      instanceFields(task['instance']);
     }
   }
   data['dataDirectory'] = destination;

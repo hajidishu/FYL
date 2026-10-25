@@ -68,6 +68,7 @@ class ContentInstaller {
   final LauncherSettings Function() settings;
   final void Function() onChanged;
   final Future<void> Function(GameInstance) onInstalled;
+  final Future<void> Function(ContentTask)? onPreparedPackUpdate;
   final bool Function() busy;
   final ContentCatalogFactory catalogFactory;
   final PackBaseInstaller? installBase;
@@ -85,6 +86,7 @@ class ContentInstaller {
     required this.settings,
     required this.onChanged,
     required this.onInstalled,
+    this.onPreparedPackUpdate,
     required this.busy,
     ContentCatalogFactory? catalogFactory,
     this.installBase,
@@ -285,7 +287,8 @@ class ContentInstaller {
   }
 
   bool dismiss(ContentTask task) {
-    if (task.state == ContentTaskState.running ||
+    if (task.preparedInstance != null ||
+        task.state == ContentTaskState.running ||
         task.state == ContentTaskState.waiting) {
       return false;
     }
@@ -815,9 +818,16 @@ class ContentInstaller {
         },
         finalize: session.registerInstance
             ? () => onInstalled(installedInstance)
-            : null,
+            : () async {
+                task.preparedInstance = installedInstance;
+                try {
+                  await onPreparedPackUpdate?.call(task);
+                } catch (_) {
+                  task.preparedInstance = null;
+                  rethrow;
+                }
+              },
       );
-      if (!session.registerInstance) task.preparedInstance = installedInstance;
       task.destination = instance.gameDirectory;
       task.state = ContentTaskState.completed;
       task.stage = session.registerInstance ? '安装完成' : '等待确认升级';

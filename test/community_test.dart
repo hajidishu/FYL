@@ -86,6 +86,7 @@ void main() {
   InstallTask? baseTask;
   var sawStreamingBytes = false;
   var simulatedBaseBytes = 0, simulatedBaseCacheBytes = 0;
+  Future<void> Function(ContentTask)? preparedCallback;
   Map<String, String> hashes(List<int> bytes) => {
     'sha1': sha1.convert(bytes).toString(),
     'sha512': sha512.convert(bytes).toString(),
@@ -226,6 +227,7 @@ void main() {
     baseTask = null;
     sawStreamingBytes = false;
     simulatedBaseBytes = simulatedBaseCacheBytes = 0;
+    preparedCallback = null;
     CommunityCatalog create(LauncherSettings value) => CommunityCatalog(
       value,
       network: FixtureNetwork(value),
@@ -252,6 +254,7 @@ void main() {
       busy: () =>
           installer.tasks.any((t) => t.state == ContentTaskState.running),
       onInstalled: (instance) async => installed.add(instance),
+      onPreparedPackUpdate: (task) async => preparedCallback?.call(task),
       installBase: (task, token, update) async {
         baseTask = task;
         task.downloadedBytes = simulatedBaseBytes;
@@ -662,6 +665,62 @@ void main() {
       );
     },
   );
+  for (final reject in [false, true]) {
+    test(
+      'prepared upgrade is durable before completion and publication fails if persistence fails (reject: $reject)',
+      () async {
+        await writePack(mrManifest());
+        final info = project(kind: ContentKind.modpack);
+        final release = packRelease(ContentSource.modrinth);
+        final plan = await installer.preparePack(
+          info,
+          release,
+          CancellationToken(),
+        );
+        var called = false, saved = false;
+        preparedCallback = (task) async {
+          called = true;
+          expect(task.state, ContentTaskState.running);
+          expect(task.preparedInstance, isNotNull);
+          expect(
+            await File(
+              p.join(task.preparedInstance!.launcherDirectory, 'modpack.json'),
+            ).exists(),
+            isTrue,
+          );
+          if (reject) throw const FileSystemException('Fixture cannot persist');
+          await File(p.join(directory.path, 'prepared.json')).writeAsString(
+            jsonEncode(task.preparedInstance!.toJson()),
+            flush: true,
+          );
+          saved = true;
+        };
+        final task = await installer.installPack(
+          info,
+          release,
+          plan,
+          'FYL-update-fixture',
+          isolated: true,
+          registerInstance: false,
+        );
+        expect(called, isTrue);
+        expect(saved, !reject);
+        expect(installed, isEmpty);
+        expect(
+          task.state,
+          reject ? ContentTaskState.failed : ContentTaskState.completed,
+          reason: task.error,
+        );
+        expect(task.preparedInstance == null, reject);
+        expect(
+          await Directory(
+            p.join(directory.path, 'versions', 'FYL-update-fixture'),
+          ).exists(),
+          !reject,
+        );
+      },
+    );
+  }
   for (final bundled in [true, false]) {
     test('pack artwork is stored locally (bundled=$bundled)', () async {
       await writePack(

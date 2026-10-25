@@ -366,7 +366,11 @@ Future<void> _extractPackOverrides(
   }
 }
 
-Future<void> ensurePackParents(String root, String target) async {
+Future<void> ensurePackParents(
+  String root,
+  String target, {
+  bool createParents = true,
+}) async {
   var current = target;
   while (p.isWithin(root, current)) {
     if (await FileSystemEntity.type(current, followLinks: false) ==
@@ -375,5 +379,5 @@ Future<void> ensurePackParents(String root, String target) async {
     }
     current = p.dirname(current);
   }
-  await File(target).parent.create(recursive: true);
+  if (createParents) await File(target).parent.create(recursive: true);
 }
