@@ -26,22 +26,24 @@ import (
 type event map[string]any
 
 type session struct {
-	ctx            context.Context
-	cancel         context.CancelFunc
-	emit           func(event)
-	answer         chan string
-	share          chan lanAnnouncement
-	owner          bool
-	local          ticket
-	certificate    tls.Certificate
-	agent          *ice.Agent
-	secure         *dtls.Conn
-	association    *sctp.Association
-	control        *sctp.Stream
-	gamePort       atomic.Int32
-	writeMu        sync.Mutex
-	sent, received atomic.Uint64
-	connected      atomic.Bool
+	ctx              context.Context
+	cancel           context.CancelFunc
+	emit             func(event)
+	answer           chan string
+	share            chan lanAnnouncement
+	owner            bool
+	local            ticket
+	certificate      tls.Certificate
+	agent            *ice.Agent
+	secure           *dtls.Conn
+	association      *sctp.Association
+	control          *sctp.Stream
+	gamePort         atomic.Int32
+	writeMu          sync.Mutex
+	sent, received   atomic.Uint64
+	connected        atomic.Bool
+	iceConfig        *ice.AgentConfig
+	skipLANDiscovery bool
 }
 
 func newSession(ctx context.Context, emit func(event)) *session {
@@ -79,18 +81,22 @@ func (s *session) gather() error {
 	if err != nil {
 		return err
 	}
-	uri, err := stun.ParseURI("stun:stun.cloudflare.com:3478")
-	if err != nil {
-		return err
+	config := s.iceConfig
+	if config == nil {
+		uri, parseErr := stun.ParseURI("stun:stun.cloudflare.com:3478")
+		if parseErr != nil {
+			return parseErr
+		}
+		disconnected, failed, gather := 10*time.Second, 10*time.Minute, 5*time.Second
+		config = &ice.AgentConfig{
+			Urls: []*stun.URI{uri}, NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
+			CandidateTypes:      []ice.CandidateType{ice.CandidateTypeHost, ice.CandidateTypeServerReflexive},
+			MulticastDNSMode:    ice.MulticastDNSModeDisabled,
+			DisconnectedTimeout: &disconnected, FailedTimeout: &failed, STUNGatherTimeout: &gather,
+			IPFilter: func(ip net.IP) bool { return ip.IsGlobalUnicast() && !ip.IsLoopback() },
+		}
 	}
-	disconnected, failed, gather := 10*time.Second, 10*time.Minute, 5*time.Second
-	s.agent, err = ice.NewAgent(&ice.AgentConfig{
-		Urls: []*stun.URI{uri}, NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
-		CandidateTypes:      []ice.CandidateType{ice.CandidateTypeHost, ice.CandidateTypeServerReflexive},
-		MulticastDNSMode:    ice.MulticastDNSModeDisabled,
-		DisconnectedTimeout: &disconnected, FailedTimeout: &failed, STUNGatherTimeout: &gather,
-		IPFilter: func(ip net.IP) bool { return ip.IsGlobalUnicast() && !ip.IsLoopback() },
-	})
+	s.agent, err = ice.NewAgent(config)
 	if err != nil {
 		return err
 	}

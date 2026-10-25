@@ -116,46 +116,85 @@ func announceLocal(port int, motd string) {
 }
 
 func (s *session) shareGames() {
-	s.captureLAN()
+	if !s.skipLANDiscovery {
+		s.captureLAN()
+	}
 	ticker := time.NewTicker(1500 * time.Millisecond)
 	defer ticker.Stop()
-	manual := false
-	var current lanAnnouncement
-	var lastSeen time.Time
+	var selection gameShareSelection
+	var published lanAnnouncement
+	publish := func(current lanAnnouncement) {
+		s.gamePort.Store(int32(current.Port))
+		if current.Port != published.Port || current.MOTD != published.MOTD {
+			s.emit(event{"type": "game", "port": current.Port, "name": current.MOTD})
+			published = current
+		}
+	}
+	probe := func(port int) bool { return minecraftServer(s.ctx, port) }
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 		case update := <-s.share:
-			if !update.Manual && (manual || current.Port != 0 && current.Port != update.Port) {
-				continue
+			accepted, invalid := selection.update(update, time.Now(), probe)
+			if invalid {
+				s.emit(event{"type": "input_error", "code": "game_not_found"})
 			}
-			if update.Port != 0 && update.Port != current.Port && !minecraftServer(s.ctx, update.Port) {
-				if update.Manual {
-					s.emit(event{"type": "input_error", "code": "game_not_found"})
-				}
-				continue
+			if accepted {
+				publish(selection.announcement())
 			}
-			if update.Manual {
-				manual = update.Port != 0
-			}
-			if manual && !update.Manual {
-				continue
-			}
-			current = update
-			lastSeen = time.Now()
-			s.gamePort.Store(int32(current.Port))
-			s.emit(event{"type": "game", "port": current.Port, "name": current.MOTD})
-		case <-ticker.C:
-			if !manual && current.Port != 0 && time.Since(lastSeen) > 10*time.Second {
-				current = lanAnnouncement{}
-				s.gamePort.Store(0)
-				s.emit(event{"type": "game", "port": 0, "name": ""})
-			}
+		case now := <-ticker.C:
+			selection.refresh(now, probe)
+			current := selection.announcement()
+			publish(current)
 			if s.sendControl(controlMessage{Type: "game", Port: current.Port, Name: current.MOTD}) != nil {
 				s.cancel()
 				return
 			}
 		}
 	}
+}
+
+type gameShareSelection struct {
+	selected            lanAnnouncement
+	manual, available   bool
+	lastSeen, lastProbe time.Time
+}
+
+func (s *gameShareSelection) update(update lanAnnouncement, now time.Time, probe func(int) bool) (accepted, invalid bool) {
+	if !update.Manual && (s.manual || s.selected.Port != 0 && s.selected.Port != update.Port) {
+		return false, false
+	}
+	if update.Port != 0 && (update.Manual || update.Port != s.selected.Port || !s.available) {
+		if !probe(update.Port) {
+			return false, update.Manual
+		}
+		s.lastProbe = now
+	}
+	if update.Manual {
+		s.manual = update.Port != 0
+	}
+	s.selected = update
+	s.available = update.Port != 0
+	s.lastSeen = now
+	return true, false
+}
+
+func (s *gameShareSelection) refresh(now time.Time, probe func(int) bool) {
+	if s.manual && s.selected.Port != 0 && now.Sub(s.lastProbe) >= 5*time.Second {
+		// Keep the user's selection, but withdraw the address and LAN announcement
+		// while that Minecraft service is gone. It may recover on the same port.
+		s.available = probe(s.selected.Port)
+		s.lastProbe = now
+	} else if !s.manual && s.selected.Port != 0 && now.Sub(s.lastSeen) > 10*time.Second {
+		s.selected = lanAnnouncement{}
+		s.available = false
+	}
+}
+
+func (s *gameShareSelection) announcement() lanAnnouncement {
+	if !s.available {
+		return lanAnnouncement{}
+	}
+	return s.selected
 }
