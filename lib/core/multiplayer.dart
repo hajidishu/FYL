@@ -105,14 +105,8 @@ class MultiplayerController extends ChangeNotifier {
 
   Future<void> _begin(bool owner, String? invitation) async {
     if (_disposed || active || _stopping != null) throw StateError('请先断开当前联机');
-    final executable = p.normalize(p.absolute(helperPath()));
-    if (!await File(executable).exists()) {
-      error = multiplayerError('helper_missing');
-      state = MultiplayerState.failed;
-      _notify();
-      return;
-    }
-    if (_disposed || active || _stopping != null) throw StateError('请先断开当前联机');
+    // Reserve the session before the first await so stop() can also cancel the
+    // file check, rather than letting the old request start a new session later.
     final generation = ++_generation;
     _starting = true;
     isHost = owner;
@@ -132,6 +126,20 @@ class MultiplayerController extends ChangeNotifier {
       (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
     ).join();
     try {
+      final executable = p.normalize(p.absolute(helperPath()));
+      final exists = await File(executable).exists();
+      if (generation != _generation ||
+          _disposed ||
+          state == MultiplayerState.stopping) {
+        return;
+      }
+      if (!exists) {
+        _starting = false;
+        error = multiplayerError('helper_missing');
+        state = MultiplayerState.failed;
+        _notify();
+        return;
+      }
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       if (generation != _generation ||
           _disposed ||

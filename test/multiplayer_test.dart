@@ -176,4 +176,33 @@ void main() {
     expect(launched, isFalse);
     expect(controller.active, isFalse);
   });
+
+  test('stopping immediately cancels the pending helper file check', () async {
+    final temporary = await Directory.systemTemp.createTemp(
+      'fyl-cancel-start-',
+    );
+    final helper = File('${temporary.path}/helper');
+    await helper.writeAsString('fixture');
+    final fixture = HelperFixture();
+    var launches = 0;
+    final controller = MultiplayerController(
+      helperPath: () => helper.path,
+      launch: (path, arguments) {
+        launches++;
+        return fixture.launch(path, arguments);
+      },
+    );
+    addTearDown(() async {
+      await controller.stop();
+      controller.dispose();
+      fixture.dispose();
+      await temporary.delete(recursive: true);
+    });
+    final starting = controller.host();
+    await controller.stop();
+    await starting;
+    expect(launches, 0);
+    expect(controller.active, isFalse);
+    expect(controller.state, MultiplayerState.idle);
+  });
 }
