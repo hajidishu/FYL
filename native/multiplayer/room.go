@@ -29,7 +29,11 @@ func (p *roomPeer) emit(emit func(event), id string, e event) {
 			result[key] = value
 		}
 	}
-	if e["type"] == "state" || e["type"] == "stats" {
+	if e["type"] == "diagnostics" {
+		delete(result, "data")
+		result["diagnostics"] = e["data"]
+	}
+	if e["type"] == "state" || e["type"] == "stats" || e["type"] == "diagnostics" {
 		emit(result)
 	}
 }
@@ -62,7 +66,8 @@ func newRoom(ctx context.Context, emit func(event)) *room {
 func (r *room) invitation() error {
 	r.offer = r.root.local
 	r.offer.Candidates = r.network.candidates(r.root.local.Candidates)
-	r.offer.Expires = time.Now().Add(10 * time.Minute).Unix()
+	r.emit(event{"type": "diagnostics", "data": r.network.diagnostics(r.root.local.Candidates)})
+	r.offer.Expires = time.Now().Add(time.Duration(r.root.options.InvitationMinutes) * time.Minute).Unix()
 	var err error
 	if r.offer.Secret, err = randomToken(32); err != nil {
 		return err
@@ -101,7 +106,11 @@ func (r *room) run() (err error) {
 	if s.local.Room, err = randomToken(16); err != nil {
 		return err
 	}
-	if r.network, err = newRoomNetwork(s.iceConfig); err != nil {
+	base := s.iceConfig
+	if base == nil {
+		base = s.options.iceConfig()
+	}
+	if r.network, err = newRoomNetwork(base, s.options.LocalPort); err != nil {
 		return err
 	}
 	s.iceConfig = &r.network.config
@@ -128,6 +137,7 @@ func (r *room) run() (err error) {
 				return
 			case <-ticker.C:
 				r.network.refresh(s.ctx)
+				s.emit(event{"type": "diagnostics", "data": r.network.diagnostics(s.local.Candidates)})
 			}
 		}
 	}()
@@ -198,7 +208,7 @@ func (r *room) addPeer(text string) error {
 			active++
 		}
 	}
-	if active >= maxRoomPeers {
+	if active >= r.root.options.MaxPeers {
 		return errors.New("peer_limit")
 	}
 	r.next++
@@ -206,6 +216,7 @@ func (r *room) addPeer(text string) error {
 	s := newSession(r.root.ctx, func(e event) { p.emit(r.emit, answer.Peer, e) })
 	p.session = s
 	s.owner = true
+	s.options = r.root.options
 	s.sharedWorld = r.root
 	s.certificate = r.root.certificate
 	s.local = r.offer

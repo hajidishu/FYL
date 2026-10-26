@@ -99,7 +99,7 @@ func (s *session) gameTunnel() error {
 				case <-s.ctx.Done():
 					return
 				case <-ticker.C:
-					if remoteGame.Load() > 0 && !s.skipLANDiscovery {
+					if remoteGame.Load() > 0 && !s.skipLANDiscovery && s.options.AnnounceLAN {
 						announceLocal(local.Addr().(*net.TCPAddr).Port, remoteName.Load().(string))
 					}
 				}
@@ -121,6 +121,7 @@ func (s *session) gameTunnel() error {
 					return
 				}
 				s.emit(event{"type": "stats", "sent": s.sent.Load(), "received": s.received.Load()})
+				s.reportPath(true)
 			}
 		}
 	}()

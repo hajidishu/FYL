@@ -52,7 +52,9 @@ class RunningGame {
 }
 
 class LauncherController extends ChangeNotifier {
-  late final multiplayer = MultiplayerController();
+  late final multiplayer = MultiplayerController(
+    supportDirectory: supportDirectory,
+  );
   final String supportDirectory;
   final HostPlatform platform;
   final AccountTokenStore tokenStore;
@@ -232,6 +234,7 @@ class LauncherController extends ChangeNotifier {
     var saveAfterLoad = false;
     var preparedUpdates = <dynamic>[];
     await Directory(supportDirectory).create(recursive: true);
+    await multiplayer.loadSettings();
     if (await _config.exists() || await File('${_config.path}.bak').exists()) {
       Json? data;
       for (final path in [_config.path, '${_config.path}.bak']) {

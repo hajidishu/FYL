@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/core/multiplayer.dart';
+import 'package:free_your_launcher/core/multiplayer_settings.dart';
 import 'package:free_your_launcher/l10n/app_localizations.dart';
 import 'package:free_your_launcher/main.dart';
 
@@ -172,6 +174,7 @@ Future<void> showPage(
 }
 
 Future<void> press(WidgetTester tester, String key) async {
+  await tester.pumpAndSettle();
   final target = find.byKey(ValueKey(key));
   await tester.ensureVisible(target);
   await tester.pumpAndSettle();
@@ -444,6 +447,101 @@ void main() {
     },
   );
 
+  testWidgets(
+    'multiplayer options reset individually and remain outside main settings',
+    (tester) async {
+      final room = RoomFixture();
+      await showPage(tester, PageFixture(room));
+      await press(tester, 'multiplayer-tab-1');
+      Finder field(String name) => find.descendant(
+        of: find.byKey(ValueKey('multiplayer-setting-$name')),
+        matching: find.byType(EditableText),
+      );
+      await tester.enterText(field('localPort'), '40001');
+      await tester.enterText(field('maxPeers'), '4');
+      await press(tester, 'reset-multiplayer-localPort');
+      expect(
+        tester.widget<EditableText>(field('localPort')).controller.text,
+        '0',
+      );
+      expect(
+        tester.widget<EditableText>(field('maxPeers')).controller.text,
+        '4',
+      );
+      await tester.enterText(field('localPort'), '40001');
+      await press(tester, 'multiplayer-tab-2');
+      await press(tester, 'multiplayer-tab-1');
+      expect(
+        tester.widget<EditableText>(field('localPort')).controller.text,
+        '40001',
+      );
+      await press(tester, 'save-multiplayer-settings');
+      expect(room.settings.localPort, 40001);
+      expect(room.settings.maxPeers, 4);
+      await tester.enterText(field('stunServers'), 'turn:unsupported:3478');
+      await press(tester, 'save-multiplayer-settings');
+      expect(find.text('STUN 地址应为 stun:主机:端口，仅支持 UDP'), findsOneWidget);
+      expect(room.settings.stunServers, ['stun:stun.cloudflare.com:3478']);
+      await tester.tap(find.byKey(const ValueKey('navigation-3')));
+      await tester.pumpAndSettle();
+      expect(find.text('联机设置'), findsNothing);
+      expect(find.text('STUN 服务器'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'diagnostics show actual paths and copy only public transport data',
+    (tester) async {
+      final room = RoomFixture()
+        ..inSession = true
+        ..multiRoom = true
+        ..accepting = true
+        ..ticket = invitation(version: 2)
+        ..state = MultiplayerState.hosting;
+      room.diagnostics.addAll({
+        'selectedLocal': '1 1 udp 123 192.0.2.1 40001 typ host',
+        'selectedRemote': '2 1 udp 123 198.51.100.1 45000 typ srflx',
+        'iceRTTms': 25.5,
+        'identityVerified': true,
+        'password': 'PRIVATE-KEY',
+      });
+      await showPage(tester, PageFixture(room));
+      await press(tester, 'multiplayer-tab-2');
+      expect(find.text('25.5 ms'), findsOneWidget);
+      expect(find.text('已验证证书指纹'), findsOneWidget);
+      await press(tester, 'copy-multiplayer-diagnostics');
+      final report = jsonDecode(clipboard!) as Map;
+      expect(report['diagnostics']['iceRTTms'], 25.5);
+      expect(clipboard, isNot(contains('PRIVATE-KEY')));
+      expect(tester.takeException(), isNull);
+      await snapshot(tester, '09-connection-diagnostics');
+    },
+  );
+
+  testWidgets(
+    'disabled LAN detection and announcements show manual game instructions',
+    (tester) async {
+      final room = RoomFixture()
+        ..sessionSettings = const MultiplayerSettings(
+          discoverLAN: false,
+          announceLAN: false,
+        );
+      room.world(host: true);
+      room.gamePort = 0;
+      await showPage(tester, PageFixture(room));
+      expect(find.text('在游戏聊天栏找到端口，在下方填写后共享世界'), findsOneWidget);
+      expect(find.text('手动指定游戏端口'), findsOneWidget);
+      expect(find.text('清除手动端口'), findsOneWidget);
+      room.world(host: false);
+      await tester.pumpAndSettle();
+      expect(find.text('已关闭局域网发布，请使用下方本机直连地址加入'), findsOneWidget);
+      expect(find.text('本机直连地址'), findsOneWidget);
+      expect(find.text(room.gameAddress!), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final language in launcherLanguages.keys) {
     testWidgets(
       'compact $language layout handles scaled text and every stage',
@@ -484,6 +582,11 @@ void main() {
         await press(tester, 'multiplayer-connect');
         expect(tester.takeException(), isNull);
         await snapshot(tester, '08-compact-shared-$language');
+        await press(tester, 'multiplayer-tab-1');
+        expect(tester.takeException(), isNull);
+        await snapshot(tester, '10-network-settings-$language');
+        await press(tester, 'multiplayer-tab-2');
+        expect(tester.takeException(), isNull);
       },
     );
   }

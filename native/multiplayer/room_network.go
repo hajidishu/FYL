@@ -15,25 +15,31 @@ import (
 )
 
 type roomSocket struct {
-	mux    *ice.UniversalUDPMuxDefault
-	local  *net.UDPAddr
-	server net.Addr
-	mapped atomic.Pointer[stun.XORMappedAddress]
+	mux     *ice.UniversalUDPMuxDefault
+	local   *net.UDPAddr
+	servers []net.Addr
+	mapped  atomic.Pointer[stun.XORMappedAddress]
+	status  atomic.Pointer[event]
 }
 
 // The room owns these sockets for its whole lifetime. Closing a peer removes
 // only that peer's ufrag from the mux, never the shared physical socket.
 type roomNetwork struct {
-	config  ice.AgentConfig
-	mux     *ice.MultiUDPMuxDefault
-	sockets []*roomSocket
+	config      ice.AgentConfig
+	mux         *ice.MultiUDPMuxDefault
+	sockets     []*roomSocket
+	timeout     time.Duration
+	stunEnabled bool
 }
 
-func newRoomNetwork(base *ice.AgentConfig) (*roomNetwork, error) {
+func newRoomNetwork(base *ice.AgentConfig, port int) (*roomNetwork, error) {
 	if base == nil {
 		base = defaultICEConfig()
 	}
-	n := &roomNetwork{config: *base}
+	n := &roomNetwork{config: *base, timeout: 5 * time.Second, stunEnabled: len(base.Urls) > 0}
+	if base.STUNGatherTimeout != nil {
+		n.timeout = *base.STUNGatherTimeout
+	}
 	if n.config.Net == nil {
 		var err error
 		n.config.Net, err = stdnet.NewNet()
@@ -46,6 +52,7 @@ func newRoomNetwork(base *ice.AgentConfig) (*roomNetwork, error) {
 		return nil, err
 	}
 	var muxes []ice.UDPMux
+	eligible := 0
 	for _, iface := range interfaces {
 		if iface.Flags&net.FlagUp == 0 || base.InterfaceFilter != nil && !base.InterfaceFilter(iface.Name) {
 			continue
@@ -68,7 +75,8 @@ func newRoomNetwork(base *ice.AgentConfig) (*roomNetwork, error) {
 			if !allowed {
 				continue
 			}
-			conn, err := n.config.Net.ListenPacket(network, net.JoinHostPort(ip.String(), "0"))
+			eligible++
+			conn, err := n.config.Net.ListenPacket(network, net.JoinHostPort(ip.String(), strconv.Itoa(port)))
 			if err != nil {
 				continue
 			}
@@ -78,8 +86,9 @@ func newRoomNetwork(base *ice.AgentConfig) (*roomNetwork, error) {
 			socket := &roomSocket{mux: mux, local: conn.LocalAddr().(*net.UDPAddr)}
 			for _, uri := range base.Urls {
 				if uri.Scheme == stun.SchemeTypeSTUN {
-					socket.server, _ = n.config.Net.ResolveUDPAddr(network, net.JoinHostPort(uri.Host, strconv.Itoa(uri.Port)))
-					break
+					if server, failure := n.config.Net.ResolveUDPAddr(network, net.JoinHostPort(uri.Host, strconv.Itoa(uri.Port))); failure == nil {
+						socket.servers = append(socket.servers, server)
+					}
 				}
 			}
 			n.sockets = append(n.sockets, socket)
@@ -87,6 +96,9 @@ func newRoomNetwork(base *ice.AgentConfig) (*roomNetwork, error) {
 		}
 	}
 	if len(muxes) == 0 {
+		if port != 0 && eligible > 0 {
+			return nil, errors.New("port_unavailable")
+		}
 		return nil, errors.New("no_candidates")
 	}
 	n.mux = ice.NewMultiUDPMuxDefault(muxes...)
@@ -103,19 +115,44 @@ func newRoomNetwork(base *ice.AgentConfig) (*roomNetwork, error) {
 func (n *roomNetwork) refresh(ctx context.Context) {
 	var work sync.WaitGroup
 	for _, socket := range n.sockets {
-		if socket.server == nil {
-			continue
-		}
 		work.Add(1)
 		go func(s *roomSocket) {
 			defer work.Done()
-			mapped, err := s.mux.GetXORMappedAddrContext(ctx, s.server, 5*time.Second)
-			if err == nil && mapped.IP.IsGlobalUnicast() && !mapped.IP.IsLoopback() {
-				s.mapped.Store(mapped)
+			// Bound the complete fallback sequence so an unreachable list cannot
+			// keep a join or a room shutdown waiting for eight separate timeouts.
+			probeCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+			defer cancel()
+			status := event{"local": s.local.String(), "status": "unavailable"}
+			if !n.stunEnabled {
+				status["status"] = "disabled"
 			}
+			for _, server := range s.servers {
+				status["server"] = server.String()
+				mapped, err := s.mux.GetXORMappedAddrContext(probeCtx, server, n.timeout)
+				if err == nil && mapped.IP.IsGlobalUnicast() && !mapped.IP.IsLoopback() {
+					s.mapped.Store(mapped)
+					status["status"] = "success"
+					status["mapped"] = net.JoinHostPort(mapped.IP.String(), strconv.Itoa(mapped.Port))
+					break
+				}
+				if probeCtx.Err() != nil {
+					break
+				}
+			}
+			s.status.Store(&status)
 		}(socket)
 	}
 	work.Wait()
+}
+
+func (n *roomNetwork) diagnostics(host []string) event {
+	mappings := make([]event, 0, len(n.sockets))
+	for _, socket := range n.sockets {
+		if status := socket.status.Load(); status != nil {
+			mappings = append(mappings, *status)
+		}
+	}
+	return event{"localCandidates": n.candidates(host), "stunMappings": mappings}
 }
 
 func (n *roomNetwork) candidates(host []string) []string {

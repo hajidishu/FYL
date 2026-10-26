@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'multiplayer_invitation.dart';
+import 'multiplayer_settings.dart';
+import 'minecraft.dart' show writeJson;
 
 enum MultiplayerState {
   idle('尚未联机'),
@@ -52,10 +54,13 @@ String multiplayerError(String code) => switch (code) {
   'connection_lost' => '联机连接已断开',
   'helper_missing' => '缺少联机组件，请安装包含联机组件的完整构建',
   'helper_closed' => '网络助手已退出',
+  'helper_version' => '联机组件版本过旧，请重新构建或更新完整启动器',
   'invitation_paused' => '当前邀请已停止接纳新人，请重新生成邀请',
   'answer_used' => '这份回应已经导入，请勿重复添加',
   'peer_limit' => '房间连接数量已达上限，请移除不再使用的连接',
   'room_busy' => '房间正在处理操作，请稍后重试',
+  'invalid_settings' => '联机设置无效，请检查协议、端口和超时范围',
+  'port_unavailable' => '本地 UDP 端口不可用，请更换端口或使用自动分配',
   _ => '联机失败，请检查网络后重试',
 };
 
@@ -79,6 +84,8 @@ class MultiplayerPeer {
   MultiplayerState state;
   String? error;
   int sent = 0, received = 0;
+  final diagnostics = <String, dynamic>{};
+  String? errorCode;
   MultiplayerPeer({
     required this.id,
     required this.number,
@@ -90,16 +97,153 @@ class MultiplayerPeer {
 typedef MultiplayerHelperLauncher =
     Future<Process?> Function(String executable, List<String> arguments);
 
+Map<String, dynamic> publicMultiplayerDiagnostics(Map<String, dynamic> data) {
+  final result = <String, dynamic>{};
+  for (final key in [
+    'localFingerprint',
+    'remoteFingerprint',
+    'selectedLocal',
+    'selectedRemote',
+    'transport',
+  ]) {
+    final value = data[key];
+    if (value is String) {
+      result[key] = value.length > 4096 ? value.substring(0, 4096) : value;
+    }
+  }
+  if (data['identityVerified'] is bool) {
+    result['identityVerified'] = data['identityVerified'];
+  }
+  final rtt = data['iceRTTms'];
+  if (rtt is num && rtt.isFinite && rtt >= 0) result['iceRTTms'] = rtt;
+  if (data['localCandidates'] case final List candidates) {
+    result['localCandidates'] = candidates
+        .whereType<String>()
+        .where((value) => value.length <= 1024)
+        .take(32)
+        .toList();
+  }
+  if (data['stunMappings'] case final List mappings) {
+    result['stunMappings'] = [
+      for (final mapping in mappings.whereType<Map>().take(16))
+        {
+          for (final key in ['local', 'server', 'mapped', 'status'])
+            if (mapping[key] is String &&
+                (mapping[key] as String).length <= 1024)
+              key: mapping[key],
+        },
+    ];
+  }
+  return result;
+}
+
 /// Invitations and IPC credentials live only in memory, never launcher.json,
 /// account storage, logs or temporary files.
 class MultiplayerController extends ChangeNotifier {
   final String Function() helperPath;
   final MultiplayerHelperLauncher launch;
+  final String? supportDirectory;
+  MultiplayerSettings settings = const MultiplayerSettings();
+  MultiplayerSettings? sessionSettings;
+  String? settingsError, errorCode;
+  final diagnostics = <String, dynamic>{};
+  final diagnosticEvents = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> lastPeerDiagnostics = [];
+  int _lastSent = 0, _lastReceived = 0;
+  int get diagnosticSent => active ? sent : _lastSent;
+  int get diagnosticReceived => active ? received : _lastReceived;
+  Future<void> _settingsWrite = Future.value();
   MultiplayerController({
     String Function()? helperPath,
     MultiplayerHelperLauncher? launch,
+    this.supportDirectory,
   }) : helperPath = helperPath ?? multiplayerHelperPath,
        launch = launch ?? launchMultiplayerHelper;
+
+  File? get settingsFile => supportDirectory == null
+      ? null
+      : File(p.join(supportDirectory!, 'multiplayer.json'));
+
+  Future<void> loadSettings() async {
+    final file = settingsFile;
+    if (file == null) return;
+    for (final candidate in [file, File('${file.path}.bak')]) {
+      if (!await candidate.exists()) continue;
+      try {
+        settings = MultiplayerSettings.fromJson(
+          jsonDecode(await candidate.readAsString()) as Map<String, dynamic>,
+        );
+        settingsError = null;
+        _notify();
+        return;
+      } catch (_) {
+        settingsError = '联机设置无法读取，已使用默认值；原文件已保留';
+      }
+    }
+    _notify();
+  }
+
+  Future<void> saveSettings(MultiplayerSettings value) {
+    value.validate();
+    final snapshot = MultiplayerSettings.fromJson(value.toJson());
+    final pending = _settingsWrite.catchError((Object _) {}).then((_) async {
+      final file = settingsFile;
+      if (file != null) await writeJson(file, snapshot.toJson());
+      settings = snapshot;
+      settingsError = null;
+      _notify();
+    });
+    _settingsWrite = pending;
+    return pending;
+  }
+
+  Map<String, dynamic> diagnosticReport() => {
+    'format': 'FYL multiplayer diagnostics/1',
+    'generatedAt': DateTime.now().toUtc().toIso8601String(),
+    'active': active,
+    'state': state.name,
+    'role': isHost ? 'host' : 'guest',
+    'transport': 'ICE/UDP + DTLS + SCTP; Minecraft TCP only; no relay',
+    'sessionSettings': sessionSettings?.toJson(),
+    'settingsForNextSession': settings.toJson(),
+    'diagnostics': publicMultiplayerDiagnostics(diagnostics),
+    'errorCode': errorCode,
+    'sent': diagnosticSent,
+    'received': diagnosticReceived,
+    'peers': peers.isEmpty
+        ? lastPeerDiagnostics
+        : [
+            for (final peer in peers.values)
+              {
+                'number': peer.number,
+                'state': peer.state.name,
+                'errorCode': peer.errorCode,
+                'sent': peer.sent,
+                'received': peer.received,
+                ...publicMultiplayerDiagnostics(peer.diagnostics),
+              },
+          ],
+    'events': List<Map<String, dynamic>>.of(diagnosticEvents),
+  };
+
+  void clearDiagnostics() {
+    diagnostics.clear();
+    diagnosticEvents.clear();
+    lastPeerDiagnostics = [];
+    errorCode = null;
+    _lastSent = _lastReceived = 0;
+    _notify();
+  }
+
+  void _record(String type, {String? value, int? peer}) {
+    diagnosticEvents.add({
+      'time': DateTime.now().toUtc().toIso8601String(),
+      'type': type,
+      'value': value,
+      'peer': ?peer,
+    });
+    if (diagnosticEvents.length > 100) diagnosticEvents.removeAt(0);
+  }
 
   MultiplayerState state = MultiplayerState.idle;
   bool isHost = true;
@@ -137,6 +281,14 @@ class MultiplayerController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  void _failure(String code) {
+    errorCode = code;
+    error = multiplayerError(code);
+    state = MultiplayerState.failed;
+    _record('error', value: code);
+    _notify();
+  }
+
   Future<void> host() => _begin(true, null);
   Future<void> join(String invitation) async {
     final parsed = MultiplayerInvitation.parse(invitation, kind: 'offer');
@@ -148,6 +300,14 @@ class MultiplayerController extends ChangeNotifier {
     // Reserve the session before the first await so stop() can also cancel the
     // file check, rather than letting the old request start a new session later.
     final generation = ++_generation;
+    settings.validate();
+    sessionSettings = MultiplayerSettings.fromJson(settings.toJson());
+    _lastSent = _lastReceived = 0;
+    diagnostics.clear();
+    diagnosticEvents.clear();
+    lastPeerDiagnostics = [];
+    errorCode = null;
+    _record('start', value: owner ? 'host' : 'guest');
     _starting = true;
     isHost = owner;
     lastInvitation = owner ? null : invitation;
@@ -179,9 +339,7 @@ class MultiplayerController extends ChangeNotifier {
       }
       if (!exists) {
         _starting = false;
-        error = multiplayerError('helper_missing');
-        state = MultiplayerState.failed;
-        _notify();
+        _failure('helper_missing');
         return;
       }
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -222,18 +380,20 @@ class MultiplayerController extends ChangeNotifier {
       await awaiting;
       if (generation != _generation || _disposed) return;
       _starting = false;
-      _send({'type': owner ? 'host' : 'join', 'ticket': ?invitation});
+      _send({
+        'type': owner ? 'host' : 'join',
+        'ticket': ?invitation,
+        'settings': sessionSettings!.toJson(),
+      });
     } catch (e) {
       if (generation != _generation ||
           _disposed ||
           state == MultiplayerState.stopping) {
         return;
       }
-      final message = multiplayerError('helper_closed');
+      final failureCode = errorCode ?? 'helper_closed';
       await stop();
-      error = message;
-      state = MultiplayerState.failed;
-      _notify();
+      _failure(failureCode);
     }
   }
 
@@ -269,8 +429,18 @@ class MultiplayerController extends ChangeNotifier {
             final message =
                 jsonDecode(utf8.decode(line)) as Map<String, dynamic>;
             if (!authenticated) {
+              if (message['type'] == 'hello' &&
+                  message['token'] == token &&
+                  message['version'] != 2) {
+                _failure('helper_version');
+                if (!(_ready?.isCompleted ?? true)) {
+                  _ready!.completeError(StateError('helper_version'));
+                }
+                socket.destroy();
+                return;
+              }
               if (message['type'] != 'hello' ||
-                  message['version'] != 1 ||
+                  message['version'] != 2 ||
                   message['token'] != token ||
                   state == MultiplayerState.stopping ||
                   _socket != null) {
@@ -305,9 +475,7 @@ class MultiplayerController extends ChangeNotifier {
         if (!(_stopped?.isCompleted ?? true)) _stopped!.complete();
         if (state != MultiplayerState.stopping &&
             state != MultiplayerState.failed) {
-          error = multiplayerError('helper_closed');
-          state = MultiplayerState.failed;
-          _notify();
+          _failure('helper_closed');
         }
       },
     );
@@ -319,6 +487,11 @@ class MultiplayerController extends ChangeNotifier {
         if (!(_ready?.isCompleted ?? true)) _ready!.complete();
       case 'state':
         state = _connectionState(e['state'] as String?, state);
+        _record('state', value: e['state'] as String?);
+      case 'diagnostics':
+        diagnostics.addAll(
+          publicMultiplayerDiagnostics(e['data'] as Map<String, dynamic>),
+        );
       case 'ticket':
         ticket = e['text'] as String;
         expires = DateTime.fromMillisecondsSinceEpoch(
@@ -341,7 +514,19 @@ class MultiplayerController extends ChangeNotifier {
           () => MultiplayerPeer(id: id, number: e['number'] as int),
         );
         peer.state = _connectionState(e['state'] as String?, peer.state);
+        if (e['state'] != null) {
+          _record('state', value: e['state'] as String, peer: peer.number);
+        }
+        if (e['diagnostics'] != null) {
+          peer.diagnostics.addAll(
+            publicMultiplayerDiagnostics(
+              e['diagnostics'] as Map<String, dynamic>,
+            ),
+          );
+        }
         if (e['code'] != null) {
+          peer.errorCode = e['code'] as String;
+          _record('error', value: peer.errorCode, peer: peer.number);
           peer.error = multiplayerError(e['code'] as String);
         } else if (peer.connected) {
           peer.error = null;
@@ -371,8 +556,12 @@ class MultiplayerController extends ChangeNotifier {
         final address = e['address'] as String?;
         if (address != null) _gameAddress = address.isEmpty ? null : address;
       case 'input_error':
+        errorCode = e['code'] as String?;
+        _record('input_error', value: errorCode);
         error = multiplayerError(e['code'] as String? ?? '');
       case 'error':
+        errorCode = e['code'] as String?;
+        _record('error', value: errorCode);
         error = multiplayerError(e['code'] as String? ?? '');
         state = MultiplayerState.failed;
         ticket = null;
@@ -428,6 +617,24 @@ class MultiplayerController extends ChangeNotifier {
   Future<void> stop() =>
       _stopping ??= _stop().whenComplete(() => _stopping = null);
   Future<void> _stop() async {
+    if (active) {
+      _record('stop');
+      _lastSent = sent;
+      _lastReceived = received;
+    }
+    if (peers.isNotEmpty) {
+      lastPeerDiagnostics = [
+        for (final peer in peers.values)
+          {
+            'number': peer.number,
+            'state': peer.state.name,
+            'errorCode': peer.errorCode,
+            'sent': peer.sent,
+            'received': peer.received,
+            ...publicMultiplayerDiagnostics(peer.diagnostics),
+          },
+      ];
+    }
     _starting = false;
     final socket = _socket;
     _socket = null;

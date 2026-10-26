@@ -16,11 +16,12 @@ import (
 )
 
 type command struct {
-	Type   string `json:"type"`
-	Ticket string `json:"ticket"`
-	Token  string `json:"token"`
-	Port   int    `json:"port"`
-	Peer   string `json:"peer"`
+	Type     string           `json:"type"`
+	Ticket   string           `json:"ticket"`
+	Token    string           `json:"token"`
+	Port     int              `json:"port"`
+	Peer     string           `json:"peer"`
+	Settings *networkSettings `json:"settings"`
 }
 
 // The unprivileged helper connects back to a pre-bound loopback listener. There is
@@ -42,7 +43,7 @@ func serve(port int, token string) error {
 		_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		_ = encoder.Encode(e)
 	}
-	emit(event{"type": "hello", "token": token, "version": 1})
+	emit(event{"type": "hello", "token": token, "version": 2})
 	scanner := bufio.NewScanner(conn)
 	scanner.Buffer(make([]byte, 4096), maxTicketBytes*3)
 	_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second))
@@ -85,8 +86,17 @@ func serve(port int, token string) error {
 				emit(event{"type": "input_error", "code": "already_started"})
 				continue
 			}
+			options := cmd.Settings
+			if options == nil {
+				options = defaultNetworkSettings()
+			}
+			if options.validate() != nil {
+				emit(event{"type": "error", "code": "invalid_settings"})
+				continue
+			}
 			if cmd.Type == "host" {
 				hosted = newRoom(ctx, emit)
+				hosted.root.options = options
 				work.Add(1)
 				go func(r *room) {
 					defer work.Done()
@@ -97,6 +107,7 @@ func serve(port int, token string) error {
 				continue
 			}
 			current = newSession(ctx, emit)
+			current.options = options
 			work.Add(1)
 			go func(owner bool, invitation string, s *session) {
 				defer work.Done()

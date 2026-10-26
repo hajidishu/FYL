@@ -30,6 +30,12 @@ func testSharedRoom(t *testing.T, behindNAT bool) {
 	events := make(chan event, 1024)
 	host := newRoom(ctx, func(e event) { events <- e })
 	host.root.skipLANDiscovery = true
+	if behindNAT {
+		host.root.options.LocalPort = 40000
+		host.root.options.MaxPeers = 3
+		host.root.options.InvitationMinutes = 2
+		host.root.options.DiscoverLAN = false
+	}
 	cidr := "192.168.0.0/24"
 	if behindNAT {
 		cidr = "0.0.0.0/0"
@@ -106,7 +112,10 @@ func testSharedRoom(t *testing.T, behindNAT bool) {
 		config := &ice.AgentConfig{Net: network, NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4},
 			CandidateTypes: []ice.CandidateType{ice.CandidateTypeHost}, MulticastDNSMode: ice.MulticastDNSModeDisabled}
 		if behindNAT {
-			config.Urls = []*stun.URI{stunURI}
+			unreachable := &stun.URI{Scheme: stun.SchemeTypeSTUN, Host: "198.51.100.249", Port: 3478, Proto: stun.ProtoTypeUDP}
+			config.Urls = []*stun.URI{unreachable, stunURI}
+			timeout := time.Second
+			config.STUNGatherTimeout = &timeout
 			config.CandidateTypes = []ice.CandidateType{ice.CandidateTypeHost, ice.CandidateTypeServerReflexive}
 		}
 		if i == 0 {
@@ -142,12 +151,14 @@ func testSharedRoom(t *testing.T, behindNAT bool) {
 	}
 	if behindNAT {
 		found := false
+		fixedPort := false
 		for _, raw := range offer.Candidates {
 			candidate, failure := ice.UnmarshalCandidate(raw)
 			found = found || failure == nil && candidate.Type() == ice.CandidateTypeServerReflexive
+			fixedPort = fixedPort || failure == nil && candidate.Type() == ice.CandidateTypeHost && candidate.Port() == 40000
 		}
-		if !found {
-			t.Fatal("room invitation did not advertise its shared STUN mapping")
+		if !found || !fixedPort || offer.Expires > time.Now().Add(2*time.Minute).Unix() {
+			t.Fatal("room did not apply its port, invitation lifetime or STUN fallback settings")
 		}
 	}
 	answers := make([]string, len(guests))
@@ -178,6 +189,13 @@ func testSharedRoom(t *testing.T, behindNAT bool) {
 			t.Fatalf("peer failed: %v", e)
 		}
 		connected[e["id"].(string)] = true
+	}
+	if behindNAT {
+		startGuest(3, invitation)
+		importAnswer(3)
+		if e := waitSessionEvent(t, ctx, events, "input_error", nil); e["code"] != "peer_limit" {
+			t.Fatal("configured room capacity was ignored")
+		}
 	}
 	server := gameServerFixture(t)
 	host.root.share <- lanAnnouncement{Port: server.Addr().(*net.TCPAddr).Port, MOTD: "Shared World", Manual: true}
@@ -229,8 +247,12 @@ func testSharedRoom(t *testing.T, behindNAT bool) {
 	host.commands <- command{Type: "remove_peer", Peer: ids[0]}
 	waitSessionEvent(t, ctx, events, "peer_removed", nil)
 	// A fourth friend uses exactly the original invitation while others play.
-	startGuest(3, invitation)
-	importAnswer(3)
+	if behindNAT {
+		host.commands <- command{Type: "answer", Ticket: answers[3]}
+	} else {
+		startGuest(3, invitation)
+		importAnswer(3)
+	}
 	waitSessionEvent(t, ctx, events, "peer", func(e event) bool { return e["id"] == ids[3] && e["state"] == "connected" })
 	addresses[3] = waitSessionEvent(t, ctx, guestEvents[3], "game", func(e event) bool { return e["port"].(int) > 0 })["address"].(string)
 	for _, i := range []int{1, 2, 3} {

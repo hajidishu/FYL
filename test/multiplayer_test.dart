@@ -32,6 +32,8 @@ String invitation({
 }
 
 class HelperFixture {
+  final int version;
+  HelperFixture({this.version = 2});
   Socket? socket;
   final commands = <Map<String, dynamic>>[];
   final stopped = Completer<void>();
@@ -61,7 +63,7 @@ class HelperFixture {
               if (!stopped.isCompleted) stopped.complete();
           }
         });
-    send({'type': 'hello', 'version': 1, 'token': token});
+    send({'type': 'hello', 'version': version, 'token': token});
     return null;
   }
 

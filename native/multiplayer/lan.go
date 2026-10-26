@@ -116,7 +116,7 @@ func announceLocal(port int, motd string) {
 }
 
 func (s *session) shareGames() {
-	if !s.skipLANDiscovery {
+	if !s.skipLANDiscovery && s.options.DiscoverLAN {
 		s.captureLAN()
 	}
 	ticker := time.NewTicker(1500 * time.Millisecond)

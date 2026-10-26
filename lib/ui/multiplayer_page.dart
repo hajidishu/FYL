@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
@@ -9,6 +11,8 @@ import 'byte_size.dart';
 import 'collapsible_section.dart';
 import 'scrolling.dart';
 import 'theme.dart';
+import 'multiplayer_settings_panel.dart';
+import 'multiplayer_diagnostics.dart';
 
 class MultiplayerPage extends StatefulWidget {
   final MultiplayerController controller;
@@ -20,9 +24,13 @@ class MultiplayerPage extends StatefulWidget {
 
 class _MultiplayerPageState extends State<MultiplayerPage> {
   final input = TextEditingController(), port = TextEditingController();
+  final scroll = LauncherScrollController();
   bool joining = false, working = false, answerPending = false;
   String? error, copiedTicket, copiedAddress;
   int operation = 0;
+  int tab = 0;
+  bool copiedDiagnostics = false;
+  late final MultiplayerSettingsDraft settingsDraft;
   MultiplayerController get network => widget.controller;
   bool get hosting => network.active || network.state == MultiplayerState.failed
       ? network.isHost
@@ -31,6 +39,7 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
   @override
   void initState() {
     super.initState();
+    settingsDraft = MultiplayerSettingsDraft(network);
     input.addListener(refreshInput);
     port.addListener(refreshInput);
   }
@@ -41,6 +50,8 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
 
   @override
   void dispose() {
+    scroll.dispose();
+    settingsDraft.dispose();
     input.dispose();
     port.dispose();
     super.dispose();
@@ -770,7 +781,12 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
               if (network.isHost && !ready) ...[
                 instruction(1, '进入想和朋友一起玩的单人世界'),
                 instruction(2, '按 Esc，选择“对局域网开放”'),
-                instruction(3, '点击“开始局域网世界”，FYL 会自动找到它'),
+                instruction(
+                  3,
+                  network.sessionSettings?.discoverLAN == false
+                      ? '在游戏聊天栏找到端口，在下方填写后共享世界'
+                      : '点击“开始局域网世界”，FYL 会自动找到它',
+                ),
                 if (widget.onOpenGame != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 18),
@@ -815,12 +831,18 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                 note(
                   network.isHost
                       ? '让朋友打开多人游戏，选择带有 FYL 标记的局域网世界'
+                      : network.sessionSettings?.announceLAN == false
+                      ? '已关闭局域网发布，请使用下方本机直连地址加入'
                       : '打开 Minecraft 的多人游戏，选择带有 FYL 标记的局域网世界',
                 ),
                 if (!network.isHost && network.gameAddress != null) ...[
                   const SizedBox(height: 18),
                   CollapsibleSection(
-                    title: '没有看到局域网世界？',
+                    title: network.sessionSettings?.announceLAN == false
+                        ? '本机直连地址'
+                        : '没有看到局域网世界？',
+                    initiallyExpanded:
+                        network.sessionSettings?.announceLAN == false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -874,7 +896,12 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
   }
 
   Widget manualPort() => CollapsibleSection(
-    title: network.gamePort > 0 ? '更换游戏端口' : '没有自动找到游戏？',
+    title: network.gamePort > 0
+        ? '更换游戏端口'
+        : network.sessionSettings?.discoverLAN == false
+        ? '手动指定游戏端口'
+        : '没有自动找到游戏？',
+    initiallyExpanded: network.sessionSettings?.discoverLAN == false,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -907,7 +934,9 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                     }),
             ),
             AppButton(
-              '恢复自动识别',
+              network.sessionSettings?.discoverLAN == false
+                  ? '清除手动端口'
+                  : '恢复自动识别',
               small: true,
               secondary: true,
               onPressed: working
@@ -996,6 +1025,7 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                     (!answerPending || network.error != null)
               : network.state == MultiplayerState.connecting);
       return AppScrollView(
+        controller: scroll,
         padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
         child: Align(
           alignment: Alignment.topLeft,
@@ -1036,65 +1066,105 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                 const SizedBox(height: 8),
                 note('和朋友一起玩，从分享一个游戏世界开始'),
                 const SizedBox(height: 24),
-                if (hasSession && !network.hostingRoom) ...[
-                  Row(
-                    children: [
-                      Tag(network.isHost ? '房主' : '加入者', accent: true),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: LText(
-                          network.state == MultiplayerState.reconnecting
-                              ? '正在恢复连接'
-                              : network.connected
-                              ? '你们已经连接'
-                              : '跟着下面的步骤完成联机',
-                          style: TextStyle(color: c.muted, fontSize: 12),
-                        ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final entry in {0: '房间', 1: '联机设置', 2: '连接诊断'}.entries)
+                      AppButton(
+                        entry.value,
+                        key: ValueKey('multiplayer-tab-${entry.key}'),
+                        small: true,
+                        secondary: tab != entry.key,
+                        icon: entry.key == 0
+                            ? FIcons.users
+                            : entry.key == 1
+                            ? FIcons.settings2
+                            : FIcons.activity,
+                        onPressed: () {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          setState(() => tab = entry.key);
+                          if (scroll.hasClients) scroll.jumpTo(0);
+                        },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  steps(),
-                  const SizedBox(height: 18),
-                ],
-                if (!failed && (error != null || network.error != null)) ...[
-                  message(error ?? network.error!),
-                  const SizedBox(height: 14),
-                ],
-                if (failed)
-                  failure()
-                else if (network.hostingRoom)
-                  roomView()
-                else if (network.connected)
-                  connected()
-                else if (exchanging)
-                  exchange()
-                else if (network.active)
-                  progress()
-                else
-                  entry(),
-                const SizedBox(height: 20),
-                if (network.connected ||
-                    network.active && network.ticket != null) ...[
-                  details(),
-                  const SizedBox(height: 12),
-                ],
-                CollapsibleSection(
-                  title: '联机前需要知道什么？',
-                  icon: FIcons.info,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      note('双方都需要使用 FYL，并准备相同的游戏版本和 Mod'),
-                      const SizedBox(height: 8),
-                      note('保持启动器开启，关闭 FYL 会结束这次联机'),
-                      const SizedBox(height: 8),
-                      note('仅共享 Minecraft 游戏连接，不影响其他应用的网络'),
-                      const SizedBox(height: 8),
-                      note('部分网络可能无法直连，连接失败时可以重新创建房间再试'),
-                    ],
-                  ),
+                  ],
                 ),
+                const SizedBox(height: 20),
+                if (tab == 1)
+                  MultiplayerSettingsPanel(draft: settingsDraft)
+                else if (tab == 2)
+                  MultiplayerDiagnosticsPanel(
+                    network: network,
+                    copied: copiedDiagnostics,
+                    onCopy: () => run(() async {
+                      final report = const JsonEncoder.withIndent(
+                        '  ',
+                      ).convert(network.diagnosticReport());
+                      await Clipboard.setData(ClipboardData(text: report));
+                      if (mounted) setState(() => copiedDiagnostics = true);
+                    }),
+                  ),
+                if (tab == 0) ...[
+                  if (hasSession && !network.hostingRoom) ...[
+                    Row(
+                      children: [
+                        Tag(network.isHost ? '房主' : '加入者', accent: true),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: LText(
+                            network.state == MultiplayerState.reconnecting
+                                ? '正在恢复连接'
+                                : network.connected
+                                ? '你们已经连接'
+                                : '跟着下面的步骤完成联机',
+                            style: TextStyle(color: c.muted, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    steps(),
+                    const SizedBox(height: 18),
+                  ],
+                  if (!failed && (error != null || network.error != null)) ...[
+                    message(error ?? network.error!),
+                    const SizedBox(height: 14),
+                  ],
+                  if (failed)
+                    failure()
+                  else if (network.hostingRoom)
+                    roomView()
+                  else if (network.connected)
+                    connected()
+                  else if (exchanging)
+                    exchange()
+                  else if (network.active)
+                    progress()
+                  else
+                    entry(),
+                  const SizedBox(height: 20),
+                  if (network.connected ||
+                      network.active && network.ticket != null) ...[
+                    details(),
+                    const SizedBox(height: 12),
+                  ],
+                  CollapsibleSection(
+                    title: '联机前需要知道什么？',
+                    icon: FIcons.info,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        note('双方都需要使用 FYL，并准备相同的游戏版本和 Mod'),
+                        const SizedBox(height: 8),
+                        note('保持启动器开启，关闭 FYL 会结束这次联机'),
+                        const SizedBox(height: 8),
+                        note('仅共享 Minecraft 游戏连接，不影响其他应用的网络'),
+                        const SizedBox(height: 8),
+                        note('部分网络可能无法直连，连接失败时可以重新创建房间再试'),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

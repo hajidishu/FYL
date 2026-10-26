@@ -46,12 +46,15 @@ type session struct {
 	skipLANDiscovery bool
 	sharedWorld      *session
 	world            atomic.Pointer[lanAnnouncement]
+	options          *networkSettings
+	ownedNetwork     *roomNetwork
+	remotePin        string
 }
 
 func newSession(ctx context.Context, emit func(event)) *session {
 	ctx, cancel := context.WithCancel(ctx)
 	return &session{ctx: ctx, cancel: cancel, emit: emit,
-		answer: make(chan string, 1), share: make(chan lanAnnouncement, 1)}
+		answer: make(chan string, 1), share: make(chan lanAnnouncement, 1), options: defaultNetworkSettings()}
 }
 
 func (s *session) state(value string) { s.emit(event{"type": "state", "state": value}) }
@@ -87,7 +90,13 @@ func (s *session) gather() error {
 	}
 	config := s.iceConfig
 	if config == nil {
-		config = defaultICEConfig()
+		config = s.options.iceConfig()
+	}
+	if config.UDPMux == nil {
+		if s.ownedNetwork, err = newRoomNetwork(config, s.options.LocalPort); err != nil {
+			return err
+		}
+		config = &s.ownedNetwork.config
 	}
 	s.agent, err = ice.NewAgent(config)
 	if err != nil {
@@ -134,6 +143,15 @@ func (s *session) gather() error {
 	if len(s.local.Candidates) == 0 {
 		return errors.New("no_candidates")
 	}
+	if s.ownedNetwork != nil {
+		s.ownedNetwork.refresh(s.ctx)
+		s.emit(event{"type": "diagnostics", "data": s.ownedNetwork.diagnostics(s.local.Candidates)})
+		s.local.Candidates = s.ownedNetwork.candidates(s.local.Candidates)
+	}
+	s.emit(event{"type": "diagnostics", "data": event{
+		"localCandidates": s.local.Candidates, "localFingerprint": s.local.Pin,
+		"transport": "ICE/UDP → DTLS 1.2 → SCTP → Minecraft TCP",
+	}})
 	s.local.Ufrag, s.local.Pwd, err = s.agent.GetLocalUserCredentials()
 	return err
 }
@@ -160,6 +178,9 @@ func (s *session) close() {
 	}
 	if s.agent != nil {
 		_ = s.agent.Close()
+	}
+	if s.ownedNetwork != nil {
+		_ = s.ownedNetwork.mux.Close()
 	}
 }
 
@@ -234,6 +255,7 @@ func (s *session) run(owner bool, invitation string) (err error) {
 }
 
 func (s *session) connect(remote ticket, expires int64) error {
+	s.remotePin = remote.Pin
 	s.state("connecting")
 	for _, raw := range remote.Candidates {
 		c, err := ice.UnmarshalCandidate(raw)
@@ -245,8 +267,8 @@ func (s *session) connect(remote ticket, expires int64) error {
 		}
 	}
 	deadline := time.Unix(expires, 0)
-	if s.owner && deadline.After(time.Now().Add(45*time.Second)) {
-		deadline = time.Now().Add(45 * time.Second)
+	if s.owner && deadline.After(time.Now().Add(time.Duration(s.options.ConnectTimeout)*time.Second)) {
+		deadline = time.Now().Add(time.Duration(s.options.ConnectTimeout) * time.Second)
 	}
 	connectCtx, cancel := context.WithDeadline(s.ctx, deadline)
 	defer cancel()
@@ -276,6 +298,7 @@ func (s *session) connect(remote ticket, expires int64) error {
 	if err = s.secure.HandshakeContext(handshakeCtx); err != nil {
 		return errors.New("peer_identity")
 	}
+	s.reportPath(true)
 	s.state("configuring")
 	return s.gameTunnel()
 }
