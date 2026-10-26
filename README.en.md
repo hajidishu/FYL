@@ -38,7 +38,7 @@ Choose Simplified Chinese, Traditional Chinese, English, Russian, French or Germ
 
 ## Build and run
 
-Requires Go 1.24+ and Python 3; the Minecraft networking helper builds automatically with the launcher
+Requires Python 3; standard builds exclude experimental multiplayer
 
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
@@ -50,6 +50,8 @@ flutter pub get
 | Windows | `flutter run -d windows` | `flutter build windows --release` |
 | macOS | `flutter run -d macos` | `flutter build macos --release` |
 | Linux | `flutter run -d linux` | `flutter build linux --release` |
+
+Experimental multiplayer additionally requires Go 1.24+ and `--dart-define=FYL_ENABLE_MULTIPLAYER=true`, for example `flutter build windows --release --dart-define=FYL_ENABLE_MULTIPLAYER=true`. See the [multiplayer development notes](docs/MULTIPLAYER.md)
 
 Build output:
 

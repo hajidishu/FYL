@@ -38,7 +38,7 @@ Choisissez le chinois simplifié, le chinois traditionnel, l’anglais, le russe
 
 ## Compilation et exécution
 
-Go 1.24+ et Python 3 sont nécessaires ; l’assistant réseau Minecraft est compilé automatiquement avec le lanceur
+Python 3 est nécessaire ; les compilations normales excluent le mode multijoueur expérimental
 
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
@@ -50,6 +50,8 @@ flutter pub get
 | Windows | `flutter run -d windows` | `flutter build windows --release` |
 | macOS | `flutter run -d macos` | `flutter build macos --release` |
 | Linux | `flutter run -d linux` | `flutter build linux --release` |
+
+Le mode multijoueur expérimental nécessite aussi Go 1.24+ et `--dart-define=FYL_ENABLE_MULTIPLAYER=true`, par exemple `flutter build windows --release --dart-define=FYL_ENABLE_MULTIPLAYER=true`. Voir les [notes de développement](docs/MULTIPLAYER.md)
 
 Emplacement des fichiers compilés :
 

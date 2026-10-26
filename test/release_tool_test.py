@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import struct
 import subprocess
 import tarfile
@@ -10,6 +11,7 @@ from unittest.mock import patch
 import zipfile
 
 from tool import release
+from tool.build_features import feature_manifest, network_directory, write_features
 
 
 class ReleaseTests(unittest.TestCase):
@@ -100,6 +102,7 @@ class ReleaseTests(unittest.TestCase):
             struct.pack_into("<H", data, 18, machine or 62)
         file.write_bytes(data)
         file.chmod(0o755)
+        write_features(directory, target, False)
         return file
 
     def test_architecture_comes_from_executable(self):
@@ -134,6 +137,75 @@ class ReleaseTests(unittest.TestCase):
             if os.name != "nt":
                 self.assertEqual(executable.mode & 0o111, 0o111)
             self.assertIsNotNone(contents.getmember("FYL/ARTWORK-SOURCES.txt"))
+
+    def test_default_archive_excludes_stale_network_helpers(self):
+        for target in ("windows", "linux"):
+            with self.subTest(target=target):
+                self.binary(target)
+                bundle = release.bundle_path(self.root, target)
+                helper = network_directory(bundle, target)
+                helper.mkdir(parents=True)
+                (helper / "fyl-network.exe").write_text("old helper")
+                (helper / "THIRD-PARTY-LICENSES.txt").write_text("helper licenses")
+                write_features(bundle, target, False)
+                archive = release.package(self.root, target, "0.1.0", "owner/repo", "a" * 40)
+                if target == "windows":
+                    with zipfile.ZipFile(archive) as content:
+                        names = content.namelist()
+                else:
+                    with tarfile.open(archive) as content:
+                        names = content.getnames()
+                self.assertFalse(any("fyl-network" in name for name in names))
+                self.assertTrue((helper / "fyl-network.exe").exists())
+
+    def test_multiplayer_packaging_requires_matching_explicit_flags_and_licenses(self):
+        self.binary("windows")
+        bundle = release.bundle_path(self.root, "windows")
+        with self.assertRaisesRegex(ValueError, "build flag"):
+            release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40, True)
+        write_features(bundle, "windows", True)
+        with self.assertRaisesRegex(ValueError, "build flag"):
+            release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40)
+        with self.assertRaisesRegex(ValueError, "missing"):
+            release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40, True)
+        helper = network_directory(bundle, "windows")
+        helper.mkdir()
+        (helper / "fyl-network.exe").write_text("experimental helper")
+        (helper / "THIRD-PARTY-LICENSES.txt").write_text("helper licenses")
+        archive = release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40, True)
+        self.assertTrue(archive.name.endswith("-multiplayer.zip"))
+        with zipfile.ZipFile(archive) as content:
+            self.assertEqual(content.read("FYL/data/fyl-network/fyl-network.exe"), b"experimental helper")
+
+    def test_unmarked_old_builds_cannot_be_published_as_normal_builds(self):
+        self.binary("windows")
+        feature_manifest(release.bundle_path(self.root, "windows"), "windows").unlink()
+        with self.assertRaisesRegex(ValueError, "metadata is missing"):
+            release.package(self.root, "windows", "0.1.0", "owner/repo", "a" * 40)
+
+    def test_macos_staging_also_excludes_stale_network_helpers(self):
+        bundle = release.bundle_path(self.root, "macos")
+        self.write(str((bundle / 'Contents/MacOS/free_your_launcher').relative_to(self.root)), 'binary fixture')
+        helper = network_directory(bundle, "macos")
+        helper.mkdir(parents=True)
+        (helper / "fyl-network").write_text("old helper")
+        write_features(bundle, "macos", False)
+
+        def ditto(args, **kwargs):
+            if args[1] == "-c":
+                staging, output = Path(args[-2]), Path(args[-1])
+                with zipfile.ZipFile(output, "w") as archive:
+                    for file in staging.rglob("*"):
+                        if file.is_file():
+                            archive.write(file, file.relative_to(staging.parent).as_posix())
+            else:
+                shutil.copytree(args[1], args[2])
+
+        with patch.object(release, "architecture", return_value="universal"), patch.object(release.subprocess, "run", side_effect=ditto):
+            archive = release.package(self.root, "macos", "0.1.0", "owner/repo", "a" * 40)
+        with zipfile.ZipFile(archive) as content:
+            self.assertFalse(any("fyl-network" in name for name in content.namelist()))
+        self.assertTrue((helper / "fyl-network").exists())
 
     def test_portable_user_data_and_custom_profile_never_enter_release_archive(self):
         self.binary("windows")

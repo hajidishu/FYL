@@ -5,6 +5,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      enable_multiplayer:
+        description: Include experimental multiplayer (not for normal releases)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,7 +38,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: python -m unittest discover -s test -p release_tool_test.py -v
+      - run: python -m unittest discover -s test -p '*_test.py' -v
       - run: python tool/generate_localizations.py --check
       - name: Validate version
         id: version
@@ -59,6 +64,7 @@ jobs:
       FYL_BUILD_NUMBER: ${{ needs.version.outputs.build_number }}
       FYL_IS_RELEASE: ${{ needs.version.outputs.is_release }}
       FYL_TARGET: ${{ matrix.target }}
+      FYL_ENABLE_MULTIPLAYER: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_multiplayer && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,10 +77,12 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: actions/setup-go@v6
+        if: env.FYL_ENABLE_MULTIPLAYER == 'true'
         with:
           go-version: '1.26.x'
           cache-dependency-path: native/multiplayer/go.sum
       - name: Check Minecraft networking helper
+        if: env.FYL_ENABLE_MULTIPLAYER == 'true'
         working-directory: native/multiplayer
         run: |
           test -z "$(gofmt -l .)"
@@ -95,18 +103,24 @@ jobs:
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test tool integration_test
       - run: flutter analyze --no-pub
-      - run: flutter test --no-pub
+      - run: flutter test --no-pub --dart-define="FYL_ENABLE_MULTIPLAYER=$FYL_ENABLE_MULTIPLAYER"
       - name: Build
         run: >-
           flutter build "$FYL_TARGET" --release --no-pub
           --build-name="$FYL_BUILD_NAME" --build-number="$FYL_BUILD_NUMBER"
           --dart-define="FYL_VERSION=$FYL_VERSION"
           --dart-define="FYL_IS_RELEASE=$FYL_IS_RELEASE"
+          --dart-define="FYL_ENABLE_MULTIPLAYER=$FYL_ENABLE_MULTIPLAYER"
       - name: Package
-        run: python tool/release.py package --target "$FYL_TARGET" --version "$FYL_VERSION"
+        run: |
+          extra=()
+          if [[ "$FYL_ENABLE_MULTIPLAYER" == "true" ]]; then
+            extra+=(--enable-multiplayer)
+          fi
+          python tool/release.py package --target "$FYL_TARGET" --version "$FYL_VERSION" "${extra[@]}"
       - uses: actions/upload-artifact@v4
         with:
-          name: FYL-${{ matrix.target }}
+          name: FYL-${{ matrix.target }}${{ env.FYL_ENABLE_MULTIPLAYER == 'true' && '-multiplayer' || '' }}
           path: build/releases/*
           if-no-files-found: error
           compression-level: 0

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:free_your_launcher/core/multiplayer.dart';
 import 'package:free_your_launcher/core/multiplayer_settings.dart';
+import 'package:free_your_launcher/core/build_info.dart';
 
 import 'multiplayer_test.dart' show HelperFixture;
 
@@ -15,7 +16,13 @@ Future<void> delivered(bool Function() predicate) async {
   fail('Expected multiplayer event was not delivered');
 }
 
-void main() {
+void main() => group(
+  'experimental multiplayer settings',
+  multiplayerSettingsTests,
+  skip: !launcherMultiplayerEnabled,
+);
+
+void multiplayerSettingsTests() {
   test('old helpers cannot silently ignore network settings', () async {
     final root = await Directory.systemTemp.createTemp('fyl-helper-version-');
     final file = File('${root.path}/helper');

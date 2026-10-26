@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'multiplayer_invitation.dart';
+import 'build_info.dart';
 import 'multiplayer_settings.dart';
 import 'minecraft.dart' show writeJson;
 
@@ -275,7 +276,8 @@ class MultiplayerController extends ChangeNotifier {
   String? get gameAddress =>
       isHost ? (gamePort > 0 ? '127.0.0.1:$gamePort' : null) : _gameAddress;
   bool get supported =>
-      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+      launcherMultiplayerEnabled &&
+      (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
   void _notify() {
     if (!_disposed) notifyListeners();
@@ -296,6 +298,11 @@ class MultiplayerController extends ChangeNotifier {
   }
 
   Future<void> _begin(bool owner, String? invitation) async {
+    if (!launcherMultiplayerEnabled) {
+      throw UnsupportedError(
+        'Experimental multiplayer is disabled in this build',
+      );
+    }
     if (_disposed || active || _stopping != null) throw StateError('请先断开当前联机');
     // Reserve the session before the first await so stop() can also cancel the
     // file check, rather than letting the old request start a new session later.

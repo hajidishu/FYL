@@ -113,6 +113,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
       false;
 
   Future<void> navigate(int value) async {
+    if (value == 4 && !launcherMultiplayerEnabled) return;
     if (value == page) return;
     if (page == 3 && settingsDirty || page == 1 && instanceDirty) {
       final discard = await _confirm('有尚未保存的设置', '离开后会放弃本次修改。', '放弃修改');
@@ -142,7 +143,9 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
         await widget.controller.stopActiveTasks();
       }
       await widget.controller.flush();
-      await widget.controller.multiplayer.stop();
+      if (launcherMultiplayerEnabled) {
+        await widget.controller.multiplayer.stop();
+      }
       await windowManager.destroy();
     } catch (e) {
       widget.controller.errorMessage = '关闭启动器失败：$e';
@@ -278,8 +281,10 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                               const SizedBox(height: 7),
                               _navigation(2, '下载管理', FIcons.download, compact),
                               const SizedBox(height: 7),
-                              _navigation(4, '联机', FIcons.network, compact),
-                              const SizedBox(height: 7),
+                              if (launcherMultiplayerEnabled) ...[
+                                _navigation(4, '联机', FIcons.network, compact),
+                                const SizedBox(height: 7),
+                              ],
                               _navigation(3, '设置', FIcons.settings, compact),
                               const Spacer(),
                               LText(
@@ -366,10 +371,11 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                                     controller: controller,
                                     navigate: navigate,
                                   ),
-                                  4 => MultiplayerPage(
-                                    controller: controller.multiplayer,
-                                    onOpenGame: () => navigate(0),
-                                  ),
+                                  4 when launcherMultiplayerEnabled =>
+                                    MultiplayerPage(
+                                      controller: controller.multiplayer,
+                                      onOpenGame: () => navigate(0),
+                                    ),
                                   _ => SettingsPage(
                                     key: settingsKey,
                                     controller: controller,

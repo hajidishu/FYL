@@ -12,6 +12,11 @@ import subprocess
 import tarfile
 import zipfile
 
+if __package__:
+    from .build_features import feature_manifest, network_directory, read_features
+else:
+    from build_features import feature_manifest, network_directory, read_features
+
 
 VERSION = re.compile(
     r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -124,7 +129,7 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def package(root, target, version, repository, sha):
+def package(root, target, version, repository, sha, enable_multiplayer=False):
     version_parts(version)
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository, re.ASCII):
         raise ValueError("Invalid GitHub repository")
@@ -137,6 +142,16 @@ def package(root, target, version, repository, sha):
         "linux": "free_your_launcher",
     }[target]
     arch = architecture(target, executable)
+    if not feature_manifest(bundle, target).is_file():
+        raise ValueError("Build feature metadata is missing; rebuild with the current desktop build scripts")
+    built_with_multiplayer = read_features(bundle, target)
+    if enable_multiplayer != built_with_multiplayer:
+        raise ValueError("Multiplayer packaging must match the FYL_ENABLE_MULTIPLAYER build flag")
+    if enable_multiplayer:
+        helper = network_directory(bundle, target)
+        binary = helper / ("fyl-network.exe" if target == "windows" else "fyl-network")
+        if not binary.is_file() or not (helper / "THIRD-PARTY-LICENSES.txt").is_file():
+            raise ValueError("Experimental multiplayer helper or licenses are missing")
     private_names = {"FYL-data", "fyl-storage.json", "fyl-storage.json.bak", "fyl-storage.json.tmp"}
     def private_entry(name):
         return name in private_names or ".fyl-migration-" in name or name.startswith(".fyl-update-")
@@ -157,6 +172,8 @@ def package(root, target, version, repository, sha):
             if candidate.is_symlink() and not candidate.resolve(strict=True).is_relative_to(bundle.resolve()):
                 raise ValueError(f"Bundle contains an external symlink: {candidate.name}")
     name = f"FYL-{version}-{target}-{arch}"
+    if enable_multiplayer:
+        name += "-multiplayer"
     extension = ".tar.gz" if target == "linux" else ".zip"
     output = root / "build/releases" / (name + extension)
     staging = root / "build/release-staging" / name / "FYL"
@@ -172,6 +189,16 @@ def package(root, target, version, repository, sha):
                 return {name for name in names if private_entry(name)}
             return set()
         shutil.copytree(bundle, staging, symlinks=True, ignore=ignore_private)
+    if not enable_multiplayer:
+        staged_bundle = staging / bundle.name if target == "macos" else staging
+        helper = network_directory(staged_bundle, target)
+        if helper.is_symlink():
+            helper.unlink()
+        elif helper.exists():
+            # Prune only this newly created staging tree, preserving the source.
+            if not helper.resolve().is_relative_to(staging.resolve()):
+                raise ValueError("Network helper staging path escapes the package")
+            shutil.rmtree(helper)
     shutil.copyfile(root / "LICENSE", staging / "LICENSE-FYL.txt")
     shutil.copyfile(root / "assets/components/SOURCES.txt", staging / "ARTWORK-SOURCES.txt")
     (staging / "SOURCE.txt").write_text(
@@ -288,6 +315,7 @@ def main():
     bundle.add_argument("--version", required=True)
     bundle.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     bundle.add_argument("--sha", default=os.environ.get("GITHUB_SHA", ""))
+    bundle.add_argument("--enable-multiplayer", action="store_true", help="Package an explicitly enabled experimental build")
     upload = commands.add_parser("publish")
     upload.add_argument("--tag", required=True)
     upload.add_argument("--directory", type=Path, default=Path("build/releases"))
@@ -300,7 +328,7 @@ def main():
                 stream.write("".join(f"{key}={value}\n" for key, value in values.items()))
         print(json.dumps(values))
     elif args.command == "package":
-        package(root, args.target, args.version, args.repository, args.sha)
+        package(root, args.target, args.version, args.repository, args.sha, args.enable_multiplayer)
     else:
         publish(root, args.directory.resolve(), args.tag)
 

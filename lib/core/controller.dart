@@ -36,6 +36,7 @@ import 'prepared_pack_updates.dart';
 import 'pack_origin.dart';
 import 'launcher_updates.dart';
 import 'multiplayer.dart';
+import 'build_info.dart';
 
 class RunningGame {
   bool finished = false;
@@ -234,7 +235,7 @@ class LauncherController extends ChangeNotifier {
     var saveAfterLoad = false;
     var preparedUpdates = <dynamic>[];
     await Directory(supportDirectory).create(recursive: true);
-    await multiplayer.loadSettings();
+    if (launcherMultiplayerEnabled) await multiplayer.loadSettings();
     if (await _config.exists() || await File('${_config.path}.bak').exists()) {
       Json? data;
       for (final path in [_config.path, '${_config.path}.bak']) {
@@ -411,7 +412,9 @@ class LauncherController extends ChangeNotifier {
     String directory, {
     required bool migrate,
   }) async {
-    if (multiplayer.active) throw StateError('请先断开联机，再切换数据目录');
+    if (launcherMultiplayerEnabled && multiplayer.active) {
+      throw StateError('请先断开联机，再切换数据目录');
+    }
     if (installing || running) throw StateError('请先结束下载任务并关闭正在运行的游戏，再切换数据目录。');
     final change = onDataDirectoryChange;
     if (change == null) throw StateError('当前运行环境不支持切换数据目录。');
@@ -1379,7 +1382,9 @@ class LauncherController extends ChangeNotifier {
   }
 
   Future<void> prepareLauncherUpdate() async {
-    if (multiplayer.active) throw StateError('请先断开联机，再更新启动器');
+    if (launcherMultiplayerEnabled && multiplayer.active) {
+      throw StateError('请先断开联机，再更新启动器');
+    }
     if (installing || running) throw StateError('请先结束下载任务并关闭正在运行的游戏，再更新启动器。');
     instanceOperation = '更新启动器';
     notifyListeners();
@@ -1791,7 +1796,7 @@ class LauncherController extends ChangeNotifier {
 
   @override
   void dispose() {
-    multiplayer.dispose();
+    if (launcherMultiplayerEnabled) multiplayer.dispose();
     launcherUpdater.dispose();
     _disposed = true;
     _windowWaiter?.stop();

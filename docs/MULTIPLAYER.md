@@ -1,4 +1,8 @@
-# Minecraft 专用联机
+# 实验性 Minecraft 专用联机（TODO）
+
+此功能保留在源码中作为后续开发事项，默认构建、普通 Actions 和正式版/测试版发布均不启用：不显示联机按钮，不初始化联机设置，也不打包网络助手。只有显式添加 `--dart-define=FYL_ENABLE_MULTIPLAYER=true` 才会启用。
+
+待办：补充真实跨运营商、复杂 NAT 和多平台网络环境的验证，再决定是否进入常规功能。
 
 FYL 的「联机」通过公共 STUN 和手动交换邀请、回应信息建立多人 P2P 房间，无需开发者或玩家租用服务器，也不需要 Cloudflare 账号。所有朋友分别直连房主，无需彼此互连。当前不使用游戏中继，无法穿透的朋友会连接失败，其他连接不受影响。
 
@@ -50,7 +54,20 @@ FYL 的「联机」通过公共 STUN 和手动交换邀请、回应信息建立�
 
 ## 构建与校验
 
-需要 Go 1.24+、Python 3 和项目原有的 Flutter、Java、各平台构建工具。Windows/Linux 的 CMake 和 macOS 的 Xcode 构建阶段自动构建网络助手，并附带依赖许可证。
+普通构建只需 Python 3 和项目原有的 Flutter、Java、各平台构建工具，不需要 Go。编译实验性联机时另需 Go 1.24+，并显式开启同一个编译参数：
+
+```sh
+flutter run -d windows --dart-define=FYL_ENABLE_MULTIPLAYER=true
+flutter build windows --release --dart-define=FYL_ENABLE_MULTIPLAYER=true
+flutter build linux --release --dart-define=FYL_ENABLE_MULTIPLAYER=true
+flutter build macos --release --dart-define=FYL_ENABLE_MULTIPLAYER=true
+```
+
+启用时，Windows/Linux 的 CMake 和 macOS 的 Xcode 安装阶段构建网络助手并附带依赖许可证；关闭时清理上次构建残留的助手，避免混入普通包。构建目录会记录 `fyl-build-flags.json` 供打包工具核对。此参数是编译开关，不是启动参数，修改后需要重新构建。
+
+手动运行 Desktop 工作流时可勾选 `enable_multiplayer`，普通提交、PR 和标签发布始终保持关闭。实验产物的名称带 `-multiplayer`，不会自动发布到 GitHub Release。
+
+联机测试也须显式开启，例如 `flutter test --dart-define=FYL_ENABLE_MULTIPLAYER=true test/multiplayer_page_test.dart`。手动打包实验版本还需给 `tool/release.py package` 添加 `--enable-multiplayer`，构建与打包开关必须一致。
 
 网络助手位置：
 
@@ -60,9 +77,9 @@ FYL 的「联机」通过公共 STUN 和手动交换邀请、回应信息建立�
 已有 Flutter Release 产物时，也可以单独补建对应助手：
 
 ```sh
-python tool/build_network.py --target windows
-python tool/build_network.py --target linux
-python tool/build_network.py --target macos --arch universal
+python tool/build_network.py --target windows --enable-multiplayer
+python tool/build_network.py --target linux --enable-multiplayer
+python tool/build_network.py --target macos --arch universal --enable-multiplayer
 ```
 
 源码检查与回归测试由 CI 执行，包括邀请校验、证书身份拒绝、大流量传输与半关闭、同一邀请并发连接多人、单人退出隔离、中途加入、邀请停用与换新、世界关闭同步撤回，以及 Flutter 控制连接生命周期和多语言界面。自动化多人测试使用内存网络与本机模拟游戏服务；真实 NAT 穿透效果仍需多台不同网络的设备验证。

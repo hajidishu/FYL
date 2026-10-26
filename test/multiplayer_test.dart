@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:free_your_launcher/core/multiplayer.dart';
 import 'package:free_your_launcher/core/multiplayer_invitation.dart';
+import 'package:free_your_launcher/core/build_info.dart';
 
 String invitation({
   String kind = 'offer',
@@ -72,7 +73,13 @@ class HelperFixture {
   void dispose() => socket?.destroy();
 }
 
-void main() {
+void main() => group(
+  'experimental multiplayer',
+  multiplayerTests,
+  skip: !launcherMultiplayerEnabled,
+);
+
+void multiplayerTests() {
   test(
     'shared invitations validate their version and per-friend identifier',
     () {

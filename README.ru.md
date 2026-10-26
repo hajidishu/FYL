@@ -38,7 +38,7 @@ FYL (free_your_launcher) — кроссплатформенный лаунчер
 
 ## Сборка и запуск
 
-Требуются Go 1.24+ и Python 3; сетевой помощник Minecraft собирается автоматически вместе с лаунчером
+Требуется Python 3; обычная сборка не включает экспериментальную совместную игру
 
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
@@ -50,6 +50,8 @@ flutter pub get
 | Windows | `flutter run -d windows` | `flutter build windows --release` |
 | macOS | `flutter run -d macos` | `flutter build macos --release` |
 | Linux | `flutter run -d linux` | `flutter build linux --release` |
+
+Для экспериментальной совместной игры дополнительно нужны Go 1.24+ и параметр `--dart-define=FYL_ENABLE_MULTIPLAYER=true`, например `flutter build windows --release --dart-define=FYL_ENABLE_MULTIPLAYER=true`. Подробнее в [заметках по разработке](docs/MULTIPLAYER.md)
 
 Расположение результатов сборки:
 

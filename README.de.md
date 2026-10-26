@@ -38,7 +38,7 @@ Unter Einstellungen → Allgemein stehen vereinfachtes und traditionelles Chines
 
 ## Erstellen und ausführen
 
-Go 1.24+ und Python 3 werden benötigt; der Minecraft-Netzwerkhelfer wird automatisch mit dem Launcher erstellt
+Python 3 wird benötigt; normale Builds enthalten keinen experimentellen Mehrspielermodus
 
 ```sh
 javac --release 8 -encoding UTF-8 -g:none -d assets/java tool/java/FylOptiFineBridge.java
@@ -50,6 +50,8 @@ flutter pub get
 | Windows | `flutter run -d windows` | `flutter build windows --release` |
 | macOS | `flutter run -d macos` | `flutter build macos --release` |
 | Linux | `flutter run -d linux` | `flutter build linux --release` |
+
+Der experimentelle Mehrspielermodus benötigt zusätzlich Go 1.24+ und `--dart-define=FYL_ENABLE_MULTIPLAYER=true`, zum Beispiel `flutter build windows --release --dart-define=FYL_ENABLE_MULTIPLAYER=true`. Siehe die [Entwicklungshinweise](docs/MULTIPLAYER.md)
 
 Ausgabeverzeichnisse:
 

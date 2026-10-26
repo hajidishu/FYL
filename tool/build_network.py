@@ -8,6 +8,11 @@ import platform
 import shutil
 import subprocess
 
+if __package__:
+    from .build_features import clean_network_directory, multiplayer_enabled, network_directory, write_features
+else:
+    from build_features import clean_network_directory, multiplayer_enabled, network_directory, write_features
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "native/multiplayer"
 
@@ -25,9 +30,13 @@ def json_objects(text):
 
 
 def build(target, output, arch, go):
+    if output.is_symlink():
+        raise ValueError("Network helper output must not be a symlink")
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     executable = output / ("fyl-network.exe" if target == "windows" else "fyl-network")
+    if executable.is_symlink() or (output / "THIRD-PARTY-LICENSES.txt").is_symlink():
+        raise ValueError("Generated network helper files must not be symlinks")
     env = dict(os.environ, CGO_ENABLED="0", GOTOOLCHAIN="local")
     version = subprocess.check_output([go, "version"], text=True, env=env)
     fingerprint = hashlib.sha256((target + arch + str(output) + version).encode())
@@ -79,12 +88,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=("windows", "linux", "macos"), required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--bundle-root", type=Path, help="Write matching feature metadata into this application bundle")
+    feature = parser.add_mutually_exclusive_group()
+    feature.add_argument("--enable-multiplayer", action="store_true", help="Explicitly build the experimental helper")
+    feature.add_argument("--dart-defines", default="", help="Flutter's base64-encoded DART_DEFINES")
     parser.add_argument("--arch", choices=("x64", "arm64", "universal"))
     parser.add_argument("--archs", help="macOS Xcode ARCHS value")
     parser.add_argument("--go", default=shutil.which("go"))
     args = parser.parse_args()
-    if not args.go:
-        parser.error("Go 1.24 or later is required to build the Minecraft networking helper")
+    enabled = args.enable_multiplayer or multiplayer_enabled(args.dart_defines)
     arch = args.arch or ("arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64")
     if args.archs:
         machines = set(args.archs.split())
@@ -92,11 +104,25 @@ def main():
     if arch == "universal" and args.target != "macos":
         parser.error("Universal binaries are only supported on macOS")
     output = args.output
+    bundle = args.bundle_root
     if output is None:
-        from release import bundle_path
-        bundle = bundle_path(ROOT, args.target)
-        output = bundle / ("Contents/Resources/fyl-network" if args.target == "macos" else "data/fyl-network")
-    build(args.target, output, arch, args.go)
+        if bundle is None:
+            if __package__:
+                from .release import bundle_path
+            else:
+                from release import bundle_path
+            bundle = bundle_path(ROOT, args.target)
+        output = network_directory(bundle, args.target)
+    if bundle is not None and output.absolute() != network_directory(bundle, args.target).absolute():
+        parser.error("Network helper output must match the application bundle")
+    if enabled:
+        if not args.go:
+            parser.error("Go 1.24 or later is required when FYL_ENABLE_MULTIPLAYER=true")
+        build(args.target, output, arch, args.go)
+    else:
+        clean_network_directory(output)
+    if bundle is not None:
+        write_features(bundle, args.target, enabled)
 
 
 if __name__ == "__main__":

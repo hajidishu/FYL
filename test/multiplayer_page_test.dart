@@ -11,6 +11,7 @@ import 'package:free_your_launcher/core/controller.dart';
 import 'package:free_your_launcher/core/models.dart';
 import 'package:free_your_launcher/core/multiplayer.dart';
 import 'package:free_your_launcher/core/multiplayer_settings.dart';
+import 'package:free_your_launcher/core/build_info.dart';
 import 'package:free_your_launcher/l10n/app_localizations.dart';
 import 'package:free_your_launcher/main.dart';
 
@@ -200,7 +201,13 @@ Future<void> snapshot(WidgetTester tester, String name) async {
   });
 }
 
-void main() {
+void main() => group(
+  'experimental multiplayer UI',
+  multiplayerPageTests,
+  skip: !launcherMultiplayerEnabled,
+);
+
+void multiplayerPageTests() {
   TestWidgetsFlutterBinding.ensureInitialized();
   String? clipboard;
   setUpAll(() async {
