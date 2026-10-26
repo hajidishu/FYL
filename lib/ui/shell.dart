@@ -368,6 +368,7 @@ class _LauncherShellState extends State<LauncherShell> with WindowListener {
                                   ),
                                   4 => MultiplayerPage(
                                     controller: controller.multiplayer,
+                                    onOpenGame: () => navigate(0),
                                   ),
                                   _ => SettingsPage(
                                     key: settingsKey,
