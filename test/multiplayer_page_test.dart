@@ -16,6 +16,7 @@ import 'multiplayer_test.dart' show invitation;
 
 class RoomFixture extends MultiplayerController {
   bool inSession = false;
+  bool reusable = false;
   int hosts = 0, stops = 0;
   final ports = <int>[];
   String? joined, answered, address;
@@ -36,25 +37,42 @@ class RoomFixture extends MultiplayerController {
       await preparation!.future;
       return;
     }
-    ticket = invitation();
+    ticket = invitation(version: reusable ? 2 : 1);
     expires = DateTime.now().add(const Duration(minutes: 5));
-    state = MultiplayerState.waitingAnswer;
+    multiRoom = accepting = reusable;
+    state = reusable
+        ? MultiplayerState.hosting
+        : MultiplayerState.waitingAnswer;
     notifyListeners();
   }
 
   @override
   Future<void> join(String value) async {
     joined = value;
+    lastInvitation = value;
     isHost = false;
     inSession = true;
     state = MultiplayerState.connecting;
-    ticket = invitation(kind: 'answer');
+    ticket = invitation(
+      kind: 'answer',
+      version: value.startsWith('FYL2:') ? 2 : 1,
+    );
     notifyListeners();
   }
 
   @override
   void answer(String value) {
     answered = value;
+    if (multiRoom) {
+      final number = peers.length + 1;
+      peers['friend-$number'] = MultiplayerPeer(
+        id: 'friend-$number',
+        number: number,
+        state: MultiplayerState.connected,
+      );
+      notifyListeners();
+      return;
+    }
     state = MultiplayerState.connected;
     notifyListeners();
   }
@@ -73,12 +91,33 @@ class RoomFixture extends MultiplayerController {
   void sharePort(int value) => ports.add(value);
 
   @override
+  void pauseInvitation() {
+    accepting = false;
+    notifyListeners();
+  }
+
+  @override
+  void refreshInvitation() {
+    accepting = true;
+    invitationExpired = false;
+    notifyListeners();
+  }
+
+  @override
+  void removePeer(String id) {
+    peers.remove(id);
+    notifyListeners();
+  }
+
+  @override
   Future<void> stop() async {
     stops++;
     inSession = false;
     state = MultiplayerState.idle;
     ticket = error = address = null;
     gamePort = 0;
+    multiRoom = accepting = false;
+    peers.clear();
     final pending = preparation;
     preparation = null;
     if (pending != null && !pending.isCompleted) pending.complete();
@@ -353,6 +392,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'one room invitation accepts several replies and keeps its controls',
+    (tester) async {
+      final room = RoomFixture()..reusable = true;
+      await showPage(tester, PageFixture(room));
+      await press(tester, 'multiplayer-start');
+      await press(tester, 'multiplayer-copy-ticket');
+      final shared = clipboard;
+      expect(find.text('已连接 0 位朋友'), findsOneWidget);
+      for (var i = 1; i <= 3; i++) {
+        clipboard = invitation(version: 2, kind: 'answer');
+        await press(tester, 'multiplayer-connect');
+        expect(find.text('已连接 $i 位朋友'), findsOneWidget);
+        expect(room.ticket, shared);
+      }
+      expect(find.text('朋友 3'), findsOneWidget);
+      await press(tester, 'remove-peer-friend-2');
+      expect(find.text('已连接 2 位朋友'), findsOneWidget);
+      expect(room.peers.keys, ['friend-1', 'friend-3']);
+      await tester.ensureVisible(find.text('停止接纳新人'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('停止接纳新人'));
+      await tester.pumpAndSettle();
+      expect(room.accepting, isFalse);
+      expect(find.text('已停止接纳新人，在线朋友不受影响'), findsOneWidget);
+      await tester.tap(find.text('重新生成邀请'));
+      await tester.pumpAndSettle();
+      expect(room.accepting, isTrue);
+      expect(room.peers, hasLength(2));
+      expect(tester.takeException(), isNull);
+      await snapshot(tester, '07-shared-room');
+    },
+  );
+
+  testWidgets(
+    'a guest retries with the same room invitation and generates a new reply',
+    (tester) async {
+      final shared = invitation(version: 2);
+      final room = RoomFixture()
+        ..isHost = false
+        ..state = MultiplayerState.failed
+        ..lastInvitation = shared;
+      await showPage(tester, PageFixture(room));
+      expect(find.text('重新生成回应'), findsOneWidget);
+      await press(tester, 'multiplayer-restart');
+      expect(room.joined, shared);
+      expect(room.hosts, 0);
+      expect(find.text('把回应发给房主'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final language in launcherLanguages.keys) {
     testWidgets(
       'compact $language layout handles scaled text and every stage',
@@ -384,6 +475,15 @@ void main() {
         room.world(host: false);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        await press(tester, 'multiplayer-disconnect');
+        room.reusable = true;
+        await press(tester, 'multiplayer-role-host');
+        await press(tester, 'multiplayer-start');
+        expect(tester.takeException(), isNull);
+        clipboard = invitation(version: 2, kind: 'answer');
+        await press(tester, 'multiplayer-connect');
+        expect(tester.takeException(), isNull);
+        await snapshot(tester, '08-compact-shared-$language');
       },
     );
   }

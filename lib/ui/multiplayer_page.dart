@@ -137,6 +137,7 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
 
   Future<void> restart() => run(() async {
     final host = network.isHost;
+    final invitation = network.lastInvitation;
     await network.stop();
     if (!mounted) return;
     setState(() {
@@ -145,6 +146,14 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
       answerPending = false;
     });
     if (host) await network.host();
+    if (!host && invitation != null) {
+      try {
+        MultiplayerInvitation.parse(invitation, kind: 'offer');
+      } on FormatException {
+        return;
+      }
+      await network.join(invitation);
+    }
   }, interrupt: true);
 
   Future<void> copy(String value, {bool address = false}) => run(() async {
@@ -337,12 +346,22 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                 color: c.accent,
               ),
               const SizedBox(width: 10),
-              Expanded(child: heading(network.isHost ? '先把邀请发给朋友' : '把回应发给房主')),
+              Expanded(
+                child: heading(
+                  network.multiRoom
+                      ? '把同一份邀请发给所有朋友'
+                      : network.isHost
+                      ? '先把邀请发给朋友'
+                      : '把回应发给房主',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           note(
-            network.isHost
+            network.multiRoom
+                ? '朋友分别生成回应发给你，逐个导入即可连接；也可以稍后再邀请新人'
+                : network.isHost
                 ? '朋友在 FYL 中选择“加入朋友”，粘贴后会生成回应'
                 : '房主导入你的回应后会自动连接，你可以留在这里等待',
           ),
@@ -351,14 +370,61 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
             alignment: Alignment.centerLeft,
             child: AppButton(
               network.isHost
-                  ? (copied ? '已复制邀请' : '复制邀请')
+                  ? (copied
+                        ? '已复制邀请'
+                        : network.multiRoom
+                        ? '复制房间邀请'
+                        : '复制邀请')
                   : (copied ? '已复制回应' : '复制回应'),
               key: const ValueKey('multiplayer-copy-ticket'),
               icon: copied ? FIcons.check : FIcons.copy,
               secondary: copied,
-              onPressed: working ? null : () => copy(network.ticket!),
+              onPressed: working || (network.multiRoom && !network.accepting)
+                  ? null
+                  : () => copy(network.ticket!),
             ),
           ),
+          if (network.multiRoom) ...[
+            const SizedBox(height: 12),
+            if (!network.accepting) ...[
+              LText(
+                network.invitationExpired
+                    ? '邀请已过期，在线朋友不受影响'
+                    : '已停止接纳新人，在线朋友不受影响',
+              ),
+              const SizedBox(height: 10),
+            ],
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                AppButton(
+                  '重新生成邀请',
+                  small: true,
+                  secondary: true,
+                  icon: FIcons.refreshCw,
+                  onPressed: working
+                      ? null
+                      : () => run(() async {
+                          network.refreshInvitation();
+                          copiedTicket = null;
+                          input.clear();
+                        }),
+                ),
+                if (network.accepting)
+                  AppButton(
+                    '停止接纳新人',
+                    small: true,
+                    secondary: true,
+                    onPressed: working
+                        ? null
+                        : () => run(() async => network.pauseInvitation()),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            note('重新生成会使旧邀请失效，在线朋友不受影响'),
+          ],
           if (network.expires != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
@@ -412,7 +478,11 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
         children: [
           heading('收到朋友的回应了吗？'),
           const SizedBox(height: 8),
-          note('把朋友生成的回应粘贴到这里，即可开始连接'),
+          note(
+            network.multiRoom
+                ? '每位朋友的回应各不相同，逐个粘贴即可添加到房间'
+                : '把朋友生成的回应粘贴到这里，即可开始连接',
+          ),
           const SizedBox(height: 16),
           AppInput(
             key: const ValueKey('multiplayer-answer'),
@@ -431,7 +501,9 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
               icon: input.text.trim().isEmpty
                   ? FIcons.clipboardPaste
                   : FIcons.arrowRight,
-              onPressed: working ? null : connect,
+              onPressed: working || (network.multiRoom && !network.accepting)
+                  ? null
+                  : connect,
             ),
           ),
         ],
@@ -502,6 +574,118 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
     );
   }
 
+  Widget roomView() {
+    final c = LauncherColors.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            const Tag('房主', accent: true),
+            Tag('已连接 ${network.connectedPeers} 位朋友'),
+            Tag(network.accepting ? '邀请可用' : '邀请已停用'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        exchange(),
+        const SizedBox(height: 16),
+        CollapsibleSection(
+          key: ValueKey('room-world-${network.connectedPeers > 0}'),
+          title: '共享的游戏世界',
+          icon: FIcons.gamepad2,
+          initiallyExpanded: network.connectedPeers > 0 || network.gamePort > 0,
+          child: connected(embedded: true),
+        ),
+        const SizedBox(height: 20),
+        heading('朋友的连接'),
+        const SizedBox(height: 10),
+        if (network.peers.isEmpty)
+          Surface(
+            padding: const EdgeInsets.all(18),
+            child: note('还没有朋友连接，先把房间邀请发给他们吧'),
+          ),
+        for (final peer in network.peers.values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Surface(
+              key: ValueKey('multiplayer-peer-${peer.id}'),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        peer.connected ? FIcons.userCheck : FIcons.user,
+                        size: 22,
+                        color: peer.connected ? c.accent : c.muted,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            LText(
+                              '朋友 ${peer.number}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            LText(
+                              peer.state.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: c.secondaryText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AppButton(
+                        peer.state == MultiplayerState.failed ? '移除' : '断开',
+                        key: ValueKey('remove-peer-${peer.id}'),
+                        small: true,
+                        secondary: true,
+                        onPressed: working
+                            ? null
+                            : () =>
+                                  run(() async => network.removePeer(peer.id)),
+                      ),
+                    ],
+                  ),
+                  if (peer.error != null) ...[
+                    const SizedBox(height: 10),
+                    LText(
+                      peer.error!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    note('请这位朋友使用房间邀请重新生成回应，再粘贴到上方'),
+                  ],
+                  if (peer.sent > 0 || peer.received > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '${tr('已发送')} ${formatByteSize(peer.sent)} · ${tr('已接收')} ${formatByteSize(peer.received)}',
+                        style: TextStyle(fontSize: 12, color: c.muted),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget instruction(int number, String text) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: Row(
@@ -529,7 +713,7 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
     ),
   );
 
-  Widget connected() {
+  Widget connected({bool embedded = false}) {
     final c = LauncherColors.of(context);
     final ready = network.gamePort > 0;
     final reconnecting = network.state == MultiplayerState.reconnecting;
@@ -538,12 +722,14 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
         : network.isHost
         ? (ready ? '世界已开放，朋友可以加入了' : '接下来，开放你的游戏世界')
         : (ready ? '世界已准备好，可以加入了' : '已连接，等待房主开放世界');
+    Widget frame(Widget child) => embedded
+        ? child
+        : Surface(padding: const EdgeInsets.all(24), child: child);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Surface(
-          padding: const EdgeInsets.all(24),
-          child: Column(
+        frame(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
@@ -751,7 +937,11 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
         Align(
           alignment: Alignment.centerLeft,
           child: AppButton(
-            network.isHost ? '重新创建房间' : '重新粘贴邀请',
+            network.isHost
+                ? '重新创建房间'
+                : network.lastInvitation != null
+                ? '重新生成回应'
+                : '重新粘贴邀请',
             key: const ValueKey('multiplayer-restart'),
             icon: FIcons.refreshCw,
             onPressed: working ? null : restart,
@@ -831,6 +1021,8 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                       AppButton(
                         network.state == MultiplayerState.stopping
                             ? '正在断开联机'
+                            : network.hostingRoom
+                            ? '结束房间'
                             : '断开联机',
                         key: const ValueKey('multiplayer-disconnect'),
                         secondary: true,
@@ -844,7 +1036,7 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                 const SizedBox(height: 8),
                 note('和朋友一起玩，从分享一个游戏世界开始'),
                 const SizedBox(height: 24),
-                if (hasSession) ...[
+                if (hasSession && !network.hostingRoom) ...[
                   Row(
                     children: [
                       Tag(network.isHost ? '房主' : '加入者', accent: true),
@@ -871,6 +1063,8 @@ class _MultiplayerPageState extends State<MultiplayerPage> {
                 ],
                 if (failed)
                   failure()
+                else if (network.hostingRoom)
+                  roomView()
                 else if (network.connected)
                   connected()
                 else if (exchanging)

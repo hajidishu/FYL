@@ -125,6 +125,7 @@ func (s *session) shareGames() {
 	var published lanAnnouncement
 	publish := func(current lanAnnouncement) {
 		s.gamePort.Store(int32(current.Port))
+		s.world.Store(&current)
 		if current.Port != published.Port || current.MOTD != published.MOTD {
 			s.emit(event{"type": "game", "port": current.Port, "name": current.MOTD})
 			published = current
@@ -147,10 +148,29 @@ func (s *session) shareGames() {
 			selection.refresh(now, probe)
 			current := selection.announcement()
 			publish(current)
+			if s.control != nil && s.sendControl(controlMessage{Type: "game", Port: current.Port, Name: current.MOTD}) != nil {
+				s.cancel()
+				return
+			}
+		}
+	}
+}
+
+func (s *session) shareRoomWorld() {
+	ticker := time.NewTicker(1500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		current := s.sharedWorld.world.Load()
+		if current != nil {
 			if s.sendControl(controlMessage{Type: "game", Port: current.Port, Name: current.MOTD}) != nil {
 				s.cancel()
 				return
 			}
+		}
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

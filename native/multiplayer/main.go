@@ -20,6 +20,7 @@ type command struct {
 	Ticket string `json:"ticket"`
 	Token  string `json:"token"`
 	Port   int    `json:"port"`
+	Peer   string `json:"peer"`
 }
 
 // The unprivileged helper connects back to a pre-bound loopback listener. There is
@@ -70,6 +71,7 @@ func serve(port int, token string) error {
 	}()
 	emit(event{"type": "ready"})
 	var current *session
+	var hosted *room
 	var work sync.WaitGroup
 	defer func() { cancel(); work.Wait(); emit(event{"type": "stopped"}) }()
 	for scanner.Scan() {
@@ -79,8 +81,19 @@ func serve(port int, token string) error {
 		}
 		switch cmd.Type {
 		case "host", "join":
-			if current != nil {
+			if current != nil || hosted != nil {
 				emit(event{"type": "input_error", "code": "already_started"})
+				continue
+			}
+			if cmd.Type == "host" {
+				hosted = newRoom(ctx, emit)
+				work.Add(1)
+				go func(r *room) {
+					defer work.Done()
+					if failure := r.run(); ctx.Err() == nil {
+						emit(event{"type": "error", "code": failure.Error()})
+					}
+				}(hosted)
 				continue
 			}
 			current = newSession(ctx, emit)
@@ -97,6 +110,15 @@ func serve(port int, token string) error {
 				}
 			}(cmd.Type == "host", cmd.Ticket, current)
 		case "answer":
+			if hosted != nil {
+				select {
+				case hosted.commands <- cmd:
+				case <-hosted.root.ctx.Done():
+				default:
+					emit(event{"type": "input_error", "code": "room_busy"})
+				}
+				continue
+			}
 			if current == nil {
 				continue
 			}
@@ -105,12 +127,30 @@ func serve(port int, token string) error {
 			default:
 			}
 		case "share":
+			if hosted != nil {
+				if cmd.Port >= 0 && cmd.Port <= 65535 {
+					select {
+					case hosted.root.share <- lanAnnouncement{Port: cmd.Port, MOTD: "FYL Minecraft", Manual: true}:
+					case <-hosted.root.ctx.Done():
+					}
+				}
+				continue
+			}
 			if current == nil || cmd.Port < 0 || cmd.Port > 65535 {
 				continue
 			}
 			select {
 			case current.share <- lanAnnouncement{Port: cmd.Port, MOTD: "FYL Minecraft", Manual: true}:
 			case <-current.ctx.Done():
+			}
+		case "refresh_invitation", "pause_invitation", "remove_peer":
+			if hosted != nil {
+				select {
+				case hosted.commands <- cmd:
+				case <-hosted.root.ctx.Done():
+				default:
+					emit(event{"type": "input_error", "code": "room_busy"})
+				}
 			}
 		case "stop":
 			return nil

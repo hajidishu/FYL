@@ -44,6 +44,8 @@ type session struct {
 	connected        atomic.Bool
 	iceConfig        *ice.AgentConfig
 	skipLANDiscovery bool
+	sharedWorld      *session
+	world            atomic.Pointer[lanAnnouncement]
 }
 
 func newSession(ctx context.Context, emit func(event)) *session {
@@ -77,24 +79,15 @@ func certificate() (tls.Certificate, string, error) {
 func (s *session) gather() error {
 	s.state("gathering")
 	var err error
-	s.certificate, s.local.Pin, err = certificate()
-	if err != nil {
-		return err
+	if len(s.certificate.Certificate) == 0 {
+		s.certificate, s.local.Pin, err = certificate()
+		if err != nil {
+			return err
+		}
 	}
 	config := s.iceConfig
 	if config == nil {
-		uri, parseErr := stun.ParseURI("stun:stun.cloudflare.com:3478")
-		if parseErr != nil {
-			return parseErr
-		}
-		disconnected, failed, gather := 10*time.Second, 10*time.Minute, 5*time.Second
-		config = &ice.AgentConfig{
-			Urls: []*stun.URI{uri}, NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
-			CandidateTypes:      []ice.CandidateType{ice.CandidateTypeHost, ice.CandidateTypeServerReflexive},
-			MulticastDNSMode:    ice.MulticastDNSModeDisabled,
-			DisconnectedTimeout: &disconnected, FailedTimeout: &failed, STUNGatherTimeout: &gather,
-			IPFilter: func(ip net.IP) bool { return ip.IsGlobalUnicast() && !ip.IsLoopback() },
-		}
+		config = defaultICEConfig()
 	}
 	s.agent, err = ice.NewAgent(config)
 	if err != nil {
@@ -145,20 +138,34 @@ func (s *session) gather() error {
 	return err
 }
 
+func defaultICEConfig() *ice.AgentConfig {
+	uri, _ := stun.ParseURI("stun:stun.cloudflare.com:3478")
+	disconnected, failed, gather := 10*time.Second, 10*time.Minute, 5*time.Second
+	return &ice.AgentConfig{
+		Urls: []*stun.URI{uri}, NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
+		CandidateTypes:      []ice.CandidateType{ice.CandidateTypeHost, ice.CandidateTypeServerReflexive},
+		MulticastDNSMode:    ice.MulticastDNSModeDisabled,
+		DisconnectedTimeout: &disconnected, FailedTimeout: &failed, STUNGatherTimeout: &gather,
+		IPFilter: func(ip net.IP) bool { return ip.IsGlobalUnicast() && !ip.IsLoopback() },
+	}
+}
+
+func (s *session) close() {
+	s.cancel()
+	if s.secure != nil {
+		_ = s.secure.Close()
+	}
+	if s.association != nil {
+		_ = s.association.Close()
+	}
+	if s.agent != nil {
+		_ = s.agent.Close()
+	}
+}
+
 func (s *session) run(owner bool, invitation string) (err error) {
 	s.owner = owner
-	defer func() {
-		s.cancel()
-		if s.secure != nil {
-			_ = s.secure.Close()
-		}
-		if s.association != nil {
-			_ = s.association.Close()
-		}
-		if s.agent != nil {
-			_ = s.agent.Close()
-		}
-	}()
+	defer s.close()
 	var offer, remote ticket
 	if owner {
 		s.local = ticket{Version: 1, Protocol: "minecraft-tcp", Kind: "offer", Expires: time.Now().Add(10 * time.Minute).Unix()}
@@ -172,7 +179,12 @@ func (s *session) run(owner bool, invitation string) (err error) {
 		if offer, err = decodeTicket(invitation, "offer", time.Now()); err != nil {
 			return err
 		}
-		s.local = ticket{Version: 1, Protocol: offer.Protocol, Kind: "answer", Room: offer.Room, Expires: offer.Expires}
+		s.local = ticket{Version: offer.Version, Protocol: offer.Protocol, Kind: "answer", Room: offer.Room, Expires: offer.Expires}
+		if offer.Version == 2 {
+			if s.local.Peer, err = randomToken(16); err != nil {
+				return err
+			}
+		}
 	}
 	if err = s.gather(); err != nil {
 		return err
@@ -214,7 +226,14 @@ func (s *session) run(owner bool, invitation string) (err error) {
 		}
 	} else {
 		remote = offer
+		if offer.Version == 2 {
+			remote.Ufrag, remote.Pwd = peerCredentials(offer, s.local.Peer)
+		}
 	}
+	return s.connect(remote, offer.Expires)
+}
+
+func (s *session) connect(remote ticket, expires int64) error {
 	s.state("connecting")
 	for _, raw := range remote.Candidates {
 		c, err := ice.UnmarshalCandidate(raw)
@@ -225,14 +244,15 @@ func (s *session) run(owner bool, invitation string) (err error) {
 			return err
 		}
 	}
-	deadline := time.Unix(offer.Expires, 0)
-	if owner && deadline.After(time.Now().Add(45*time.Second)) {
+	deadline := time.Unix(expires, 0)
+	if s.owner && deadline.After(time.Now().Add(45*time.Second)) {
 		deadline = time.Now().Add(45 * time.Second)
 	}
 	connectCtx, cancel := context.WithDeadline(s.ctx, deadline)
 	defer cancel()
 	var connection *ice.Conn
-	if owner {
+	var err error
+	if s.owner {
 		connection, err = s.agent.Dial(connectCtx, remote.Ufrag, remote.Pwd)
 	} else {
 		connection, err = s.agent.Accept(connectCtx, remote.Ufrag, remote.Pwd)
@@ -243,7 +263,7 @@ func (s *session) run(owner bool, invitation string) (err error) {
 	s.state("securing")
 	config := pinnedDTLSConfig(s.certificate, remote.Pin)
 	packetConn := &icePackets{connection}
-	if owner {
+	if s.owner {
 		s.secure, err = dtls.Server(packetConn, connection.RemoteAddr(), config)
 	} else {
 		s.secure, err = dtls.Client(packetConn, connection.RemoteAddr(), config)

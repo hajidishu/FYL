@@ -13,6 +13,7 @@ enum MultiplayerState {
   starting('正在启动网络助手'),
   gathering('正在获取连接地址'),
   waitingAnswer('等待回应信息'),
+  hosting('房间已创建'),
   connecting('正在尝试直连'),
   securing('正在验证对端身份'),
   configuring('正在建立游戏通道'),
@@ -51,8 +52,40 @@ String multiplayerError(String code) => switch (code) {
   'connection_lost' => '联机连接已断开',
   'helper_missing' => '缺少联机组件，请安装包含联机组件的完整构建',
   'helper_closed' => '网络助手已退出',
+  'invitation_paused' => '当前邀请已停止接纳新人，请重新生成邀请',
+  'answer_used' => '这份回应已经导入，请勿重复添加',
+  'peer_limit' => '房间连接数量已达上限，请移除不再使用的连接',
+  'room_busy' => '房间正在处理操作，请稍后重试',
   _ => '联机失败，请检查网络后重试',
 };
+
+MultiplayerState _connectionState(String? value, MultiplayerState fallback) =>
+    switch (value) {
+      'gathering' => MultiplayerState.gathering,
+      'waiting_answer' => MultiplayerState.waitingAnswer,
+      'hosting' => MultiplayerState.hosting,
+      'connecting' => MultiplayerState.connecting,
+      'securing' => MultiplayerState.securing,
+      'configuring' => MultiplayerState.configuring,
+      'connected' => MultiplayerState.connected,
+      'reconnecting' => MultiplayerState.reconnecting,
+      'failed' => MultiplayerState.failed,
+      _ => fallback,
+    };
+
+class MultiplayerPeer {
+  final String id;
+  final int number;
+  MultiplayerState state;
+  String? error;
+  int sent = 0, received = 0;
+  MultiplayerPeer({
+    required this.id,
+    required this.number,
+    this.state = MultiplayerState.connecting,
+  });
+  bool get connected => state == MultiplayerState.connected;
+}
 
 typedef MultiplayerHelperLauncher =
     Future<Process?> Function(String executable, List<String> arguments);
@@ -71,8 +104,15 @@ class MultiplayerController extends ChangeNotifier {
   MultiplayerState state = MultiplayerState.idle;
   bool isHost = true;
   String? ticket, room, error, gameName, _gameAddress;
+  String? lastInvitation;
   DateTime? expires;
   int gamePort = 0, sent = 0, received = 0;
+  bool multiRoom = false, accepting = false, invitationExpired = false;
+  final peers = <String, MultiplayerPeer>{};
+  final _removedPeers = <String>{};
+  bool get hostingRoom =>
+      isHost && multiRoom && state == MultiplayerState.hosting;
+  int get connectedPeers => peers.values.where((peer) => peer.connected).length;
   ServerSocket? _server;
   Socket? _socket;
   Process? _process;
@@ -110,11 +150,15 @@ class MultiplayerController extends ChangeNotifier {
     final generation = ++_generation;
     _starting = true;
     isHost = owner;
+    lastInvitation = owner ? null : invitation;
     error = null;
     ticket = null;
     expires = null;
     room = gameName = _gameAddress = null;
     gamePort = sent = received = 0;
+    multiRoom = accepting = invitationExpired = false;
+    peers.clear();
+    _removedPeers.clear();
     state = MultiplayerState.starting;
     _ready = Completer<void>();
     unawaited(_ready!.future.catchError((Object _) {}));
@@ -274,22 +318,49 @@ class MultiplayerController extends ChangeNotifier {
       case 'ready':
         if (!(_ready?.isCompleted ?? true)) _ready!.complete();
       case 'state':
-        state = switch (e['state']) {
-          'gathering' => MultiplayerState.gathering,
-          'waiting_answer' => MultiplayerState.waitingAnswer,
-          'connecting' => MultiplayerState.connecting,
-          'securing' => MultiplayerState.securing,
-          'configuring' => MultiplayerState.configuring,
-          'connected' => MultiplayerState.connected,
-          'reconnecting' => MultiplayerState.reconnecting,
-          _ => state,
-        };
+        state = _connectionState(e['state'] as String?, state);
       case 'ticket':
         ticket = e['text'] as String;
         expires = DateTime.fromMillisecondsSinceEpoch(
           (e['expires'] as int) * 1000,
         );
         room = e['room'] as String;
+        if (e['multi'] == true) {
+          multiRoom = accepting = true;
+          invitationExpired = false;
+          error = null;
+        }
+      case 'room':
+        accepting = e['accepting'] == true;
+        invitationExpired = e['expired'] == true;
+      case 'peer':
+        final id = e['id'] as String;
+        if (_removedPeers.contains(id)) return;
+        final peer = peers.putIfAbsent(
+          id,
+          () => MultiplayerPeer(id: id, number: e['number'] as int),
+        );
+        peer.state = _connectionState(e['state'] as String?, peer.state);
+        if (e['code'] != null) {
+          peer.error = multiplayerError(e['code'] as String);
+        } else if (peer.connected) {
+          peer.error = null;
+        }
+        final uploaded = e['sent'] as int?;
+        final downloaded = e['received'] as int?;
+        if (uploaded != null && uploaded >= peer.sent) {
+          sent += uploaded - peer.sent;
+          peer.sent = uploaded;
+        }
+        if (downloaded != null && downloaded >= peer.received) {
+          received += downloaded - peer.received;
+          peer.received = downloaded;
+        }
+        if (e['state'] == 'connecting') error = null;
+      case 'peer_removed':
+        final id = e['id'] as String;
+        _removedPeers.add(id);
+        peers.remove(id);
       case 'stats':
         sent = e['sent'] as int;
         received = e['received'] as int;
@@ -312,20 +383,41 @@ class MultiplayerController extends ChangeNotifier {
   }
 
   void answer(String value) {
-    if (!isHost || state != MultiplayerState.waitingAnswer) {
+    if (!isHost || (state != MultiplayerState.waitingAnswer && !hostingRoom)) {
       throw StateError('当前房间不在等待回应');
     }
     final parsed = MultiplayerInvitation.parse(value, kind: 'answer');
+    if (multiRoom && (!accepting || expires?.isAfter(DateTime.now()) != true)) {
+      throw StateError('当前邀请已停止接纳新人，请重新生成邀请');
+    }
+    if (multiRoom && parsed.version != 2) {
+      throw const FormatException('回应信息不属于当前房间');
+    }
     error = null;
     _send({'type': 'answer', 'ticket': parsed.text});
     _notify();
   }
 
   void sharePort(int port) {
-    if (!isHost || !connected || port < 0 || port > 65535) {
+    if (!isHost || (!connected && !hostingRoom) || port < 0 || port > 65535) {
       throw ArgumentError('游戏端口无效');
     }
     _send({'type': 'share', 'port': port});
+  }
+
+  void refreshInvitation() {
+    if (!hostingRoom) throw StateError('房间尚未创建');
+    _send({'type': 'refresh_invitation'});
+  }
+
+  void pauseInvitation() {
+    if (!hostingRoom) throw StateError('房间尚未创建');
+    _send({'type': 'pause_invitation'});
+  }
+
+  void removePeer(String id) {
+    if (!hostingRoom || !peers.containsKey(id)) return;
+    _send({'type': 'remove_peer', 'peer': id});
   }
 
   void _send(Map<String, dynamic> command) {
@@ -372,8 +464,12 @@ class MultiplayerController extends ChangeNotifier {
       }
     }
     ticket = room = gameName = error = _gameAddress = null;
+    lastInvitation = null;
     expires = null;
     gamePort = sent = received = 0;
+    multiRoom = accepting = invitationExpired = false;
+    peers.clear();
+    _removedPeers.clear();
     state = MultiplayerState.idle;
     ++_generation;
     _notify();

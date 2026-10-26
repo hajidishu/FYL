@@ -10,9 +10,11 @@ String invitation({
   String kind = 'offer',
   DateTime? expires,
   String protocol = 'minecraft-tcp',
+  int version = 1,
+  String peer = 'AAAAAAAAAAAAAAAAAAAAAA',
 }) {
   final data = {
-    'v': 1,
+    'v': version,
     'd': protocol,
     't': kind,
     'r': 'AAAAAAAAAAAAAAAAAAAAAA',
@@ -24,8 +26,9 @@ String invitation({
     'p': 'aaaaaaaaaaaaaaaaaaaaaaaa',
     'f': '0' * 64,
     'c': ['1 1 udp 2130706431 198.51.100.1 50000 typ host'],
+    if (version == 2 && kind == 'answer') 'i': peer,
   };
-  return 'FYL1:${base64Url.encode(utf8.encode(jsonEncode(data))).replaceAll('=', '')}';
+  return 'FYL$version:${base64Url.encode(utf8.encode(jsonEncode(data))).replaceAll('=', '')}';
 }
 
 class HelperFixture {
@@ -68,6 +71,152 @@ class HelperFixture {
 }
 
 void main() {
+  test(
+    'shared invitations validate their version and per-friend identifier',
+    () {
+      expect(
+        MultiplayerInvitation.parse(
+          invitation(version: 2),
+          kind: 'offer',
+        ).version,
+        2,
+      );
+      expect(
+        MultiplayerInvitation.parse(
+          invitation(version: 2, kind: 'answer'),
+          kind: 'answer',
+        ).version,
+        2,
+      );
+      expect(
+        () => MultiplayerInvitation.parse(
+          invitation(version: 2, kind: 'answer', peer: 'invalid'),
+          kind: 'answer',
+        ),
+        throwsFormatException,
+      );
+      expect(
+        () => MultiplayerInvitation.parse(
+          invitation().replaceFirst('FYL1:', 'FYL2:'),
+          kind: 'offer',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
+    'room IPC keeps peer failures separate and remains open for more replies',
+    () async {
+      final temporary = await Directory.systemTemp.createTemp('fyl-room-ipc-');
+      final helper = File('${temporary.path}/helper');
+      await helper.writeAsString('fixture');
+      final fixture = HelperFixture();
+      final controller = MultiplayerController(
+        helperPath: () => helper.path,
+        launch: fixture.launch,
+      );
+      addTearDown(() async {
+        await controller.stop();
+        controller.dispose();
+        fixture.dispose();
+        await temporary.delete(recursive: true);
+      });
+      Future<void> waitFor(bool Function() predicate) async {
+        for (var i = 0; i < 200; i++) {
+          if (predicate()) return;
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        fail('Room IPC event was not delivered');
+      }
+
+      await controller.host();
+      await waitFor(() => controller.state == MultiplayerState.waitingAnswer);
+      fixture.send({
+        'type': 'ticket',
+        'multi': true,
+        'text': invitation(version: 2),
+        'room': 'room',
+        'expires':
+            DateTime.now()
+                .add(const Duration(minutes: 5))
+                .millisecondsSinceEpoch ~/
+            1000,
+      });
+      fixture.send({'type': 'room', 'accepting': true, 'expired': false});
+      fixture.send({'type': 'state', 'state': 'hosting'});
+      await waitFor(() => controller.hostingRoom);
+      controller.answer(invitation(version: 2, kind: 'answer'));
+      fixture.send({
+        'type': 'peer',
+        'id': 'one',
+        'number': 1,
+        'state': 'connected',
+      });
+      fixture.send({
+        'type': 'peer',
+        'id': 'two',
+        'number': 2,
+        'state': 'connecting',
+      });
+      fixture.send({
+        'type': 'peer',
+        'id': 'one',
+        'number': 1,
+        'sent': 100,
+        'received': 200,
+      });
+      fixture.send({
+        'type': 'peer',
+        'id': 'two',
+        'number': 2,
+        'state': 'failed',
+        'code': 'direct_failed',
+      });
+      await waitFor(
+        () => controller.peers['two']?.state == MultiplayerState.failed,
+      );
+      expect(controller.hostingRoom, isTrue);
+      expect(controller.connectedPeers, 1);
+      expect(controller.error, isNull);
+      expect(controller.peers['two']!.error, contains('无法建立直连'));
+      expect(controller.sent, 100);
+      controller.answer(
+        invitation(version: 2, kind: 'answer', peer: 'AQEBAQEBAQEBAQEBAQEBAQ'),
+      );
+      controller.sharePort(25565);
+      controller.removePeer('two');
+      await waitFor(
+        () => fixture.commands.any((c) => c['type'] == 'remove_peer'),
+      );
+      expect(
+        fixture.commands.where((c) => c['type'] == 'answer'),
+        hasLength(2),
+      );
+      expect(fixture.commands.last['peer'], 'two');
+      fixture.send({'type': 'peer_removed', 'id': 'two'});
+      fixture.send({
+        'type': 'peer',
+        'id': 'two',
+        'number': 2,
+        'state': 'connected',
+      });
+      await waitFor(() => !controller.peers.containsKey('two'));
+      fixture.send({'type': 'room', 'accepting': false, 'expired': true});
+      await waitFor(() => controller.invitationExpired);
+      expect(controller.connectedPeers, 1);
+      expect(
+        () => controller.answer(invitation(version: 2, kind: 'answer')),
+        throwsStateError,
+      );
+      controller.refreshInvitation();
+      await waitFor(
+        () => fixture.commands.any((c) => c['type'] == 'refresh_invitation'),
+      );
+      expect(controller.sent, 100);
+    },
+  );
+
   test(
     'manual invitation accepts wrapped text and rejects expired or other protocols',
     () {

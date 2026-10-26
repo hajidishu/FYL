@@ -76,7 +76,11 @@ func (s *session) gameTunnel() error {
 	remoteName.Store("FYL Minecraft")
 	if s.owner {
 		go s.acceptGameStreams()
-		go s.shareGames()
+		if s.sharedWorld == nil {
+			go s.shareGames()
+		} else {
+			go s.shareRoomWorld()
+		}
 	} else {
 		// Bind all local addresses for LAN discovery compatibility. Every accepted
 		// connection is checked against this machine's own interface addresses.
@@ -180,6 +184,9 @@ func (s *session) acceptGameStreams() {
 				return
 			}
 			port := int(s.gamePort.Load())
+			if s.sharedWorld != nil {
+				port = int(s.sharedWorld.gamePort.Load())
+			}
 			if port < 1 || !minecraftServer(s.ctx, port) {
 				return
 			}

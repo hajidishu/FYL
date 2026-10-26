@@ -96,3 +96,44 @@ func TestLANAnnouncementCannotSelectAnAddress(t *testing.T) {
 		}
 	}
 }
+
+func TestReusableInvitationSeparatesPeersAndBindsTheirNonces(t *testing.T) {
+	offer := fixtureTicket(t)
+	offer.Version = 2
+	text, err := encodeTicket(offer)
+	if err != nil || !strings.HasPrefix(text, "FYL2:") {
+		t.Fatal("wrong room invitation version")
+	}
+	if _, err = decodeTicket(text, "offer", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := randomToken(16)
+	second, _ := randomToken(16)
+	u1, p1 := peerCredentials(offer, first)
+	u2, p2 := peerCredentials(offer, second)
+	if u1 == u2 || p1 == p2 || u1 == p1 {
+		t.Fatal("credentials reused between peers or domains")
+	}
+	u3, p3 := peerCredentials(offer, first)
+	if u1 != u3 || p1 != p3 {
+		t.Fatal("host and guest cannot derive the same credentials")
+	}
+	answer := offer
+	answer.Kind, answer.Secret, answer.Peer = "answer", "", first
+	answer.MAC, _ = answerMAC(answer, offer.Secret)
+	text, _ = encodeTicket(answer)
+	if _, err = decodeTicket(text, "answer", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	answer.Peer = second
+	if validateAnswer(offer, answer) == nil {
+		t.Fatal("answer nonce was not authenticated")
+	}
+	for _, value := range []string{"", "abcdefghijklmnopqrstuv", strings.Repeat("!", 22)} {
+		answer.Peer = value
+		text, _ = encodeTicket(answer)
+		if _, err = decodeTicket(text, "answer", time.Now()); err == nil {
+			t.Fatal("malformed peer nonce was accepted")
+		}
+	}
+}

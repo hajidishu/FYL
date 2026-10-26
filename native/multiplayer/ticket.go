@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,7 @@ const ticketPrefix = "FYL1:"
 const maxTicketBytes = 32768
 
 // Tickets deliberately contain no account information or machine identifiers.
-// The offer's secret authorizes one answer; the DTLS certificate pins bind the
+// The offer's secret authorizes answers; the DTLS certificate pins bind the
 // selected ICE path to the exact peer approved through that exchange.
 type ticket struct {
 	Version    int      `json:"v"`
@@ -33,6 +34,7 @@ type ticket struct {
 	Candidates []string `json:"c"`
 	Secret     string   `json:"k,omitempty"`
 	MAC        string   `json:"m,omitempty"`
+	Peer       string   `json:"i,omitempty"`
 }
 
 func randomToken(n int) (string, error) {
@@ -51,7 +53,11 @@ func encodeTicket(t ticket) (string, error) {
 	if len(b) > maxTicketBytes {
 		return "", errors.New("ticket_large")
 	}
-	return ticketPrefix + base64.RawURLEncoding.EncodeToString(b), nil
+	prefix := ticketPrefix
+	if t.Version == 2 {
+		prefix = "FYL2:"
+	}
+	return prefix + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func decodeTicket(text, kind string, now time.Time) (ticket, error) {
@@ -60,20 +66,25 @@ func decodeTicket(text, kind string, now time.Time) (ticket, error) {
 		return t, errors.New("ticket_large")
 	}
 	text = strings.Join(strings.Fields(text), "")
-	if !strings.HasPrefix(text, ticketPrefix) {
+	if !strings.HasPrefix(text, ticketPrefix) && !strings.HasPrefix(text, "FYL2:") {
 		return t, errors.New("ticket_invalid")
 	}
-	b, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(text, ticketPrefix))
+	b, err := base64.RawURLEncoding.DecodeString(text[5:])
 	if err != nil || len(b) > maxTicketBytes {
 		return t, errors.New("ticket_invalid")
 	}
 	if err = json.Unmarshal(b, &t); err != nil {
 		return t, errors.New("ticket_invalid")
 	}
-	if t.Version != 1 || t.Protocol != "minecraft-tcp" || t.Kind != kind || len(t.Room) != 22 ||
+	if (t.Version != 1 && t.Version != 2) || text[:5] != "FYL"+strconv.Itoa(t.Version)+":" ||
+		t.Protocol != "minecraft-tcp" || t.Kind != kind || len(t.Room) != 22 ||
 		len(t.Ufrag) < 4 || len(t.Ufrag) > 256 || len(t.Pwd) < 22 || len(t.Pwd) > 256 ||
 		strings.ContainsAny(t.Ufrag+t.Pwd, " \r\n\t:") || len(t.Pin) != 64 ||
 		len(t.Candidates) == 0 || len(t.Candidates) > 32 {
+		return t, errors.New("ticket_invalid")
+	}
+	if (t.Version == 1 && t.Peer != "") || (kind == "offer" && t.Peer != "") ||
+		(t.Version == 2 && kind == "answer" && !validPeerID(t.Peer)) {
 		return t, errors.New("ticket_invalid")
 	}
 	if _, err := hex.DecodeString(t.Pin); err != nil {
@@ -128,7 +139,7 @@ func answerMAC(t ticket, secret string) (string, error) {
 }
 
 func validateAnswer(offer, answer ticket) error {
-	if answer.Room != offer.Room || answer.Protocol != offer.Protocol || answer.Expires != offer.Expires {
+	if answer.Version != offer.Version || answer.Room != offer.Room || answer.Protocol != offer.Protocol || answer.Expires != offer.Expires {
 		return errors.New("wrong_room")
 	}
 	want, err := answerMAC(answer, offer.Secret)
@@ -136,4 +147,21 @@ func validateAnswer(offer, answer ticket) error {
 		return errors.New("wrong_room")
 	}
 	return nil
+}
+
+func validPeerID(value string) bool {
+	b, err := base64.RawURLEncoding.DecodeString(value)
+	return err == nil && len(b) == 16 && base64.RawURLEncoding.EncodeToString(b) == value
+}
+
+// The reusable invitation advertises stable sockets, not a shared ICE session.
+// Every answer chooses a nonce; both ends derive the matching host credentials
+// without another offer. Distinct domains separate the username and password.
+func peerCredentials(offer ticket, peer string) (string, string) {
+	derive := func(domain string) string {
+		h := hmac.New(sha256.New, []byte(offer.Secret))
+		_, _ = h.Write([]byte("FYL-ROOM/2:" + domain + ":" + offer.Room + ":" + peer))
+		return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+	}
+	return derive("ufrag"), derive("password")
 }
